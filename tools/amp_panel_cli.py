@@ -91,6 +91,7 @@ CONFIG_KEYS = (
     "GAIN_SET_MIN",
     "GAIN_SET_MAX",
     "DEVICE_NAME",
+    "PORT_COUNT",
     "MDNS_HOSTNAME",
     "INITIAL_ADMIN_USERNAME",
     "PERSISTED_STATE_FILE",
@@ -351,6 +352,7 @@ def default_configuration() -> dict[str, str]:
         "GAIN_SET_MIN": "",
         "GAIN_SET_MAX": "",
         "DEVICE_NAME": device_name,
+        "PORT_COUNT": "2",
         "MDNS_HOSTNAME": _mdns_hostname(),
         "INITIAL_ADMIN_USERNAME": "admin",
         "PERSISTED_STATE_FILE": str(data_dir / "persisted_state.json"),
@@ -515,6 +517,7 @@ def validate_configuration(values: dict[str, str]) -> None:
         raise ConfigurationError(
             "Minimum safe gain must be lower than maximum safe gain."
         )
+    _safe_int(values.get("PORT_COUNT", "2"), "Number of equipped ports", 2, 7)
     serial_port = values.get("SERIAL_PORT", "")
     if serial_port != "/dev/null" and not SERIAL_PATTERN.fullmatch(serial_port):
         raise ConfigurationError(
@@ -583,6 +586,10 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
         "Maximum safe gain from the device specification",
         values["GAIN_SET_MAX"],
     )
+    values["PORT_COUNT"] = _prompt(
+        "How many optical ports does this device have (2-7)",
+        values.get("PORT_COUNT", "2"),
+    )
     values["RADIUS_SERVER"] = _prompt("RADIUS server", values["RADIUS_SERVER"])
     values["RADIUS_PORT"] = _prompt("RADIUS UDP port", values["RADIUS_PORT"])
     values["RADIUS_SECRET"] = _prompt(
@@ -605,6 +612,7 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
         "serial_port": "SERIAL_PORT",
         "gain_min": "GAIN_SET_MIN",
         "gain_max": "GAIN_SET_MAX",
+        "port_count": "PORT_COUNT",
         "radius_server": "RADIUS_SERVER",
         "radius_port": "RADIUS_PORT",
         "radius_secret": "RADIUS_SECRET",
@@ -1147,6 +1155,8 @@ def configure_command(args: argparse.Namespace) -> int:
             values["GAIN_SET_MIN"] = str(args.gain_min)
         if args.gain_max is not None:
             values["GAIN_SET_MAX"] = str(args.gain_max)
+        if args.port_count is not None:
+            values["PORT_COUNT"] = str(args.port_count)
         if args.radius_server:
             values["RADIUS_SERVER"] = args.radius_server
         if args.radius_port:
@@ -1374,6 +1384,7 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--serial-port")
     configure.add_argument("--gain-min")
     configure.add_argument("--gain-max")
+    configure.add_argument("--port-count", type=int)
     configure.add_argument("--radius-server")
     configure.add_argument("--radius-port", type=int)
     configure.add_argument("--radius-secret")

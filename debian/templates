@@ -47,6 +47,13 @@ Template: amp-panel/mdns-hostname
 Type: string
 Description: Local mDNS hostname, without .local:
 
+Template: amp-panel/port-count
+Type: string
+Default: 2
+Description: Number of equipped optical ports (2-7):
+ Ports 1 and 2 always report real measurements. Additional equipped ports
+ are shown as configured but without live data until wired to a sensor.
+
 Template: amp-panel/unconfigured
 Type: note
 Description: Amp Panel was installed but is not configured

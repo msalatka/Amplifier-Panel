@@ -1,3 +1,49 @@
+amp-panel (1.0.9) unstable; urgency=medium
+
+  * Add configurable PORT_COUNT (2-7) for Live View P1-P7 display.
+
+ -- Hubert Makara <hubertmakara77@gmail.com>  Thu, 30 Jul 2026 14:00:00 +0200
+
+amp-panel (1.0.8) unstable; urgency=medium
+
+  * Add configurable PORT_COUNT (2-7) for Live View P1-P7 display.
+
+ -- Hubert Makara <hubertmakara77@gmail.com>  Thu, 30 Jul 2026 14:00:00 +0200
+
+amp-panel (1.0.7) unstable; urgency=medium
+
+  * Add configurable PORT_COUNT (2-7) for Live View P1-P7 display.
+
+ -- Hubert Makara <hubertmakara77@gmail.com>  Thu, 30 Jul 2026 14:00:00 +0200
+
+amp-panel (1.0.6) unstable; urgency=medium
+
+  * Add configurable PORT_COUNT (2-7) for Live View P1-P7 display.
+
+ -- Hubert Makara <hubertmakara77@gmail.com>  Thu, 30 Jul 2026 14:00:00 +0200
+
+amp-panel (1.0.5) unstable; urgency=medium
+
+  * Consolidate Display into Live View as 6 clickable tabs, remove diagram.
+
+ -- Hubert Makara <hubertmakara77@gmail.com>  Thu, 30 Jul 2026 10:00:00 +0200
+
+amp-panel (1.0.4) unstable; urgency=medium
+
+  * Add 7 inputs 
+
+-- Hubert Makara <hubertmakara77@gmail.com>  Wed, 29 Jul 2026 12:00:00 +0200
+amp-panel (1.0.3) unstable; urgency=medium
+
+  * Add sth
+
+-- Hubert Makara <hubertmakara77@gmail.com>  Wed, 29 Jul 2026 12:00:00 +0200
+amp-panel (1.0.2) unstable; urgency=medium
+
+  * Add Display tab with 6-panel read-only overview.
+
+-- Hubert Makara <hubertmakara77@gmail.com>  Wed, 29 Jul 2026 12:00:00 +0200
+
 amp-panel (1.0.1) unstable; urgency=medium
 
   * Fix Debconf question fields.

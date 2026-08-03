@@ -1268,3 +1268,84 @@ select {
         position: static;
     }
 }
+.lvp-port-strip {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+ 
+.lvp-port-btn {
+    flex: 1;
+    padding: 8px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+}
+ 
+.lvp-port-btn.active {
+    background: rgb(0, 106, 60);
+    border-color: rgb(0, 106, 60);
+}
+ 
+.lvp-port-btn.lvp-unequipped-btn {
+    opacity: 0.45;
+}
+ 
+.lvp-detail-card {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 24px;
+}
+ 
+.lvp-detail-row span {
+    display: block;
+    font-size: 12px;
+    color: #9fb2aa;
+}
+ 
+.lvp-detail-row strong {
+    font-size: 14px;
+}
+ 
+.lvp-unequipped {
+    color: #777;
+    font-style: italic;
+}
+.lv-tabbar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+ 
+.lv-tab-btn {
+    flex: 1;
+    min-width: 90px;
+    padding: 8px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+}
+ 
+.lv-tab-btn.active {
+    background: rgb(0, 106, 60);
+    border-color: rgb(0, 106, 60);
+}
+ 
+.lv-tab-panel {
+    display: none;
+}
+ 
+.lv-tab-panel.active {
+    display: block;
+}

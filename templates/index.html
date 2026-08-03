@@ -31,7 +31,7 @@
                 <div class="nav-group">
                     <span class="nav-group-title">Device</span>
                     <button type="button" class="nav-link active" data-tab="standard-view" data-title="Live View">Live View</button>
-                    <button type="button" class="nav-link" data-tab="device-settings" data-title="Settings" data-operator-only>Settings</button>
+                    <button type="button" class="nav-link" data-tab="device-settings" data-title="Settings" data-operator-only>Settings</button> 
                 </div>
 
                 <div class="nav-group">
@@ -72,38 +72,102 @@
                 <section class="tab-panel active" data-tab="standard-view">
                     <div class="standard-grid">
                         <div class="amp-board">
-                            <div class="amp-diagram" aria-label="Amplifier diagram">
-                                <svg class="amp-lines" viewBox="0 0 900 330" role="img">
-                                    <defs>
-                                        <marker id="arrow-right" markerWidth="28" markerHeight="20" refX="0" refY="10" orient="auto" markerUnits="userSpaceOnUse">
-                                            <path d="M 0 0 L 26 10 L 0 20 z"></path>
-                                        </marker>
-                                    </defs>
+                            <div class="lv-tabbar">
+                                <button type="button" class="lv-tab-btn active" data-lvtab="laser">Laser</button>
+                                <button type="button" class="lv-tab-btn" data-lvtab="uplink">Uplink</button>
+                                <button type="button" class="lv-tab-btn" data-lvtab="ports">P1-P7</button>
+                                <button type="button" class="lv-tab-btn" data-lvtab="synth">Synth</button>
+                                <button type="button" class="lv-tab-btn" data-lvtab="tec">TEC</button>
+                                <button type="button" class="lv-tab-btn" data-lvtab="system">System</button>
+                            </div>
 
-                                    <line class="signal-line" x1="74" y1="88" x2="244" y2="88" marker-end="url(#arrow-right)"></line>
-                                    <line class="signal-line" x1="270" y1="242" x2="84" y2="242" marker-end="url(#arrow-right)"></line>
-                                    <line class="signal-line" x1="630" y1="88" x2="816" y2="88" marker-end="url(#arrow-right)"></line>
-                                    <line class="signal-line" x1="826" y1="242" x2="656" y2="242" marker-end="url(#arrow-right)"></line>
+                            <div class="lv-tab-panel active" data-lvpanel="laser">
+                                <div class="network-status-grid">
+                                    <div><span>State</span><strong id="lv-laser-state">--</strong></div>
+                                    <div><span>Gain Setpoint</span><strong id="lv-laser-gain-set">--</strong></div>
+                                    <div><span>Gain Actual</span><strong id="lv-laser-gain-actual">--</strong></div>
+                                    <div><span>Gain Delta</span><strong id="lv-laser-gain-delta">--</strong></div>
+                                    <div><span>Optical Frequency</span><strong>No data</strong></div>
+                                    <div><span>Optical Wavelength</span><strong>No data</strong></div>
+                                    <div><span>Central Frequency Set</span><strong>No data</strong></div>
+                                    <div><span>Scanning Frequency Span Set</span><strong>No data</strong></div>
+                                </div>
+                            </div>
 
-                                    <path class="amp-shape" d="M 270 35 L 630 165 L 270 295 Z"></path>
-                                    <path class="amp-shape" d="M 630 35 L 270 165 L 630 295 Z"></path>
-                                </svg>
+                            <div class="lv-tab-panel" data-lvpanel="uplink">
+                                <div class="network-status-grid">
+                                    <div><span>Type</span><strong>Uplink (PiA)</strong></div>
+                                    <div><span>State</span><strong id="lv-uplink-state">--</strong></div>
+                                    <div><span>Estimated Optical Power</span><strong id="lv-uplink-power">--</strong></div>
+                                    <div><span>Noise Low Frequency</span><strong>No data</strong></div>
+                                    <div><span>Noise High Frequency</span><strong>No data</strong></div>
+                                    <div><span>Description</span><strong>Input port A (PiA)</strong></div>
+                                </div>
+                            </div>
 
-                                <div class="port-readout port-a-in">
-                                    <span>PiA</span>
-                                    <strong id="PiA">-- dBm</strong>
+                            <div class="lv-tab-panel" data-lvpanel="ports">
+                                {% if port_count >= 1 %}
+                                <div class="network-status-grid">
+                                    <div><span>Port 1 - Type</span><strong>Output A</strong></div>
+                                    <div><span>Port 1 - State</span><strong id="lv-port1-state">--</strong></div>
+                                    <div><span>Port 1 - Estimated Optical Power</span><strong id="lv-port1-power">--</strong></div>
+                                    <div><span>Port 1 - Noise LF / HF</span><strong>No data</strong></div>
+                                    <div><span>Port 1 - Jitter</span><strong>No data</strong></div>
+                                    <div><span>Port 1 - Description</span><strong>Output port A (PoA)</strong></div>
                                 </div>
-                                <div class="port-readout port-a-out">
-                                    <span>PoA</span>
-                                    <strong id="PoA">-- dBm</strong>
+                                {% endif %}
+                                {% if port_count >= 2 %}
+                                <div class="network-status-grid" style="margin-top: 14px;">
+                                    <div><span>Port 2 - Type</span><strong>Output B</strong></div>
+                                    <div><span>Port 2 - State</span><strong id="lv-port2-state">--</strong></div>
+                                    <div><span>Port 2 - Estimated Optical Power</span><strong id="lv-port2-power">--</strong></div>
+                                    <div><span>Port 2 - Noise LF / HF</span><strong>No data</strong></div>
+                                    <div><span>Port 2 - Jitter</span><strong>No data</strong></div>
+                                    <div><span>Port 2 - Description</span><strong>Output port B (PoB)</strong></div>
                                 </div>
-                                <div class="port-readout port-b-out">
-                                    <span>PoB</span>
-                                    <strong id="PoB">-- dBm</strong>
+                                {% endif %}
+                                {% for extra_port in range(3, port_count + 1) %}
+                                <div class="network-status-grid" style="margin-top: 14px;">
+                                    <div><span>Port {{ extra_port }} - Type</span><strong>Equipped</strong></div>
+                                    <div><span>Port {{ extra_port }} - State</span><strong>No data</strong></div>
+                                    <div><span>Port {{ extra_port }} - Estimated Optical Power</span><strong>No data</strong></div>
+                                    <div><span>Port {{ extra_port }} - Noise LF / HF</span><strong>No data</strong></div>
+                                    <div><span>Port {{ extra_port }} - Jitter</span><strong>No data</strong></div>
+                                    <div><span>Port {{ extra_port }} - Description</span><strong>No sensor wired yet</strong></div>
                                 </div>
-                                <div class="port-readout port-b-in">
-                                    <span>PiB</span>
-                                    <strong id="PiB">-- dBm</strong>
+                                {% endfor %}
+                                {% if port_count < 7 %}
+                                <div class="network-status-grid" style="margin-top: 14px; opacity: 0.5;">
+                                    {% for unequipped_port in range(port_count + 1, 8) %}
+                                    <div><span>Port {{ unequipped_port }}</span><strong>Unequipped</strong></div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="lv-tab-panel" data-lvpanel="synth">
+                                <div class="network-status-grid">
+                                    <div><span>Status</span><strong>No data</strong></div>
+                                    <div><span>10 MHz reference source</span><strong>No data</strong></div>
+                                    <div><span>External 10 MHz</span><strong>No data</strong></div>
+                                </div>
+                            </div>
+
+                            <div class="lv-tab-panel" data-lvpanel="tec">
+                                <div class="network-status-grid">
+                                    <div><span>Status</span><strong>No data</strong></div>
+                                    <div><span>Temperature Set</span><strong>No data</strong></div>
+                                    <div><span>Temperature Read</span><strong id="lv-tec-temperature">--</strong></div>
+                                    <div><span>Power Usage</span><strong>No data</strong></div>
+                                </div>
+                            </div>
+
+                            <div class="lv-tab-panel" data-lvpanel="system">
+                                <div class="network-status-grid">
+                                    <div><span>Hostname</span><strong id="lv-system-hostname">--</strong></div>
+                                    <div><span>IP Address</span><strong id="lv-system-ip">--</strong></div>
+                                    <div><span>Netmask</span><strong id="lv-system-netmask">--</strong></div>
+                                    <div><span>Time [UTC]</span><strong id="lv-system-time">--</strong></div>
                                 </div>
                             </div>
 
@@ -129,7 +193,6 @@
                                 <strong id="warning-count">0</strong>
                             </div>
                         </div>
-
                     </div>
                 </section>
 
@@ -618,5 +681,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/dashboard.js?v={{ static_asset_version }}"></script>
+    <script src="/static/js/live-view-display.js?v={{ static_asset_version }}"></script>
 </body>
 </html>

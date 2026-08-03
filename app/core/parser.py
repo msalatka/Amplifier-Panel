@@ -1,5 +1,9 @@
 KEY_ALIASES = {
     "T": "temperature",
+    "p_a_in": "PiA",
+    "p_a_out": "PoA",
+    "p_b_in": "PiB",
+    "p_b_out": "PoB",
 }
 
 

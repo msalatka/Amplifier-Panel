@@ -53,6 +53,7 @@ read_answer data-dir DATA_DIR
 read_answer serial-port SERIAL_PORT
 read_answer gain-min GAIN_MIN
 read_answer gain-max GAIN_MAX
+read_answer port-count PORT_COUNT
 read_answer radius-server RADIUS_SERVER
 read_answer radius-port RADIUS_PORT
 read_answer radius-secret RADIUS_SECRET

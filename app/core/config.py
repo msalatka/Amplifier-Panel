@@ -74,6 +74,12 @@ INITIAL_ADMIN_USERNAME = _initial_admin_username(
     os.getenv("INITIAL_ADMIN_USERNAME")
 )
 
+# Ile portow (P1-P7) urzadzenie fizycznie ma wyposazonych. Ograniczone do
+# zakresu 2-7 (2 realne kanaly A/B do 7 - maksimum wedlug specyfikacji
+# urzadzenia). Uzywane wylacznie do wyswietlania w Live View - nie tworzy
+# nowych zrodel danych.
+PORT_COUNT = min(7, max(2, _env_int("PORT_COUNT", 2)))
+
 DATABASE_FILE = os.getenv("DATABASE_FILE", "/var/lib/amp-panel/measurements.db")
 DATABASE_MAX_RECORDS = max(0, _env_int("DATABASE_MAX_RECORDS", 0))
 HISTORY_MAX_POINTS = max(100, _env_int("HISTORY_MAX_POINTS", 2000))

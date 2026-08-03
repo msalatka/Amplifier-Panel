@@ -53,6 +53,7 @@ db_input high amp-panel/data-dir || true
 db_input high amp-panel/serial-port || true
 db_input high amp-panel/gain-min || true
 db_input high amp-panel/gain-max || true
+db_input high amp-panel/port-count || true
 db_input high amp-panel/radius-server || true
 db_input high amp-panel/radius-port || true
 db_input high amp-panel/radius-secret || true
