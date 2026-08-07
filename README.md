@@ -51,3 +51,59 @@ the interface:
 ```console
 python tools/generate_program_flow_diagram.py
 ```
+## Setting up a RADIUS server
+
+`amp-panel` does not host RADIUS itself. A reachable RADIUS server must
+exist before you run the installer, on a separate host from the panel.
+
+A ready-to-run installer for this server is included in the repository:
+
+```bash
+cd server_setup
+sudo ./install_radius_server.sh
+```
+
+The script installs FreeRADIUS, prompts for the panel host's IP (or CIDR)
+to register it as a RADIUS client, and generates a shared secret if you
+don't provide one. Keep the printed secret — you'll need it during
+`amp-panel configure`.
+
+### Adding user accounts
+
+Every username that will log into the panel — the initial administrator and
+any Operator or Viewer accounts added later in Access Control — needs a
+matching account on the RADIUS server. The panel only assigns a role and
+active status to a username; it does not create or store RADIUS accounts
+or passwords.
+
+Accounts are managed directly on the RADIUS server, in
+`/etc/freeradius/3.0/users`:
+
+admin Cleartext-Password := "a-strong-password-here"
+
+
+### If the panel is reachable through NAT or a container bridge
+
+The address FreeRADIUS sees as the request source may not match the panel
+host's own IP — for example when the panel runs in Docker, or reaches
+RADIUS through a forwarded/NAT connection. If login fails with
+"Authentication server unavailable" after installation, confirm the real
+source address:
+
+```bash
+sudo systemctl stop freeradius
+sudo freeradius -X
+```
+
+Attempt a login from the panel while this is running and look for a line
+like `Ignoring request ... from unknown client X.X.X.X`. Add that address
+(or a covering range) as a client in `/etc/freeradius/3.0/clients.conf`,
+then restart normally:
+
+```bash
+sudo systemctl start freeradius
+```
+
+With the server running and at least one user account created, proceed to
+`amp-panel configure` on the panel host and supply this server's address,
+port (1812 by default), and the shared secret printed by the installer.
