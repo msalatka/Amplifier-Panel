@@ -1,4 +1,4 @@
-amp-panel (1.1.3) unstable; urgency=medium
+amp-panel (1.0) unstable; urgency=medium
 
   * Rename the module rack view to the FTS-LS front panel.
   * Normalize FTS-LS measurement units and use the documented BNA label.
