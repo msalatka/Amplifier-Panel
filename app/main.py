@@ -84,6 +84,7 @@ def static_asset_version() -> str:
     digest = hashlib.sha256()
     asset_paths = [
         pathlib.Path("static/css/style.css"),
+        pathlib.Path("static/vendor/chart.js/chart.umd.min.js"),
         *sorted(pathlib.Path("static/js").glob("dashboard*.js")),
     ]
     for path in asset_paths:

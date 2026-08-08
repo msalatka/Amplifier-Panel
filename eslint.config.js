@@ -25,7 +25,7 @@ module.exports = [
 		files: ['static/js/dashboard*.js'],
 		rules: {
 			// These classic scripts intentionally share one browser-global scope and are
-			// loaded in the order documented in docs/architecture.md.
+			// loaded in the order defined at the end of templates/index.html.
 			'no-undef': 'off',
 			'no-unused-vars': 'off',
 		},

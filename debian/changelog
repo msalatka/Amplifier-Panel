@@ -1,54 +1,8 @@
-amp-panel (1.0) unstable; urgency=medium
+amp-panel (0.1.0) unstable; urgency=medium
 
-  * Rename the module rack view to the FTS-LS front panel.
-  * Normalize FTS-LS measurement units and use the documented BNA label.
-  * Warn about unsaved module settings only after an actual user edit.
+  * Initial pre-release of the optical equipment control panel.
+  * Support optical amplifier and FTS-LS device profiles.
+  * Provide authenticated monitoring, control, history, diagnostics, and Debian packaging.
+  * Bundle Chart.js locally for offline operation.
 
- -- Amp Panel Team <amp-panel@localhost>  Mon, 03 Aug 2026 10:00:00 +0200
-
-amp-panel (1.1.2) unstable; urgency=medium
-
-  * Build the FTS-LS live rack dynamically from detected modules and ports.
-  * Select equipped optical modules directly from Live View.
-  * Flatten FTS-LS Settings and Service Diagnostics into section-based panels.
-
- -- Amp Panel Team <amp-panel@localhost>  Sun, 02 Aug 2026 20:30:00 +0200
-
-amp-panel (1.1.1) unstable; urgency=medium
-
-  * Keep Overview, Statistics and CSV controls consistent for FTS-LS.
-  * Rework FTS-LS settings into Save and Cancel sections.
-  * Show configuration progress and bound system command execution time.
-
- -- Amp Panel Team <amp-panel@localhost>  Sun, 02 Aug 2026 20:00:00 +0200
-
-amp-panel (1.1.0) unstable; urgency=medium
-
-  * Add selectable optical amplifier and FTS-LS Laser Station profiles.
-  * Add the modular 1 x 7 Laser Station live view and validated controls.
-  * Store and export FTS-LS status snapshots from SQLite.
-
- -- Amp Panel Team <amp-panel@localhost>  Sun, 02 Aug 2026 18:00:00 +0200
-
-amp-panel (1.0.2) unstable; urgency=medium
-
-  * Make the status command non-interactive and omit journal samples.
-  * Disable pagers for every systemctl and journalctl wrapper command.
-  * Handle command interruption without a Python traceback.
-  * Stop writing every serial measurement to the system journal.
-
- -- Amp Panel Team <amp-panel@localhost>  Thu, 30 Jul 2026 12:00:00 +0200
-
-amp-panel (1.0.1) unstable; urgency=medium
-
-  * Fix Debconf question fields.
-  * Avoid requiring an unused default data directory in the service sandbox.
-  * Create the default data directory before adding the system user.
-
- -- Amp Panel Team <amp-panel@localhost>  Tue, 28 Jul 2026 13:40:00 +0200
-
-amp-panel (1.0.0) unstable; urgency=medium
-
-  * Initial native Debian package.
-
- -- Amp Panel Team <amp-panel@localhost>  Tue, 28 Jul 2026 13:00:00 +0200
+ -- Amp Panel Team <amp-panel@localhost>  Sat, 08 Aug 2026 12:00:00 +0200

@@ -159,5 +159,6 @@ class AmpPanelCliTests(unittest.TestCase):
         self.assertEqual(values["GAIN_SET_MIN"], "-100")
         self.assertEqual(values["GAIN_SET_MAX"], "100")
 
+
 if __name__ == "__main__":
     unittest.main()

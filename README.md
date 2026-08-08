@@ -1,109 +1,109 @@
 # Optical equipment control panel
 
-The optical equipment control panel is a local web dashboard for monitoring and controlling one of two
-device profiles:
+Local web application for monitoring and controlling one connected optical
+device. The selected device profile determines the serial protocol and
+available interface:
 
-- `amplifier` — an optical amplifier with line-oriented telemetry;
-- `fts-ls` — a Frequency Transfer System laser station controlled through an
-  authenticated serial console.
+- `amplifier` — optical amplifier with line-oriented telemetry;
+- `fts-ls` — Frequency Transfer System laser station with an authenticated serial console.
 
 ## Building the Debian package
 
-Install the build tools once on a clean Debian system:
+Install the build dependencies once on a clean Debian system:
 
 ```console
 sudo apt update
 sudo apt install build-essential debhelper git python3 python3-pip
 ```
 
-When already logged in as `root`, omit `sudo` from these commands.
+When already logged in as `root`, omit `sudo`. The `debhelper` package provides
+the required `debhelper-compat (= 13)` dependency.
 
-The `debhelper` package provides the required `debhelper-compat (= 13)` build
-dependency. Build the package from the project root:
+Build the package from the project root:
 
 ```console
 ./packaging/build_deb.sh
 ```
 
-The script checks the Debian build dependencies before starting and prints the
-required installation command when one is missing. The resulting `.deb` file is
-written to the parent directory of the project.
+The script verifies the build dependencies and writes the resulting `.deb` file
+to the parent directory of the project.
 
-## Documentation
+## Installing and configuring
 
-The complete operating, administration, and maintenance manual is maintained in
-LaTeX:
-
-- source: [`docs/AMP_PANEL_MANUAL.tex`](docs/AMP_PANEL_MANUAL.tex);
-- printable output: `docs/AMP_PANEL_MANUAL.pdf`.
-
-Compile it twice so the table of contents and references are updated:
+Install the generated package, using its exact filename:
 
 ```console
-cd docs
-pdflatex -interaction=nonstopmode -halt-on-error AMP_PANEL_MANUAL.tex
-pdflatex -interaction=nonstopmode -halt-on-error AMP_PANEL_MANUAL.tex
+cd ..
+sudo apt install "./amp-panel_0.1.0_$(dpkg --print-architecture).deb"
 ```
 
-The program-operation diagram is generated from code rather than captured from
-the interface:
+The installer asks for the device profile, serial connection, initial
+administrator, and RADIUS settings. Configuration can be repeated later:
 
 ```console
-python tools/generate_program_flow_diagram.py
+sudo amp-panel configure
 ```
+
+Verify the installation with:
+
+```console
+sudo amp-panel doctor
+sudo amp-panel status
+```
+
+## Frontend dependency
+
+Chart.js `4.5.1` is pinned in `package.json` and stored locally in
+`static/vendor/chart.js`. Charts therefore do not require Internet access. When
+upgrading the library, update both the bundled script and its license file.
+
 ## Setting up a RADIUS server
 
-`amp-panel` does not host RADIUS itself. A reachable RADIUS server must
-exist before you run the installer, on a separate host from the panel.
+The panel does not host RADIUS. A reachable RADIUS server must exist on a
+separate host before the panel is configured.
 
-A ready-to-run installer for this server is included in the repository:
+The repository includes a FreeRADIUS setup script:
 
-```bash
+```console
 cd server_setup
 sudo ./install_radius_server.sh
 ```
 
-The script installs FreeRADIUS, prompts for the panel host's IP (or CIDR)
-to register it as a RADIUS client, and generates a shared secret if you
-don't provide one. Keep the printed secret — you'll need it during
-`amp-panel configure`.
+The script asks for the panel host's IP address or CIDR, registers it as a
+RADIUS client, and generates a shared secret when one is not supplied. Keep that
+secret for `amp-panel configure`.
 
 ### Adding user accounts
 
-Every username that will log into the panel — the initial administrator and
-any Operator or Viewer accounts added later in Access Control — needs a
-matching account on the RADIUS server. The panel only assigns a role and
-active status to a username; it does not create or store RADIUS accounts
-or passwords.
+Every user allowed to sign in to the panel must also have an account on the
+RADIUS server. The panel stores the username, role, and active status, but it
+does not create or store RADIUS passwords.
 
-Accounts are managed directly on the RADIUS server, in
-`/etc/freeradius/3.0/users`:
+On a standard FreeRADIUS installation, accounts are defined in
+`/etc/freeradius/3.0/users`, for example:
 
+```text
 admin Cleartext-Password := "a-strong-password-here"
+```
 
+### Diagnosing an unknown RADIUS client
 
-### If the panel is reachable through NAT or a container bridge
+When traffic passes through NAT or another forwarded network path, FreeRADIUS
+may see a different source address than the panel host's address. To identify
+it:
 
-The address FreeRADIUS sees as the request source may not match the panel
-host's own IP — for example when the panel runs in Docker, or reaches
-RADIUS through a forwarded/NAT connection. If login fails with
-"Authentication server unavailable" after installation, confirm the real
-source address:
-
-```bash
+```console
 sudo systemctl stop freeradius
 sudo freeradius -X
 ```
 
-Attempt a login from the panel while this is running and look for a line
-like `Ignoring request ... from unknown client X.X.X.X`. Add that address
-(or a covering range) as a client in `/etc/freeradius/3.0/clients.conf`,
-then restart normally:
+Attempt a login and look for `Ignoring request ... from unknown client
+X.X.X.X`. Add the reported address or an appropriate network range to
+`/etc/freeradius/3.0/clients.conf`, then restart the service:
 
-```bash
+```console
 sudo systemctl start freeradius
 ```
 
-With the server running and at least one user account created, proceed to
-`amp-panel configure` on the panel host and supply this server's address,
-port (1812 by default), and the shared secret printed by the installer.
+Finally, run `amp-panel configure` on the panel host and provide the RADIUS
+server address, UDP port (`1812` by default), and shared secret.
