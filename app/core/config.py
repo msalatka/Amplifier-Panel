@@ -1,3 +1,5 @@
+"""Validated process configuration loaded from environment variables."""
+
 import math
 import os
 import re

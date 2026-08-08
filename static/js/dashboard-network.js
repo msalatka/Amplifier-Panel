@@ -304,7 +304,7 @@ function formatBytes(bytes) {
 	return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GiB`
 }
 
-function formatDuration(seconds) {
+function formatRetentionDuration(seconds) {
 	const value = Number(seconds)
 	if (!Number.isFinite(value) || value < 0) return '--'
 	if (value < 60) return `${Math.max(0, Math.round(value))} seconds`
@@ -350,8 +350,8 @@ function updateDatabaseLimitPreview() {
 		preview.textContent = 'The time estimate will appear after at least two samples are stored.'
 		return
 	}
-	const capacity = formatDuration(limit / rate)
-	const remaining = formatDuration(Math.max(0, limit - records) / rate)
+	const capacity = formatRetentionDuration(limit / rate)
+	const remaining = formatRetentionDuration(Math.max(0, limit - records) / rate)
 	preview.textContent = `About ${capacity} of history; oldest records start being removed in ${remaining}.`
 }
 
@@ -399,17 +399,17 @@ async function loadServiceDiagnostics() {
 			'service-database-retention',
 			database.record_limit === 0
 				? 'Unlimited (disk space applies)'
-				: formatDuration(database.estimated_retention_seconds),
+				: formatRetentionDuration(database.estimated_retention_seconds),
 		)
 		setTextIfExists(
 			'service-database-time-to-limit',
 			database.record_limit === 0
 				? 'Not applicable'
-				: formatDuration(database.estimated_seconds_to_limit),
+				: formatRetentionDuration(database.estimated_seconds_to_limit),
 		)
 		setTextIfExists(
 			'service-database-disk-time',
-			formatDuration(database.estimated_seconds_until_disk_full),
+			formatRetentionDuration(database.estimated_seconds_until_disk_full),
 		)
 		setTextIfExists('service-database-file', database.file || '--')
 		setTextIfExists('service-database-size', formatBytes(database.size_bytes))

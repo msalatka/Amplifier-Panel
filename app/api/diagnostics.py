@@ -1,3 +1,5 @@
+"""Administrative diagnostics and host-integration HTTP endpoints."""
+
 import asyncio
 import datetime
 import re
@@ -21,6 +23,8 @@ heartbeat_settings_changed = asyncio.Event()
 
 
 class NetworkSettingsRequest(pydantic.BaseModel):
+    """NetworkManager settings submitted for a guarded network change."""
+
     interface: str
     mode: str
     ip_address: str = ""
@@ -30,16 +34,22 @@ class NetworkSettingsRequest(pydantic.BaseModel):
 
 
 class NetworkConfirmationRequest(pydantic.BaseModel):
+    """Token confirming that a network change kept the panel reachable."""
+
     token: str
 
 
 class ServiceSettingsRequest(pydantic.BaseModel):
+    """Runtime service settings editable from the diagnostics page."""
+
     syslog_heartbeat_seconds: int
     database_max_records: int
     serial_port: str
 
 
 class SnmpSettingsUpdateRequest(pydantic.BaseModel):
+    """SNMP agent and trap destination settings."""
+
     enabled: bool
     port: int
     community: str
@@ -51,6 +61,8 @@ class SnmpSettingsUpdateRequest(pydantic.BaseModel):
 def service_diagnostics(
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return serial, storage, syslog, and service runtime diagnostics."""
+
     with state.state_lock:
         settings = state.service_settings.copy()
     storage = database_service.get_storage_status()
@@ -93,6 +105,8 @@ async def update_service_diagnostics_settings(
     http_request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Validate and apply editable service diagnostics settings."""
+
     if request.syslog_heartbeat_seconds != 0 and request.syslog_heartbeat_seconds < 10:
         raise fastapi.HTTPException(
             status_code=400, detail="Heartbeat must be 0 or at least 10 seconds"
@@ -135,6 +149,8 @@ def get_network_settings(
     request: starlette.requests.Request,
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return network state from the restricted host network agent."""
+
     try:
         return network_service.get_network_state(api_security.get_client_ip(request))
     except network_service.NetworkError as exc:
@@ -147,6 +163,8 @@ def update_network_settings(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Apply a guarded network change and return its confirmation token."""
+
     client_ip = api_security.get_client_ip(request)
     try:
         before = network_service.get_network_state(client_ip)
@@ -176,6 +194,8 @@ def confirm_network_settings(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Confirm a pending network change before its rollback deadline."""
+
     try:
         result = network_service.confirm_network_settings(
             confirmation.token,
@@ -196,6 +216,8 @@ def get_ntp_status(
     force: bool = False,
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return cached or freshly queried NTP synchronization diagnostics."""
+
     return ntp_service.query_ntp_status(force=force)
 
 
@@ -204,6 +226,8 @@ def export_syslog_log(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Audit and download the locally exported application log."""
+
     api_security.audit_event(request, "syslog_exported", current_user["username"])
     path = syslog_service.get_syslog_log_path()
     filename = f"amp_syslog_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -222,6 +246,8 @@ def get_snmp_live_data(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return the values currently exposed by the SNMP agent."""
+
     with state.state_lock:
         return dict(state.latest_snmp_data)
 
@@ -230,6 +256,8 @@ def get_snmp_live_data(
 def get_snmp_settings(
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return persisted SNMP agent and trap settings."""
+
     with state.state_lock:
         return dict(state.snmp_settings)
 
@@ -240,6 +268,8 @@ def update_snmp_settings(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Validate, persist, audit, and activate SNMP settings."""
+
     if settings.port != config.SNMP_PORT:
         raise fastapi.HTTPException(
             status_code=400,

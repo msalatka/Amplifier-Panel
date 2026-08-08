@@ -1,3 +1,5 @@
+"""FTS-LS capabilities, control, status, and history endpoints."""
+
 import csv
 import datetime
 import io
@@ -30,12 +32,16 @@ CSV_EXPORT_LOCK = threading.Lock()
 
 
 class DeviceCommandRequest(pydantic.BaseModel):
+    """Validated envelope for an FTS-LS control action."""
+
     action: str
     parameters: dict = pydantic.Field(default_factory=dict)
     confirmed: bool = False
 
 
 def require_profile() -> None:
+    """Reject an FTS-LS request when another device profile is active."""
+
     if config.DEVICE_PROFILE != "fts-ls":
         raise fastapi.HTTPException(
             status_code=409,
@@ -49,6 +55,8 @@ def capabilities(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Describe controls and ranges supported by the FTS-LS profile."""
+
     require_profile()
     return {
         "profile": "fts-ls",
@@ -94,6 +102,8 @@ def get_status(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return the latest normalized FTS-LS station status."""
+
     require_profile()
     with state.state_lock:
         return {
@@ -110,6 +120,8 @@ def command(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
+    """Authorize, validate, execute, and audit one FTS-LS action."""
+
     require_profile()
     action = body.action.strip().lower().replace("-", "_")
     if action in ADMIN_ONLY_ACTIONS and current_user["role"] != "Administrator":
@@ -157,6 +169,8 @@ def history(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return normalized FTS-LS snapshots from SQLite history."""
+
     require_profile()
     range_value, start, end, points = _history(range_value, start, end, limit)
     return {
@@ -200,6 +214,8 @@ def export_history(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Flatten and export normalized FTS-LS snapshots as CSV."""
+
     require_profile()
     if not CSV_EXPORT_LOCK.acquire(blocking=False):
         raise fastapi.HTTPException(status_code=429, detail="Another CSV export is in progress")

@@ -47,25 +47,6 @@ def _create_schema(opened_connection: sqlite3.Connection) -> None:
     database_schema.create_schema(opened_connection)
 
 
-def _empty_statistics_state() -> dict:
-    return database_statistics.empty_statistics_state(HISTORY_FIELDS)
-
-
-def _consume_statistics_row(statistics: dict, row: sqlite3.Row) -> None:
-    database_statistics.consume_statistics_row(statistics, row, HISTORY_FIELDS)
-
-
-def _store_hourly_statistics(
-    opened_connection: sqlite3.Connection,
-    bucket_ms: int,
-    sample_count: int,
-    statistics: dict,
-) -> None:
-    database_statistics.store_hourly_statistics(
-        opened_connection, bucket_ms, sample_count, statistics
-    )
-
-
 def _rebuild_hourly_bucket(
     opened_connection: sqlite3.Connection,
     bucket_ms: int,
@@ -119,6 +100,8 @@ def init_database() -> None:
 
 
 def close_database() -> None:
+    """Checkpoint pending WAL data and close the shared SQLite connection."""
+
     global connection
     with database_lock:
         if connection is not None:
@@ -243,6 +226,8 @@ def write_measurement(data: dict, timestamp: str | None = None) -> bool:
 
 
 def write_setpoint(gain_set: float, timestamp: str | None = None) -> bool:
+    """Persist one amplifier gain-setpoint event."""
+
     global last_error
     try:
         timestamp_value = _timestamp_ms(timestamp)
@@ -304,6 +289,8 @@ def write_device_snapshot(
 
 
 def get_record_count() -> int:
+    """Return the number of stored amplifier measurement samples."""
+
     init_database()
     if connection is None:
         return 0
@@ -318,6 +305,8 @@ def get_record_count() -> int:
 
 
 def get_device_snapshot_count(profile: str | None = None) -> int:
+    """Return stored device-snapshot count, optionally for one profile."""
+
     init_database()
     if connection is None:
         return 0
@@ -341,6 +330,8 @@ def get_device_snapshot_count(profile: str | None = None) -> int:
 
 
 def apply_record_limit() -> int:
+    """Prune oldest records to the active profile's configured storage limit."""
+
     init_database()
     if connection is None:
         return 0
@@ -360,6 +351,8 @@ def apply_record_limit() -> int:
 
 
 def get_storage_status() -> dict:
+    """Return database size, capacity, rate, and retention estimates."""
+
     database_path = pathlib.Path(config.DATABASE_FILE)
     database_files = (
         database_path,
@@ -855,6 +848,8 @@ def stream_raw_history(
         return None
 
     def generate_points():
+        """Yield raw history rows while holding the database lock safely."""
+
         try:
             while rows := cursor.fetchmany(max(1, batch_size)):
                 for row in rows:

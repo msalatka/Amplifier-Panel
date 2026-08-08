@@ -34,7 +34,6 @@ except ImportError:  # pragma: no cover - available on the Debian target
 
 
 PRODUCT_NAME = "Amp Panel"
-PACKAGE_NAME = "amp-panel"
 VERSION = "0.1.0"
 EXIT_NOT_CONFIGURED = 2
 
@@ -128,6 +127,8 @@ CONFIG_KEYS = (
 
 
 class ConfigurationError(RuntimeError):
+    """A user-facing validation or system-configuration failure."""
+
     pass
 
 
@@ -201,6 +202,8 @@ def _env_value(value: str) -> str:
 
 
 def read_env_file(path: pathlib.Path) -> dict[str, str]:
+    """Read a restricted shell-style environment file without executing it."""
+
     values: dict[str, str] = {}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -227,6 +230,8 @@ def read_env_file(path: pathlib.Path) -> dict[str, str]:
 
 
 def write_env_file(path: pathlib.Path, values: dict[str, str]) -> None:
+    """Atomically write validated configuration values as a protected env file."""
+
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "# Managed by amp-panel. Run 'sudo amp-panel configure' to change it.",
@@ -267,6 +272,8 @@ def _secure_configuration_file(path: pathlib.Path) -> bool:
 
 
 def discover_configuration() -> pathlib.Path | None:
+    """Return the system configuration path only when its permissions are safe."""
+
     return CONFIG_FILE if _secure_configuration_file(CONFIG_FILE) else None
 
 
@@ -311,6 +318,8 @@ def _serial_device() -> str:
 
 
 def default_configuration() -> dict[str, str]:
+    """Build installation defaults from detected hardware and standard paths."""
+
     data_dir = DEFAULT_DATA_DIR.resolve()
     device_name = _device_name()
     return {
@@ -410,6 +419,8 @@ def _normalized_data_dir(value: str, source: pathlib.Path | None = None) -> path
 
 
 def merge_configuration(source_values: dict[str, str]) -> dict[str, str]:
+    """Overlay recognized existing values onto current configuration defaults."""
+
     translated = default_configuration()
     for key in CONFIG_KEYS:
         if key in source_values:
@@ -420,6 +431,8 @@ def merge_configuration(source_values: dict[str, str]) -> dict[str, str]:
 
 
 def validate_configuration(values: dict[str, str]) -> None:
+    """Reject unsafe or inconsistent values before writing system files."""
+
     if not USERNAME_PATTERN.fullmatch(values.get("INITIAL_ADMIN_USERNAME", "")):
         raise ConfigurationError("The Administrator username is invalid.")
     _safe_int(values.get("AMP_PANEL_PORT"), "Web port", 1024, 65535)
@@ -491,6 +504,8 @@ def _prompt(label: str, default: str = "", *, secret: bool = False) -> str:
 
 
 def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
+    """Prompt an administrator for profile, serial, host, and service settings."""
+
     print("\nAmp Panel configuration\n")
     previous_profile = values.get("DEVICE_PROFILE", "amplifier")
     profile = _prompt(
@@ -611,6 +626,8 @@ def _chown(path: pathlib.Path, uid: int | None, gid: int | None) -> None:
 
 
 def prepare_data_directory(values: dict[str, str]) -> None:
+    """Create runtime storage with ownership and permissions for the service."""
+
     data_dir = _normalized_data_dir(values["AMP_PANEL_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
     uid, gid = _lookup_identity()
@@ -639,6 +656,8 @@ def _write_text(path: pathlib.Path, content: str, mode: int = 0o644) -> None:
 
 
 def write_system_configuration(values: dict[str, str]) -> None:
+    """Write application, logging, discovery, and time-service configuration."""
+
     data_dir = pathlib.Path(values["AMP_PANEL_DATA_DIR"])
     _write_text(
         SYSTEMD_OVERRIDE_DIR / "paths.conf",
@@ -740,6 +759,8 @@ def _service_exists(service: str) -> bool:
 
 
 def apply_hostname(values: dict[str, str]) -> None:
+    """Apply the configured hostname on a supported systemd host."""
+
     if (
         os.name != "posix"
         or os.geteuid() != 0
@@ -762,6 +783,8 @@ def apply_hostname(values: dict[str, str]) -> None:
 
 
 def reload_services(*, start: bool) -> None:
+    """Reload systemd and optionally enable and restart panel services."""
+
     if not _command_exists("systemctl"):
         return
     if _command_exists("rsyslogd"):
@@ -896,6 +919,8 @@ def configure_command(args: argparse.Namespace) -> int:
 
 
 def load_current_configuration() -> dict[str, str]:
+    """Load and validate the installed system configuration."""
+
     if not CONFIG_FILE.is_file():
         raise ConfigurationError("Amp Panel is not configured. Run: sudo amp-panel configure")
     values = read_env_file(CONFIG_FILE)
@@ -904,6 +929,8 @@ def load_current_configuration() -> dict[str, str]:
 
 
 def paths_command(_args: argparse.Namespace) -> int:
+    """Print installed configuration, data, log, and runtime locations."""
+
     try:
         values = load_current_configuration()
         data_dir = values["AMP_PANEL_DATA_DIR"]
@@ -918,6 +945,8 @@ def paths_command(_args: argparse.Namespace) -> int:
 
 
 def systemctl_command(action: str) -> int:
+    """Run an allowed lifecycle action for both panel systemd services."""
+
     if not _command_exists("systemctl"):
         print("systemctl is unavailable.", file=sys.stderr)
         return 1
@@ -929,6 +958,8 @@ def systemctl_command(action: str) -> int:
 
 
 def logs_command(args: argparse.Namespace) -> int:
+    """Print a bounded journal sample for panel services."""
+
     if not _command_exists("journalctl"):
         print("journalctl is unavailable.", file=sys.stderr)
         return 1
@@ -1073,6 +1104,8 @@ def data_dir_command(args: argparse.Namespace) -> int:
 
 
 def version_command(_args: argparse.Namespace) -> int:
+    """Print the installed package version or the built-in fallback."""
+
     try:
         version = VERSION_FILE.read_text(encoding="ascii").strip()
     except OSError:
@@ -1082,6 +1115,8 @@ def version_command(_args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Construct the command-line parser and all supported subcommands."""
+
     parser = argparse.ArgumentParser(prog="amp-panel")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -1133,6 +1168,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Iterable[str] | None = None) -> int:
+    """Parse command-line arguments and dispatch the selected administration task."""
+
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
     try:

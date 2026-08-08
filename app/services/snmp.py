@@ -1,3 +1,5 @@
+"""Read-only SNMP agent, live-value mapping, and warning trap sender."""
+
 import asyncio
 import threading
 import time
@@ -17,7 +19,7 @@ TRAP_OID = f"{OID_BASE_STR}.4.1"
 
 # Complete OID-to-Arduino-data-field map.
 # .1.1.0        = serial-port connection status
-# .2.<n>.0      = amplifier measurements (see tools/snmp_probe.py)
+# .2.<n>.0      = amplifier measurements defined by the device schema
 STATUS_OID = f"{OID_BASE_STR}.1.1.0"
 
 FIELD_OID_MAP = {
@@ -105,7 +107,11 @@ def _refresh_live_snapshot():
 
 
 class CustomInstrum:
+    """Expose application state through the instrumentation API expected by pysnmp."""
+
     def read_variables(self, *args, **kwargs):
+        """Resolve SNMP GET bindings from the latest application state."""
+
         vars_list = args[0] if len(args) > 0 else []
         results = []
 
@@ -126,6 +132,8 @@ class CustomInstrum:
         return results
 
     def read_next_variables(self, *args, **kwargs):
+        """Resolve lexicographically following bindings for GETNEXT and walks."""
+
         vars_list = args[0] if len(args) > 0 else []
         results = []
 
@@ -157,16 +165,16 @@ class CustomInstrum:
         return results
 
     def write_variables(self, *args, **kwargs):
+        """Reject mutation semantics by returning SET bindings unchanged."""
+
         # SET is unsupported; return values unchanged.
         vars_list = args[0] if len(args) > 0 else []
         return vars_list
 
-    # Alias for the legacy method name used by some pysnmp versions.
-    def writeVars(self, vars_list, acInfo=(None, None)):
-        return vars_list
-
 
 def send_trap(error: dict) -> None:
+    """Send one warning as an SNMP trap when trap delivery is enabled."""
+
     asyncio.run(_async_send_trap(error))
 
 
@@ -217,6 +225,8 @@ def _snmp_agent_loop():
     asyncio.set_event_loop(loop)
 
     async def run_agent():
+        """Configure and run the asynchronous pysnmp command responders."""
+
         agent_refs = {}
         try:
             snmpEngine = engine.SnmpEngine()
@@ -258,6 +268,8 @@ def _snmp_agent_loop():
 
 
 def init_snmp():
+    """Start the SNMP agent thread when enabled and not already running."""
+
     with state.state_lock:
         snmp_settings = getattr(state, "snmp_settings", {})
         if not snmp_settings.get("enabled", False):
@@ -271,6 +283,8 @@ def init_snmp():
 
 
 def close_snmp():
+    """Request SNMP shutdown and wait briefly for the agent thread."""
+
     stop_event.set()
     if snmp_thread:
         snmp_thread.join(timeout=2)

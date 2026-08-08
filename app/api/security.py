@@ -1,3 +1,5 @@
+"""Session authorization and security audit helpers for API endpoints."""
+
 import datetime
 import json
 import secrets
@@ -10,10 +12,14 @@ from app.services import syslog as syslog_service
 
 
 def find_access_user(username: str) -> dict | None:
+    """Return the local authorization record for an exact username."""
+
     return next((user for user in state.access_users if user["username"] == username), None)
 
 
 def normalize_username(username: str) -> str:
+    """Strip a username and reject an empty value as an HTTP request error."""
+
     value = username.strip()
     if not value:
         raise fastapi.HTTPException(status_code=400, detail="Username is required")
@@ -21,12 +27,16 @@ def normalize_username(username: str) -> str:
 
 
 def count_active_administrators() -> int:
+    """Count active local users that retain the Administrator role."""
+
     return sum(
         1 for user in state.access_users if user["role"] == "Administrator" and user["active"]
     )
 
 
 def get_client_ip(request: starlette.requests.Request) -> str:
+    """Return the audited client address, honoring trusted proxy headers only."""
+
     forwarded_for = request.headers.get("x-forwarded-for") if config.TRUST_PROXY_HEADERS else None
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
@@ -39,6 +49,8 @@ def audit_event(
     username: str,
     details: str = "",
 ) -> None:
+    """Write one authenticated API action to the configured audit log."""
+
     syslog_service.send_audit(
         action=action,
         username=username,
@@ -59,6 +71,8 @@ def _flatten_audit_values(value: dict, prefix: str = "") -> dict:
 
 
 def audit_changes(before: dict, after: dict, *, redacted: set[str] | None = None) -> str:
+    """Describe changed nested values while redacting named sensitive fields."""
+
     redacted = redacted or set()
     before_values = _flatten_audit_values(before)
     after_values = _flatten_audit_values(after)
@@ -78,6 +92,8 @@ def audit_changes(before: dict, after: dict, *, redacted: set[str] | None = None
 
 
 def create_session(username: str) -> str:
+    """Create an in-memory authenticated session and return its random token."""
+
     token = secrets.token_urlsafe(32)
     state.auth_sessions[token] = {
         "username": username,
@@ -87,6 +103,8 @@ def create_session(username: str) -> str:
 
 
 def get_current_user(session_token: str | None = fastapi.Cookie(default=None)) -> dict:
+    """Resolve a valid session cookie to an active public user record."""
+
     if not session_token:
         raise fastapi.HTTPException(status_code=401, detail="Not authenticated")
     with state.state_lock:
@@ -106,9 +124,13 @@ def get_current_user(session_token: str | None = fastapi.Cookie(default=None)) -
 
 
 def require_roles(*allowed_roles: str):
+    """Create a FastAPI dependency that permits only the supplied roles."""
+
     allowed = set(allowed_roles)
 
     def dependency(current_user: dict = fastapi.Depends(get_current_user)) -> dict:
+        """Return the current user when its role is allowed."""
+
         if current_user["role"] not in allowed:
             raise fastapi.HTTPException(status_code=403, detail="Not allowed")
         return current_user

@@ -1,3 +1,5 @@
+"""Authentication, session, and access-control HTTP endpoints."""
+
 import datetime
 import typing
 
@@ -13,17 +15,23 @@ router = fastapi.APIRouter()
 
 
 class LoginRequest(pydantic.BaseModel):
+    """Credentials submitted to the RADIUS-backed login endpoint."""
+
     username: str
     password: str
 
 
 class AccessUserCreateRequest(pydantic.BaseModel):
+    """Local authorization record to create for a RADIUS username."""
+
     username: str
     role: typing.Literal["Administrator", "Operator", "Viewer"] = "Operator"
     active: bool = True
 
 
 class AccessUserUpdateRequest(pydantic.BaseModel):
+    """Optional role and activation changes for an existing user."""
+
     role: typing.Literal["Administrator", "Operator", "Viewer"] | None = None
     active: bool | None = None
 
@@ -34,6 +42,8 @@ def login(
     response: fastapi.Response,
     request: starlette.requests.Request,
 ):
+    """Authenticate a local user through RADIUS and create a browser session."""
+
     username = api_security.normalize_username(login_request.username)
     client_ip = api_security.get_client_ip(request)
     now = datetime.datetime.now(datetime.timezone.utc).timestamp()
@@ -85,6 +95,8 @@ def login(
 
 @router.get("/api/auth/me")
 def auth_me(current_user: dict = fastapi.Depends(api_security.get_current_user)):
+    """Return the public record of the currently authenticated user."""
+
     return {"user": current_user}
 
 
@@ -95,6 +107,8 @@ def logout(
     current_user: dict = fastapi.Depends(api_security.get_current_user),
     session_token: str | None = fastapi.Cookie(default=None),
 ):
+    """Invalidate the current session and remove its browser cookie."""
+
     with state.state_lock:
         if session_token:
             state.auth_sessions.pop(session_token, None)
@@ -107,6 +121,8 @@ def logout(
 def get_access_users(
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """List local role assignments visible to administrators."""
+
     with state.state_lock:
         return {"users": [state.access_user_public(user) for user in state.access_users]}
 
@@ -117,6 +133,8 @@ def create_access_user(
     http_request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Create a local role assignment for an existing RADIUS username."""
+
     username = api_security.normalize_username(request.username)
     with state.state_lock:
         if api_security.find_access_user(username) is not None:
@@ -144,6 +162,8 @@ def update_access_user(
     http_request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Update a user's role or active state while preserving an administrator."""
+
     username = api_security.normalize_username(username)
     with state.state_lock:
         user = api_security.find_access_user(username)
@@ -179,6 +199,8 @@ def delete_access_user(
     http_request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Delete a local role assignment while preserving required access."""
+
     username = api_security.normalize_username(username)
     with state.state_lock:
         user = api_security.find_access_user(username)

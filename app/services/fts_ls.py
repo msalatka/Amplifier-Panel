@@ -1,3 +1,5 @@
+"""Exclusive FTS-LS serial-session worker and synchronous command queue."""
+
 import copy
 import dataclasses
 import datetime
@@ -19,6 +21,8 @@ from app.services import database as database_service
 
 @dataclasses.dataclass
 class PendingCommand:
+    """One validated station command awaiting execution by the serial worker."""
+
     command: str
     action: str
     event: threading.Event = dataclasses.field(default_factory=threading.Event)
@@ -55,6 +59,8 @@ class SerialCliSession:
         self.exec_mode = False
 
     def close(self) -> None:
+        """Close the physical serial connection owned by this session."""
+
         self.serial.close()
 
     def _write_line(self, value: str) -> None:

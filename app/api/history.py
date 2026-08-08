@@ -1,3 +1,5 @@
+"""Optical-amplifier history, statistics, and CSV export endpoints."""
+
 import csv
 import datetime
 import io
@@ -34,6 +36,8 @@ def normalize_history_request(
     start: str | None,
     end: str | None,
 ) -> tuple[str, str | None, str | None]:
+    """Validate a history range and normalize optional timestamps to UTC."""
+
     if range_value not in ALLOWED_RANGES:
         raise fastapi.HTTPException(status_code=400, detail="Invalid history range")
     try:
@@ -66,6 +70,8 @@ def history(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return amplifier measurements and setpoints from SQLite history."""
+
     range, start, end = normalize_history_request(range, start, end)
     result = _read_history(range, start, end)
     return {
@@ -86,6 +92,8 @@ def statistics(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return aggregate amplifier statistics for a validated time range."""
+
     range, start, end = normalize_history_request(range, start, end)
     result = database_service.query_statistics(range, start, end)
     if result is None:
@@ -109,6 +117,8 @@ def export_history_csv(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Stream amplifier measurement history as a semicolon-delimited CSV file."""
+
     range, start, end = normalize_history_request(range, start, end)
     if not CSV_EXPORT_LOCK.acquire(blocking=False):
         raise fastapi.HTTPException(status_code=429, detail="Another CSV export is in progress")
@@ -126,6 +136,8 @@ def export_history_csv(
     )
 
     def generate_csv():
+        """Yield bounded CSV chunks and release the single-export lock."""
+
         output = io.StringIO()
         writer = csv.DictWriter(
             output,

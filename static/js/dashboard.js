@@ -283,11 +283,11 @@ async function updateWarningsTable(forceHistory = false) {
 	if (!currentUser) return
 
 	try {
-		const response = await fetch('/api/errors')
+		const response = await fetch('/api/warnings/active')
 		handleAuthResponse(response)
 		if (!response.ok) throw await responseError(response, 'Could not read active warnings')
 		const json = await response.json()
-		renderActiveWarnings(json.errors || [])
+		renderActiveWarnings(json.active || [])
 
 		const warningsPanel = document.querySelector('.tab-panel[data-tab="warnings"]')
 		const now = Date.now()

@@ -1,3 +1,5 @@
+"""Structured syslog emission, warning-history parsing, and audit events."""
+
 import datetime
 import gzip
 import json
@@ -16,6 +18,8 @@ _warning_cache_lock = threading.Lock()
 
 
 def local_now() -> datetime.datetime:
+    """Return the current time in the configured syslog timezone."""
+
     try:
         timezone = zoneinfo.ZoneInfo(config.SYSLOG_TIMEZONE)
     except zoneinfo.ZoneInfoNotFoundError:
@@ -24,6 +28,8 @@ def local_now() -> datetime.datetime:
 
 
 def send_syslog(message: str, severity: int) -> None:
+    """Send one RFC-style UDP syslog payload when logging is enabled."""
+
     if not config.SYSLOG_ENABLED:
         return
 
@@ -43,10 +49,14 @@ def send_syslog(message: str, severity: int) -> None:
 
 
 def send_warning(message: str) -> None:
+    """Send a plain application warning at warning severity."""
+
     send_syslog(f"warning; {message}", SEVERITY_WARNING)
 
 
 def send_warning_event(event: str, warning: dict) -> None:
+    """Serialize and send a structured warning-open or warning-clear event."""
+
     payload = {
         "event": event.upper(),
         "event_time": warning.get("event_time") or warning.get("time"),
@@ -69,11 +79,15 @@ def send_warning_event(event: str, warning: dict) -> None:
 
 
 def send_lifecycle(event: str, **fields: object) -> None:
+    """Send an application lifecycle or heartbeat event at info severity."""
+
     field_text = "".join(f"; {name}={value}" for name, value in fields.items())
     send_syslog(f"lifecycle; event={event}{field_text}", SEVERITY_INFO)
 
 
 def get_syslog_log_path() -> pathlib.Path:
+    """Return the configured local file used for log export and history."""
+
     return pathlib.Path(config.SYSLOG_EXPORT_FILE)
 
 
@@ -90,6 +104,8 @@ def _parse_event_time(value: object) -> datetime.datetime | None:
 
 
 def parse_warning_log_line(line: str) -> dict | None:
+    """Parse one structured warning event from a syslog-formatted line."""
+
     marker = "; warning; "
     if marker not in line:
         return None
@@ -130,6 +146,8 @@ def read_warning_history(
     limit: int = 100,
     offset: int = 0,
 ) -> dict:
+    """Read, filter, sort, and paginate warning events across rotated logs."""
+
     events = []
     paths = _warning_log_paths(get_syslog_log_path())
     unreadable_files = 0
@@ -197,6 +215,8 @@ def read_warning_history(
 
 
 def send_audit(action: str, username: str, ip_address: str, details: str = "") -> None:
+    """Send a structured security audit event without logging credentials."""
+
     detail_text = f"; details={details}" if details else ""
     message = f"audit; user={username}; ip={ip_address}; action={action}{detail_text}"
 

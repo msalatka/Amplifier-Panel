@@ -1,3 +1,5 @@
+"""FastAPI application lifecycle, route registration, and dashboard entry point."""
+
 import asyncio
 import contextlib
 import hashlib
@@ -22,6 +24,8 @@ from app.services import syslog as syslog_service
 
 
 async def syslog_heartbeat_loop() -> None:
+    """Emit periodic lifecycle heartbeats using the current runtime interval."""
+
     while True:
         with state.state_lock:
             interval = int(state.service_settings["syslog_heartbeat_seconds"])
@@ -47,6 +51,8 @@ async def syslog_heartbeat_loop() -> None:
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: fastapi.FastAPI):
+    """Start and stop database, serial, SNMP, and heartbeat resources."""
+
     database_service.init_database()
     snmp_service.init_snmp()
     state.stop_event.clear()
@@ -97,6 +103,8 @@ STATIC_ASSET_VERSION = static_asset_version()
 
 @app.get("/")
 def home(request: starlette.requests.Request):
+    """Render the dashboard shell for the configured device profile."""
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",

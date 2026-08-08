@@ -1,3 +1,5 @@
+"""Shared runtime state and atomic persistence of operator-managed settings."""
+
 import datetime
 import json
 import pathlib
@@ -41,6 +43,8 @@ def empty_fts_ls_status() -> FtsStatus:
 
 
 def load_persisted_state() -> dict:
+    """Load persisted JSON state, returning defaults after any read failure."""
+
     path = pathlib.Path(config.PERSISTED_STATE_FILE)
 
     try:
@@ -52,6 +56,8 @@ def load_persisted_state() -> dict:
 
 
 def merge_dashboard_settings(saved_settings: dict | None) -> dict:
+    """Merge and validate persisted warning settings against current defaults."""
+
     settings = json.loads(json.dumps(DEFAULT_DASHBOARD_SETTINGS))
 
     if not isinstance(saved_settings, dict):
@@ -90,6 +96,8 @@ def merge_dashboard_settings(saved_settings: dict | None) -> dict:
 
 
 def merge_last_known_gain_set(saved_gain_set: object) -> float:
+    """Validate a persisted gain setpoint or choose an in-range fallback."""
+
     try:
         return validation.validate_gain_set(
             saved_gain_set,
@@ -104,6 +112,8 @@ def merge_last_known_gain_set(saved_gain_set: object) -> float:
 
 
 def access_user_public(user: dict) -> dict:
+    """Return the non-sensitive fields exposed for a local access user."""
+
     return {
         "username": user["username"],
         "role": user["role"],
@@ -112,6 +122,8 @@ def access_user_public(user: dict) -> dict:
 
 
 def merge_access_users(saved_users: list[dict] | None) -> list[dict]:
+    """Normalize persisted access users or create the initial administrator."""
+
     merged_users = []
     seen_usernames = set()
 
@@ -145,6 +157,8 @@ def merge_access_users(saved_users: list[dict] | None) -> list[dict]:
 
 
 def merge_snmp_settings(saved_settings: dict | None) -> dict:
+    """Merge persisted SNMP values while enforcing server-owned settings."""
+
     settings = DEFAULT_SNMP_SETTINGS.copy()
     if isinstance(saved_settings, dict):
         settings.update({key: saved_settings[key] for key in settings if key in saved_settings})
@@ -155,6 +169,8 @@ def merge_snmp_settings(saved_settings: dict | None) -> dict:
 
 
 def merge_service_settings(saved_settings: dict | None) -> dict:
+    """Normalize persisted heartbeat, database, and serial-port settings."""
+
     settings = DEFAULT_SERVICE_SETTINGS.copy()
     if isinstance(saved_settings, dict):
         for key in ("syslog_heartbeat_seconds", "database_max_records"):
@@ -174,6 +190,8 @@ persisted_state = load_persisted_state()
 
 
 def save_persisted_state() -> None:
+    """Atomically write all operator-managed settings with restricted permissions."""
+
     path = pathlib.Path(config.PERSISTED_STATE_FILE)
     temporary_path = path.with_suffix(path.suffix + ".tmp")
     payload = {
@@ -191,6 +209,8 @@ def save_persisted_state() -> None:
 
 
 def save_persisted_gain_set(gain_set: float) -> None:
+    """Validate and persist the last amplifier gain setpoint."""
+
     global last_known_gain_set
     last_known_gain_set = validation.validate_gain_set(
         gain_set,
@@ -201,10 +221,14 @@ def save_persisted_gain_set(gain_set: float) -> None:
 
 
 def save_persisted_dashboard_settings() -> None:
+    """Persist the current dashboard warning settings."""
+
     save_persisted_state()
 
 
 def save_persisted_access_users() -> None:
+    """Persist the current local authorization records."""
+
     save_persisted_state()
 
 

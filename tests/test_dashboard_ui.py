@@ -5,6 +5,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class DashboardUiTests(unittest.TestCase):
+    def test_active_warnings_use_the_current_endpoint(self):
+        script = (ROOT / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
+
+        self.assertIn("fetch('/api/warnings/active')", script)
+        self.assertNotIn("/api/errors", script)
+
     def test_chart_library_is_served_locally(self):
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
         chart_library = ROOT / "static" / "vendor" / "chart.js" / "chart.umd.min.js"
