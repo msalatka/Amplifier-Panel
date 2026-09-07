@@ -37,6 +37,14 @@ read_answer() {
 }
 
 read_answer admin-username ADMIN_USERNAME
+db_get amp-panel/auth-mode || RET="radius"
+case "${RET}" in
+    local|"Local passwords on this device") auth_mode=local ;;
+    *) auth_mode=radius ;;
+esac
+encoded_auth_mode="$(printf '%s' "${auth_mode}" | base64 | tr -d '\n')"
+printf 'AUTH_MODE_B64=%s\n' "${encoded_auth_mode}" >>"${answers_file}"
+read_answer local-admin-password LOCAL_ADMIN_PASSWORD
 read_answer port PORT
 read_answer data-dir DATA_DIR
 read_answer serial-port SERIAL_PORT
@@ -88,6 +96,7 @@ fi
 if [ "${configuration_result}" -eq 0 ]; then
     db_set amp-panel/radius-secret ""
     db_set amp-panel/fts-ls-password ""
+    db_set amp-panel/local-admin-password ""
     systemctl enable amp-panel-network-agent.service amp-panel.service \
         >/dev/null 2>&1
     if [ -d /run/systemd/system ]; then

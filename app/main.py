@@ -54,6 +54,7 @@ async def lifespan(_app: fastapi.FastAPI):
     """Start and stop database, serial, SNMP, and heartbeat resources."""
 
     database_service.init_database()
+    state.save_persisted_state()
     snmp_service.init_snmp()
     state.stop_event.clear()
     serial_thread = threading.Thread(target=serial_reader.serial_reader_loop, daemon=True)

@@ -38,7 +38,9 @@ sudo apt install "./amp-panel_0.1.0_$(dpkg --print-architecture).deb"
 ```
 
 The installer asks for the device profile, serial connection, initial
-administrator, and RADIUS settings. Configuration can be repeated later:
+administrator, and authentication method. Choose either local passwords stored
+on the panel host as salted hashes, or a RADIUS server. Configuration can be
+repeated later:
 
 ```console
 sudo amp-panel configure
@@ -57,10 +59,24 @@ Chart.js `4.5.1` is pinned in `package.json` and stored locally in
 `static/vendor/chart.js`. Charts therefore do not require Internet access. When
 upgrading the library, update both the bundled script and its license file.
 
+## Authentication
+
+The selected method applies to all browser logins:
+
+- **Local passwords**: the panel stores its users, roles, active state, and
+  salted PBKDF2 password hashes in its restricted state file on the panel host.
+  Administrators create users and change passwords in **Access Control**.
+- **RADIUS**: the panel stores only the username, role, and active state. The
+  RADIUS server verifies passwords and remains the source of user accounts.
+
+To switch methods, run `sudo amp-panel configure` and select `local` or
+`radius`. Selecting local authentication asks for a new initial administrator
+password. RADIUS settings are retained when local authentication is selected,
+so switching back does not require entering them again.
+
 ## Setting up a RADIUS server
 
-The panel does not host RADIUS. A reachable RADIUS server must exist on a
-separate host before the panel is configured.
+RADIUS mode requires a reachable RADIUS server on a separate host.
 
 The repository includes a FreeRADIUS setup script:
 

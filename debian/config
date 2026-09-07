@@ -35,6 +35,7 @@ db_get amp-panel/device-profile || RET="amplifier"
 device_profile="${RET}"
 
 db_input high amp-panel/admin-username || true
+db_input high amp-panel/auth-mode || true
 db_input high amp-panel/port || true
 db_input high amp-panel/data-dir || true
 db_input high amp-panel/serial-port || true
@@ -48,8 +49,16 @@ case "${device_profile}" in
         db_input high amp-panel/gain-max || true
         ;;
 esac
-db_input high amp-panel/radius-server || true
-db_input high amp-panel/radius-port || true
-db_input high amp-panel/radius-secret || true
+db_get amp-panel/auth-mode || RET="radius"
+case "${RET}" in
+    local|"Local passwords on this device")
+        db_input high amp-panel/local-admin-password || true
+        ;;
+    *)
+        db_input high amp-panel/radius-server || true
+        db_input high amp-panel/radius-port || true
+        db_input high amp-panel/radius-secret || true
+        ;;
+esac
 db_input high amp-panel/mdns-hostname || true
 db_go

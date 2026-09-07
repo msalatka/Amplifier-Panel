@@ -11,6 +11,7 @@ import argparse
 import base64
 import datetime
 import getpass
+import hashlib
 import html
 import math
 import os
@@ -87,6 +88,9 @@ CONFIG_KEYS = (
     "DEVICE_NAME",
     "MDNS_HOSTNAME",
     "INITIAL_ADMIN_USERNAME",
+    "INITIAL_ADMIN_PASSWORD_HASH",
+    "INITIAL_ADMIN_PASSWORD_SALT",
+    "AUTH_MODE",
     "PERSISTED_STATE_FILE",
     "DATABASE_FILE",
     "DATABASE_MAX_RECORDS",
@@ -339,6 +343,9 @@ def default_configuration() -> dict[str, str]:
         "DEVICE_NAME": device_name,
         "MDNS_HOSTNAME": _mdns_hostname(),
         "INITIAL_ADMIN_USERNAME": "admin",
+        "INITIAL_ADMIN_PASSWORD_HASH": "",
+        "INITIAL_ADMIN_PASSWORD_SALT": "",
+        "AUTH_MODE": "radius",
         "PERSISTED_STATE_FILE": str(data_dir / "persisted_state.json"),
         "DATABASE_FILE": str(data_dir / "measurements.db"),
         "DATABASE_MAX_RECORDS": "0",
@@ -479,12 +486,21 @@ def validate_configuration(values: dict[str, str]) -> None:
     _safe_int(values.get("SNMP_PORT"), "SNMP port", 1024, 65535)
     if not values.get("SNMP_COMMUNITY"):
         raise ConfigurationError("SNMP community is required.")
-    radius_server = values.get("RADIUS_SERVER", "")
-    if not radius_server or not HOST_PATTERN.fullmatch(radius_server):
-        raise ConfigurationError("A valid remote RADIUS server is required.")
-    _safe_int(values.get("RADIUS_PORT"), "RADIUS port", 1, 65535)
-    if not values.get("RADIUS_SECRET"):
-        raise ConfigurationError("RADIUS shared secret is required.")
+    auth_mode = values.get("AUTH_MODE", "").lower()
+    if auth_mode not in {"local", "radius"}:
+        raise ConfigurationError("Authentication mode must be local or radius.")
+    if auth_mode == "local":
+        if not values.get("INITIAL_ADMIN_PASSWORD_HASH") or not values.get(
+            "INITIAL_ADMIN_PASSWORD_SALT"
+        ):
+            raise ConfigurationError("A local administrator password is required.")
+    else:
+        radius_server = values.get("RADIUS_SERVER", "")
+        if not radius_server or not HOST_PATTERN.fullmatch(radius_server):
+            raise ConfigurationError("A valid remote RADIUS server is required.")
+        _safe_int(values.get("RADIUS_PORT"), "RADIUS port", 1, 65535)
+        if not values.get("RADIUS_SECRET"):
+            raise ConfigurationError("RADIUS shared secret is required.")
     remote_enabled = values.get("REMOTE_SYSLOG_ENABLED", "false").lower()
     if remote_enabled not in {"true", "false"}:
         raise ConfigurationError("REMOTE_SYSLOG_ENABLED must be true or false.")
@@ -501,6 +517,19 @@ def _prompt(label: str, default: str = "", *, secret: bool = False) -> str:
     reader = getpass.getpass if secret else input
     value = reader(f"{label}{suffix}: ").strip()
     return value or default
+
+
+def _set_local_admin_password(values: dict[str, str], password: str) -> None:
+    """Hash a local administrator password without retaining its clear-text form."""
+
+    if not 8 <= len(password) <= 256:
+        raise ConfigurationError("Local administrator password must contain 8 to 256 characters.")
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 600_000)
+    values["INITIAL_ADMIN_PASSWORD_HASH"] = (
+        "pbkdf2_sha256$600000$" + base64.b64encode(digest).decode("ascii")
+    )
+    values["INITIAL_ADMIN_PASSWORD_SALT"] = base64.b64encode(salt).decode("ascii")
 
 
 def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
@@ -523,6 +552,15 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
         "Administrator username",
         values["INITIAL_ADMIN_USERNAME"],
     )
+    values["AUTH_MODE"] = _prompt(
+        "Authentication mode (local/radius)", values.get("AUTH_MODE", "radius")
+    ).lower()
+    if values["AUTH_MODE"] == "local":
+        password = _prompt("Local administrator password", secret=True)
+        confirmation = _prompt("Repeat local administrator password", secret=True)
+        if password != confirmation:
+            raise ConfigurationError("Local administrator passwords do not match.")
+        _set_local_admin_password(values, password)
     values["AMP_PANEL_PORT"] = _prompt("Web interface port", values["AMP_PANEL_PORT"])
     values["SERIAL_PORT"] = _prompt("Serial device", values["SERIAL_PORT"])
     if values["DEVICE_PROFILE"] == "fts-ls":
@@ -555,13 +593,14 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
             "Maximum safe gain from the device specification",
             values["GAIN_SET_MAX"],
         )
-    values["RADIUS_SERVER"] = _prompt("RADIUS server", values["RADIUS_SERVER"])
-    values["RADIUS_PORT"] = _prompt("RADIUS UDP port", values["RADIUS_PORT"])
-    values["RADIUS_SECRET"] = _prompt(
-        "RADIUS shared secret",
-        values["RADIUS_SECRET"],
-        secret=True,
-    )
+    if values["AUTH_MODE"] == "radius":
+        values["RADIUS_SERVER"] = _prompt("RADIUS server", values["RADIUS_SERVER"])
+        values["RADIUS_PORT"] = _prompt("RADIUS UDP port", values["RADIUS_PORT"])
+        values["RADIUS_SECRET"] = _prompt(
+            "RADIUS shared secret",
+            values["RADIUS_SECRET"],
+            secret=True,
+        )
     values["MDNS_HOSTNAME"] = _prompt(
         "mDNS hostname (without .local)",
         values["MDNS_HOSTNAME"],
@@ -573,6 +612,7 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     mapping = {
         "device_profile": "DEVICE_PROFILE",
         "admin_username": "INITIAL_ADMIN_USERNAME",
+        "auth_mode": "AUTH_MODE",
         "port": "AMP_PANEL_PORT",
         "data_dir": "AMP_PANEL_DATA_DIR",
         "serial_port": "SERIAL_PORT",
@@ -599,6 +639,15 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
             answer = answers.get(answer_key)
         if answer is not None and answer != "":
             values[config_key] = answer
+    encoded_password = answers.get("local_admin_password_b64")
+    local_password = answers.get("local_admin_password")
+    if encoded_password is not None:
+        try:
+            local_password = base64.b64decode(encoded_password, validate=True).decode("utf-8")
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise ConfigurationError("Invalid encoded installer answer: local_admin_password") from exc
+    if local_password:
+        _set_local_admin_password(values, local_password)
     data_dir = _normalized_data_dir(values["AMP_PANEL_DATA_DIR"])
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
@@ -870,6 +919,10 @@ def configure_command(args: argparse.Namespace) -> int:
                     values["GAIN_SET_MAX"] = ""
         if args.admin_username:
             values["INITIAL_ADMIN_USERNAME"] = args.admin_username
+        if args.auth_mode:
+            values["AUTH_MODE"] = args.auth_mode
+        if args.local_admin_password_stdin:
+            _set_local_admin_password(values, sys.stdin.readline().rstrip("\r\n"))
         if args.port:
             values["AMP_PANEL_PORT"] = str(args.port)
         if args.data_dir:
@@ -1125,6 +1178,12 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--no-start", action="store_true")
     configure.add_argument("--answers-file")
     configure.add_argument("--admin-username")
+    configure.add_argument("--auth-mode", choices=("local", "radius"))
+    configure.add_argument(
+        "--local-admin-password-stdin",
+        action="store_true",
+        help="read the local administrator password from standard input",
+    )
     configure.add_argument("--port", type=int)
     configure.add_argument("--data-dir")
     configure.add_argument("--device-profile", choices=("amplifier", "fts-ls"))

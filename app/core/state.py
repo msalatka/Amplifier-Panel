@@ -5,7 +5,7 @@ import json
 import pathlib
 import threading
 
-from app.core import config, device_schema, validation
+from app.core import config, device_schema, passwords, validation
 from app.core.fts_types import FtsStatus
 
 persist_lock = threading.Lock()
@@ -118,6 +118,9 @@ def access_user_public(user: dict) -> dict:
         "username": user["username"],
         "role": user["role"],
         "active": bool(user["active"]),
+        "password_set": passwords.password_is_usable(
+            user.get("password_hash"), user.get("password_salt")
+        ),
     }
 
 
@@ -135,25 +138,51 @@ def merge_access_users(saved_users: list[dict] | None) -> list[dict]:
         if not username or username in seen_usernames:
             continue
 
-        merged_users.append(
-            {
-                "username": username,
-                "role": str(user.get("role", "Operator")).strip() or "Operator",
-                "active": bool(user.get("active", True)),
-            }
-        )
+        merged_user = {
+            "username": username,
+            "role": str(user.get("role", "Operator")).strip() or "Operator",
+            "active": bool(user.get("active", True)),
+        }
+        if passwords.password_is_usable(user.get("password_hash"), user.get("password_salt")):
+            merged_user["password_hash"] = user["password_hash"]
+            merged_user["password_salt"] = user["password_salt"]
+        merged_users.append(merged_user)
         seen_usernames.add(username)
 
-    if merged_users:
-        return merged_users
+    initial_user = {
+        "username": config.INITIAL_ADMIN_USERNAME,
+        "role": "Administrator",
+        "active": True,
+    }
+    def apply_initial_local_password() -> None:
+        """Attach the configured bootstrap password hash to the initial administrator."""
 
-    return [
-        {
-            "username": config.INITIAL_ADMIN_USERNAME,
-            "role": "Administrator",
-            "active": True,
-        }
-    ]
+        if not passwords.password_is_usable(
+            config.INITIAL_ADMIN_PASSWORD_HASH, config.INITIAL_ADMIN_PASSWORD_SALT
+        ):
+            raise RuntimeError(
+                "Local authentication requires an initial administrator password. "
+                "Run 'sudo amp-panel configure'."
+            )
+        initial_user["password_hash"] = config.INITIAL_ADMIN_PASSWORD_HASH
+        initial_user["password_salt"] = config.INITIAL_ADMIN_PASSWORD_SALT
+
+    if merged_users:
+        if config.AUTH_MODE == "local" and not any(
+            passwords.password_is_usable(user.get("password_hash"), user.get("password_salt"))
+            for user in merged_users
+        ):
+            apply_initial_local_password()
+            for user in merged_users:
+                if user["username"] == config.INITIAL_ADMIN_USERNAME:
+                    user.update(initial_user)
+                    break
+            else:
+                merged_users.append(initial_user)
+        return merged_users
+    if config.AUTH_MODE == "local":
+        apply_initial_local_password()
+    return [initial_user]
 
 
 def merge_snmp_settings(saved_settings: dict | None) -> dict:

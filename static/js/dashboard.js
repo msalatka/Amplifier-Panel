@@ -411,6 +411,14 @@ async function loadAccessUsers() {
 		if (!response.ok) throw new Error('HTTP error ' + response.status)
 		const json = await response.json()
 		const users = json.users || []
+		const localAuthentication = json.authentication_mode === 'local'
+		const passwordField = document.getElementById('access-password-field')
+		const passwordInput = document.getElementById('access-password-input')
+		passwordField.hidden = !localAuthentication
+		passwordInput.required = localAuthentication
+		document.querySelectorAll('.access-password-column').forEach((element) => {
+			element.hidden = !localAuthentication
+		})
 		const body = document.getElementById('access-users-table-body')
 
 		setTextIfExists('access-users-count', `${users.length} users`)
@@ -418,7 +426,7 @@ async function loadAccessUsers() {
 		if (!body) return
 
 		if (!users.length) {
-			body.innerHTML = '<tr><td colspan="4">No users</td></tr>'
+			body.innerHTML = `<tr><td colspan="${localAuthentication ? 5 : 4}">No users</td></tr>`
 			return
 		}
 
@@ -427,6 +435,9 @@ async function loadAccessUsers() {
 				const username = escapeHtml(user.username)
 				const role = escapeHtml(user.role)
 				const activeChecked = user.active ? 'checked' : ''
+				const passwordCell = localAuthentication
+					? `<td><input data-access-password type="password" autocomplete="new-password" placeholder="Leave blank to keep"></td>`
+					: ''
 
 				return `
                 <tr data-username="${username}">
@@ -444,6 +455,7 @@ async function loadAccessUsers() {
                             Active
                         </label>
                     </td>
+                    ${passwordCell}
                     <td>
                         <div class="action-buttons">
                             <button data-access-save type="button">Save</button>
@@ -460,10 +472,13 @@ async function loadAccessUsers() {
 }
 
 function getAccessRowPayload(row) {
-	return {
+	const payload = {
 		role: row.querySelector('[data-access-role]').value,
 		active: row.querySelector('[data-access-active]').checked,
 	}
+	const password = row.querySelector('[data-access-password]')?.value
+	if (password) payload.password = password
+	return payload
 }
 
 function setupAccessControl() {
@@ -478,8 +493,10 @@ function setupAccessControl() {
 			const usernameInput = document.getElementById('access-username-input')
 			const roleInput = document.getElementById('access-role-input')
 			const activeInput = document.getElementById('access-active-input')
+			const passwordInput = document.getElementById('access-password-input')
 
 			const username = usernameInput.value.trim()
+			const password = passwordInput?.value
 			try {
 				const response = await fetch('/api/access/users', {
 					method: 'POST',
@@ -488,6 +505,7 @@ function setupAccessControl() {
 						username,
 						role: roleInput.value,
 						active: activeInput.checked,
+						...(password ? { password } : {}),
 					}),
 				})
 				handleAuthResponse(response)

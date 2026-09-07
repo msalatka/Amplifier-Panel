@@ -98,6 +98,8 @@ GAIN_SET_MIN, GAIN_SET_MAX = _gain_bounds(
 
 DEVICE_NAME = os.getenv("DEVICE_NAME", "unconfigured-device")
 INITIAL_ADMIN_USERNAME = _initial_admin_username(os.getenv("INITIAL_ADMIN_USERNAME"))
+INITIAL_ADMIN_PASSWORD_HASH = os.getenv("INITIAL_ADMIN_PASSWORD_HASH", "")
+INITIAL_ADMIN_PASSWORD_SALT = os.getenv("INITIAL_ADMIN_PASSWORD_SALT", "")
 
 DATABASE_FILE = os.getenv("DATABASE_FILE", "/var/lib/amp-panel/measurements.db")
 DATABASE_MAX_RECORDS = max(0, _env_int("DATABASE_MAX_RECORDS", 0))
@@ -147,3 +149,15 @@ RADIUS_SECRET = os.getenv("RADIUS_SECRET", "")
 RADIUS_TIMEOUT_SECONDS = _env_int("RADIUS_TIMEOUT_SECONDS", 3)
 RADIUS_RETRIES = _env_int("RADIUS_RETRIES", 1)
 RADIUS_NAS_IDENTIFIER = os.getenv("RADIUS_NAS_IDENTIFIER", DEVICE_NAME)
+
+
+def _auth_mode(value: str | None) -> str:
+    """Validate the selected browser authentication backend."""
+
+    mode = (value or "radius").strip().lower()
+    if mode not in {"local", "radius"}:
+        raise RuntimeError("AUTH_MODE must be 'local' or 'radius'.")
+    return mode
+
+
+AUTH_MODE = _auth_mode(os.getenv("AUTH_MODE"))

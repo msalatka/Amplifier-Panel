@@ -11,8 +11,22 @@ Template: amp-panel/admin-username
 Type: string
 Default: admin
 Description: Administrator username:
- This is the first Amp Panel administrator account. Authentication is
- performed by the configured RADIUS server.
+ This is the first Amp Panel administrator account.
+
+Template: amp-panel/auth-mode
+Type: select
+Choices: RADIUS server, Local passwords on this device
+Choices-C: radius, local
+Default: radius
+Description: Browser authentication method:
+ RADIUS verifies passwords on a separate authentication server. Local passwords
+ are stored as salted password hashes on this device.
+
+Template: amp-panel/local-admin-password
+Type: password
+Description: Local administrator password:
+ This password is used only when local authentication is selected. It is stored
+ only as a salted password hash.
 
 Template: amp-panel/port
 Type: string

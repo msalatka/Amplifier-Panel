@@ -110,6 +110,39 @@ class AmpPanelCliTests(unittest.TestCase):
         ):
             amp_panel_cli.validate_configuration(values)
 
+    def test_local_authentication_requires_a_hashed_administrator_password(self):
+        values = amp_panel_cli.default_configuration()
+        values.update({"AUTH_MODE": "local", "GAIN_SET_MIN": "0", "GAIN_SET_MAX": "20"})
+
+        with mock.patch.object(
+            amp_panel_cli,
+            "_normalized_data_dir",
+            return_value=pathlib.Path(values["AMP_PANEL_DATA_DIR"]),
+        ):
+            with self.assertRaisesRegex(amp_panel_cli.ConfigurationError, "password is required"):
+                amp_panel_cli.validate_configuration(values)
+
+            amp_panel_cli._set_local_admin_password(values, "correct-horse-battery")
+            amp_panel_cli.validate_configuration(values)
+
+    def test_installer_answer_hashes_local_administrator_password(self):
+        values = amp_panel_cli.default_configuration()
+        password = "correct-horse-battery"
+        answers = {
+            "auth_mode_b64": base64.b64encode(b"local").decode(),
+            "local_admin_password_b64": base64.b64encode(password.encode()).decode(),
+        }
+        with mock.patch.object(
+            amp_panel_cli,
+            "_normalized_data_dir",
+            return_value=pathlib.Path(values["AMP_PANEL_DATA_DIR"]),
+        ):
+            amp_panel_cli._apply_answers(values, answers)
+
+        self.assertEqual(values["AUTH_MODE"], "local")
+        self.assertNotEqual(values["INITIAL_ADMIN_PASSWORD_HASH"], password)
+        self.assertTrue(values["INITIAL_ADMIN_PASSWORD_SALT"])
+
     def test_environment_file_round_trip_preserves_secrets(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "amp-panel.env"
