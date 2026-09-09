@@ -46,6 +46,12 @@ repeated later:
 sudo amp-panel configure
 ```
 
+`amp-panel configure` opens the complete configuration file in `$VISUAL`,
+`$EDITOR`, or the system `editor`. When the editor closes, the values are
+validated before the installed configuration is replaced and services are
+reloaded. Use `sudo amp-panel configure --prompt` for the older question-and-
+answer wizard.
+
 Verify the installation with:
 
 ```console

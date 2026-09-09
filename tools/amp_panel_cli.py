@@ -18,6 +18,7 @@ import os
 import pathlib
 import re
 import secrets
+import shlex
 import shutil
 import socket
 import sqlite3
@@ -259,6 +260,33 @@ def write_env_file(path: pathlib.Path, values: dict[str, str]) -> None:
         os.chmod(temporary, 0o600)
         os.replace(temporary, path)
         os.chmod(path, 0o600)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def edit_configuration(values: dict[str, str]) -> dict[str, str]:
+    """Open a temporary complete configuration file and return its validated syntax."""
+
+    temporary = CONFIG_FILE.with_name(f".{CONFIG_FILE.name}.edit")
+    write_env_file(temporary, values)
+    editor_text = os.getenv("VISUAL") or os.getenv("EDITOR") or "editor"
+    try:
+        editor = shlex.split(editor_text)
+    except ValueError as exc:
+        temporary.unlink(missing_ok=True)
+        raise ConfigurationError("EDITOR contains invalid shell-style quoting.") from exc
+    if not editor or shutil.which(editor[0]) is None:
+        temporary.unlink(missing_ok=True)
+        raise ConfigurationError(f"Configured editor is not available: {editor_text!r}")
+    try:
+        result = subprocess.run([*editor, str(temporary)], check=False)
+        if result.returncode != 0:
+            raise ConfigurationError("The editor exited without saving configuration changes.")
+        edited = read_env_file(temporary)
+        unknown = sorted(set(edited) - set(CONFIG_KEYS))
+        if unknown:
+            raise ConfigurationError(f"Unknown configuration key: {unknown[0]}")
+        return merge_configuration(edited)
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -949,7 +977,7 @@ def configure_command(args: argparse.Namespace) -> int:
         if args.mdns_hostname:
             values["MDNS_HOSTNAME"] = args.mdns_hostname.lower()
         if not args.non_interactive:
-            values = interactive_configuration(values)
+            values = interactive_configuration(values) if args.prompt else edit_configuration(values)
         _configuration_progress("Validating settings...")
         validate_configuration(values)
         _configuration_progress("Preparing the measurement data directory...")
@@ -1175,6 +1203,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     configure = subparsers.add_parser("configure", help="configure Amp Panel")
     configure.add_argument("--non-interactive", action="store_true")
+    configure.add_argument(
+        "--prompt",
+        action="store_true",
+        help="use the previous question-and-answer configuration wizard",
+    )
     configure.add_argument("--no-start", action="store_true")
     configure.add_argument("--answers-file")
     configure.add_argument("--admin-username")

@@ -155,6 +155,27 @@ class AmpPanelCliTests(unittest.TestCase):
 
             self.assertEqual(amp_panel_cli.read_env_file(path), values)
 
+    def test_editor_configuration_rejects_an_unknown_key(self):
+        values = amp_panel_cli.default_configuration()
+
+        def write_unknown_key(command, check):
+            pathlib.Path(command[-1]).write_text("UNKNOWN_OPTION=true\n", encoding="utf-8")
+            return mock.Mock(returncode=0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            configuration_file = pathlib.Path(directory) / "amp-panel.env"
+            with (
+                mock.patch.object(amp_panel_cli, "CONFIG_FILE", configuration_file),
+                mock.patch.object(amp_panel_cli.shutil, "which", return_value="/usr/bin/editor"),
+                mock.patch.object(
+                    amp_panel_cli.subprocess,
+                    "run",
+                    side_effect=write_unknown_key,
+                ),
+            ):
+                with self.assertRaisesRegex(amp_panel_cli.ConfigurationError, "Unknown configuration key"):
+                    amp_panel_cli.edit_configuration(values)
+
     def test_encoded_installer_answers_preserve_special_characters(self):
         secret = ' radius # "secret" = value '
         values = amp_panel_cli.default_configuration()
