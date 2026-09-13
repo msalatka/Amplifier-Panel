@@ -14,20 +14,9 @@ from app.api import history as history_api
 from app.api import security as api_security
 from app.core import config, state
 from app.services import database as database_service
-from app.services import fts_ls
 
 router = fastapi.APIRouter(prefix="/api/fts-ls")
 
-TRANSFER_AFFECTING_ACTIONS = {
-    "power_reset",
-    "factory_default",
-    "laser_power",
-    "laser_central_frequency",
-    "laser_mode",
-    "laser_force_relock",
-    "optical_power",
-}
-ADMIN_ONLY_ACTIONS = {"reboot", "power_reset", "factory_default"}
 CSV_EXPORT_LOCK = threading.Lock()
 
 
@@ -55,7 +44,7 @@ def capabilities(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
-    """Describe controls and ranges supported by the FTS-LS profile."""
+    """Describe the read-only FTS-LS profile pending the daemon XML contract."""
 
     require_profile()
     return {
@@ -63,36 +52,9 @@ def capabilities(
         "model": "Frequency Transfer System - Laser Station",
         "ports": 7,
         "module_types": ["Downlink", "Feedback Link", "Beat Detector", "Unequipped"],
-        "controls": [
-            "laser_power",
-            "laser_central_frequency",
-            "laser_mode",
-            "laser_frequency_span",
-            "laser_force_relock",
-            "tec_power",
-            "tec_temperature",
-            "external_reference",
-            "description",
-            "optical_power",
-            "downlink_distance",
-            "downlink_gain",
-            "polarization_control",
-            "polarization_speed",
-            "polarization_mode",
-            "ping",
-            "reboot",
-            "power_reset",
-            "factory_default",
-        ],
-        "ranges": {
-            "laser_central_frequency_ghz": [
-                config.FTS_LS_FREQUENCY_MIN_GHZ,
-                config.FTS_LS_FREQUENCY_MAX_GHZ,
-            ],
-            "laser_frequency_span_mhz": [100, 10000],
-            "downlink_distance_km": [10, 2000],
-            "additional_nc_gain_db": [0, 12, 24],
-        },
+        "controls": [],
+        "read_only": True,
+        "status_source": "daemon-xml-pending",
     }
 
 
@@ -120,30 +82,13 @@ def command(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
-    """Authorize, validate, execute, and audit one FTS-LS action."""
+    """Reject control until the daemon's XML command contract is defined."""
 
     require_profile()
-    action = body.action.strip().lower().replace("-", "_")
-    if action in ADMIN_ONLY_ACTIONS and current_user["role"] != "Administrator":
-        raise fastapi.HTTPException(status_code=403, detail="Administrator access required.")
-    if action in TRANSFER_AFFECTING_ACTIONS and not body.confirmed:
-        raise fastapi.HTTPException(
-            status_code=409,
-            detail="This operation can interrupt frequency transfer and requires confirmation.",
-        )
-    try:
-        result = fts_ls.submit_action(action, body.parameters)
-    except ValueError as exc:
-        raise fastapi.HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise fastapi.HTTPException(status_code=503, detail=str(exc)) from exc
-    api_security.audit_event(
-        request,
-        f"fts_ls_{action}",
-        current_user["username"],
-        api_security.audit_changes({}, body.parameters),
+    raise fastapi.HTTPException(
+        status_code=503,
+        detail="FTS-LS control is unavailable until the daemon XML interface is specified.",
     )
-    return result
 
 
 def _history(

@@ -38,13 +38,11 @@ db_input high amp-panel/admin-username || true
 db_input high amp-panel/auth-mode || true
 db_input high amp-panel/port || true
 db_input high amp-panel/data-dir || true
-db_input high amp-panel/serial-port || true
 case "${device_profile}" in
     fts-ls|"FTS-LS Laser Station")
-        db_input high amp-panel/fts-ls-username || true
-        db_input high amp-panel/fts-ls-password || true
         ;;
     *)
+        db_input high amp-panel/serial-port || true
         db_input high amp-panel/gain-min || true
         db_input high amp-panel/gain-max || true
         ;;

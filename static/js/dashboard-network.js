@@ -479,7 +479,7 @@ serviceSettingsForm?.addEventListener('submit', async (event) => {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				serial_port: document.getElementById('service-serial-port-input').value,
+				serial_port: document.getElementById('service-serial-port-input')?.value || null,
 				syslog_heartbeat_seconds: heartbeatEnabled
 					? Number(document.getElementById('service-heartbeat-input').value)
 					: 0,

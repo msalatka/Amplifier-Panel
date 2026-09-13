@@ -311,13 +311,10 @@ def _serial_reader_session(port: str):
 
 
 def serial_reader_loop():
-    """Run the serial worker for the active device profile until shutdown."""
+    """Run the amplifier's serial worker until shutdown."""
 
-    if config.DEVICE_PROFILE == "fts-ls":
-        from app.services import fts_ls
-
-        fts_ls.reader_loop()
-        return
+    if config.DEVICE_PROFILE != "amplifier":
+        raise RuntimeError("Serial acquisition is available only for the amplifier profile")
     while not state.stop_event.is_set():
         with state.state_lock:
             port = str(state.service_settings["serial_port"])

@@ -513,9 +513,10 @@
                         <div class="settings-header fts-settings-page-header">
                             <div>
                                 <h2>Device Settings</h2>
-                                <p class="settings-description">Configure the station using the same section-based layout as the amplifier profile.</p>
+                                <p class="settings-description">Station values are read-only until the external daemon XML interface is defined.</p>
                             </div>
                         </div>
+                        <p class="network-warning">FTS-LS serial control has been removed. Settings and station actions are unavailable until the daemon XML contract is provided.</p>
                         <div class="fts-settings-list">
                         <form id="fts-laser-settings-form" class="fts-settings-form fts-settings-section">
                             <div class="settings-header control-save-header">
@@ -779,8 +780,12 @@
                             <div class="settings-header"><h2>Data Acquisition</h2></div>
                             <div class="network-status-grid service-status-grid">
                                 <div><span>Status</span><strong id="service-serial-state">--</strong></div>
+                                {% if device_profile == 'amplifier' %}
                                 <div><span>Selected port</span><strong id="service-serial-port">--</strong></div>
                                 <div><span>Baud rate</span><strong id="service-serial-baudrate">--</strong></div>
+                                {% else %}
+                                <div><span>Source</span><strong>Station daemon XML (pending)</strong></div>
+                                {% endif %}
                                 <div><span>Last error</span><strong id="service-serial-error">--</strong></div>
                             </div>
                         </section>
@@ -825,10 +830,12 @@
                             <button type="submit">Save changes</button>
                         </div>
                         <div class="service-settings-sections">
+                            {% if device_profile == 'amplifier' %}
                             <fieldset class="service-settings-section">
                                 <legend>Data acquisition</legend>
                                 <label class="form-field">Serial port<select id="service-serial-port-input" required></select></label>
                             </fieldset>
+                            {% endif %}
                             <fieldset class="service-settings-section">
                                 <legend>History retention</legend>
                                 <label class="setting-toggle">

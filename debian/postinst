@@ -47,7 +47,6 @@ printf 'AUTH_MODE_B64=%s\n' "${encoded_auth_mode}" >>"${answers_file}"
 read_answer local-admin-password LOCAL_ADMIN_PASSWORD
 read_answer port PORT
 read_answer data-dir DATA_DIR
-read_answer serial-port SERIAL_PORT
 db_get amp-panel/device-profile || RET="amplifier"
 case "${RET}" in
     fts-ls|"FTS-LS Laser Station") device_profile=fts-ls ;;
@@ -55,8 +54,9 @@ case "${RET}" in
 esac
 encoded_profile="$(printf '%s' "${device_profile}" | base64 | tr -d '\n')"
 printf 'DEVICE_PROFILE_B64=%s\n' "${encoded_profile}" >>"${answers_file}"
-read_answer fts-ls-username FTS_LS_USERNAME
-read_answer fts-ls-password FTS_LS_PASSWORD
+if [ "${device_profile}" = amplifier ]; then
+    read_answer serial-port SERIAL_PORT
+fi
 read_answer gain-min GAIN_MIN
 read_answer gain-max GAIN_MAX
 read_answer radius-server RADIUS_SERVER
@@ -95,7 +95,6 @@ fi
 
 if [ "${configuration_result}" -eq 0 ]; then
     db_set amp-panel/radius-secret ""
-    db_set amp-panel/fts-ls-password ""
     db_set amp-panel/local-admin-password ""
     systemctl enable amp-panel-network-agent.service amp-panel.service \
         >/dev/null 2>&1

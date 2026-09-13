@@ -51,14 +51,20 @@ async def syslog_heartbeat_loop() -> None:
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: fastapi.FastAPI):
-    """Start and stop database, serial, SNMP, and heartbeat resources."""
+    """Start independent profile acquisition, SNMP, and heartbeat resources."""
 
     database_service.init_database()
     state.save_persisted_state()
     snmp_service.init_snmp()
     state.stop_event.clear()
-    serial_thread = threading.Thread(target=serial_reader.serial_reader_loop, daemon=True)
-    serial_thread.start()
+    serial_thread = None
+    if config.DEVICE_PROFILE == "amplifier":
+        serial_thread = threading.Thread(target=serial_reader.serial_reader_loop, daemon=True)
+        serial_thread.start()
+    else:
+        with state.state_lock:
+            state.serial_connected = False
+            state.serial_error = "Waiting for the FTS-LS daemon XML interface."
     syslog_service.send_lifecycle("started")
     service_routes.heartbeat_settings_changed.clear()
     heartbeat_task = asyncio.create_task(syslog_heartbeat_loop())
@@ -70,7 +76,8 @@ async def lifespan(_app: fastapi.FastAPI):
         await heartbeat_task
     syslog_service.send_lifecycle("stopped", reason="graceful_shutdown")
     state.stop_event.set()
-    serial_thread.join(timeout=2)
+    if serial_thread is not None:
+        serial_thread.join(timeout=2)
     snmp_service.close_snmp()
     database_service.close_database()
 

@@ -44,7 +44,7 @@ class ServiceSettingsRequest(pydantic.BaseModel):
 
     syslog_heartbeat_seconds: int
     database_max_records: int
-    serial_port: str
+    serial_port: str | None = None
 
 
 class SnmpSettingsUpdateRequest(pydantic.BaseModel):
@@ -61,18 +61,19 @@ class SnmpSettingsUpdateRequest(pydantic.BaseModel):
 def service_diagnostics(
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
-    """Return serial, storage, syslog, and service runtime diagnostics."""
+    """Return acquisition, storage, syslog, and service runtime diagnostics."""
 
     with state.state_lock:
         settings = state.service_settings.copy()
     storage = database_service.get_storage_status()
     return {
         "serial": {
-            "port": settings["serial_port"],
-            "available_ports": serial_reader.available_serial_ports(),
-            "baudrate": config.SERIAL_BAUDRATE,
+            "port": settings["serial_port"] if config.DEVICE_PROFILE == "amplifier" else None,
+            "available_ports": serial_reader.available_serial_ports() if config.DEVICE_PROFILE == "amplifier" else [],
+            "baudrate": config.SERIAL_BAUDRATE if config.DEVICE_PROFILE == "amplifier" else None,
             "connected": state.serial_connected,
             "error": state.serial_error,
+            "source": "serial" if config.DEVICE_PROFILE == "amplifier" else "daemon-xml-pending",
         },
         "database": {
             **database_service.get_runtime_status(),
@@ -118,21 +119,28 @@ async def update_service_diagnostics_settings(
             status_code=400,
             detail="Database limit must be 0 (unlimited) or between 1 and 10000000 records",
         )
-    serial_port = request.serial_port.strip()
-    if not re.fullmatch(r"/dev/tty(?:ACM|USB)[0-9]+", serial_port):
-        raise fastapi.HTTPException(status_code=400, detail="Select an available USB serial port")
-    if serial_port not in serial_reader.available_serial_ports():
-        raise fastapi.HTTPException(
-            status_code=400, detail="Selected serial port is not currently available"
-        )
+    serial_port = None
+    if config.DEVICE_PROFILE == "amplifier":
+        serial_port = (request.serial_port or "").strip()
+        if not re.fullmatch(r"/dev/tty(?:ACM|USB)[0-9]+", serial_port):
+            raise fastapi.HTTPException(status_code=400, detail="Select an available USB serial port")
+        if serial_port not in serial_reader.available_serial_ports():
+            raise fastapi.HTTPException(
+                status_code=400, detail="Selected serial port is not currently available"
+            )
 
     with state.state_lock:
         before = state.service_settings.copy()
-        state.service_settings.update({**request.model_dump(), "serial_port": serial_port})
+        state.service_settings.update({
+            "syslog_heartbeat_seconds": request.syslog_heartbeat_seconds,
+            "database_max_records": request.database_max_records,
+        })
+        if serial_port is not None:
+            state.service_settings["serial_port"] = serial_port
         state.save_persisted_state()
         after = state.service_settings.copy()
     removed_records = database_service.apply_record_limit()
-    if before["serial_port"] != serial_port:
+    if serial_port is not None and before["serial_port"] != serial_port:
         serial_reader.reconnect(serial_port)
     heartbeat_settings_changed.set()
     api_security.audit_event(

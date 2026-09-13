@@ -37,7 +37,7 @@ def empty_fts_ls_status() -> FtsStatus:
     """Return a complete, independent snapshot for an unpolled FTS-LS station.
 
     Keeping all seven physical slots in the initial value gives the API and UI a
-    stable shape before the first successful serial poll.
+    stable shape before the first status snapshot from the station daemon.
     """
     return device_schema.empty_fts_ls_status()
 

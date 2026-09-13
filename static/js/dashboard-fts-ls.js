@@ -25,7 +25,7 @@ function updateFtsFormState(form) {
 	)
 	form.classList.toggle('dirty', dirty)
 	const save = form.querySelector('.fts-save-settings')
-	if (save) save.disabled = !dirty || !canOperate()
+	if (save) save.disabled = deviceProfile === 'fts-ls' || !dirty || !canOperate()
 }
 
 function clearFtsFormChanges(form) {
@@ -76,6 +76,9 @@ function updateFtsTargetForm(force = false) {
 		field.querySelectorAll('input, select').forEach((input) => {
 			input.disabled = !hasPolarization
 		})
+	})
+	document.querySelectorAll('[data-fts-setting-action]').forEach((input) => {
+		input.disabled = true
 	})
 	setTextIfExists(
 		'fts-port-settings-hint',
@@ -217,6 +220,10 @@ async function saveFtsSettings(form) {
 
 function setupFtsControls() {
 	if (deviceProfile !== 'fts-ls') return
+	// The station transport is intentionally read-only until its daemon XML contract exists.
+	document.querySelectorAll('[data-fts-setting-action], [data-fts-action], .fts-save-settings, .fts-cancel-settings').forEach((control) => {
+		control.disabled = true
+	})
 	document.querySelectorAll('.fts-settings-form').forEach((form) => {
 		updateFtsFormState(form)
 		form.querySelectorAll('[data-fts-setting-action]').forEach((input) => {

@@ -79,11 +79,6 @@ CONFIG_KEYS = (
     "DEVICE_PROFILE",
     "SERIAL_PORT",
     "SERIAL_BAUDRATE",
-    "FTS_LS_USERNAME",
-    "FTS_LS_PASSWORD",
-    "FTS_LS_POLL_SECONDS",
-    "FTS_LS_FREQUENCY_MIN_GHZ",
-    "FTS_LS_FREQUENCY_MAX_GHZ",
     "GAIN_SET_MIN",
     "GAIN_SET_MAX",
     "DEVICE_NAME",
@@ -129,6 +124,72 @@ CONFIG_KEYS = (
     "RADIUS_NAS_IDENTIFIER",
     "NETWORK_AGENT_SOCKET",
 )
+
+CONFIG_SECTIONS = {
+    "AMP_PANEL_CONFIG_VERSION": "Panel and web interface",
+    "DEVICE_PROFILE": "Connected device",
+    "DEVICE_NAME": "Panel identity",
+    "INITIAL_ADMIN_USERNAME": "Browser authentication",
+    "PERSISTED_STATE_FILE": "Stored data and browser sessions",
+    "SYSLOG_ENABLED": "System logging",
+    "SNMP_PORT": "SNMP",
+    "NTP_SERVER": "Time diagnostics",
+    "RADIUS_SERVER": "RADIUS authentication",
+    "NETWORK_AGENT_SOCKET": "Internal host service",
+}
+
+CONFIG_HELP = {
+    "AMP_PANEL_CONFIG_VERSION": "Configuration format version; do not change manually.",
+    "AMP_PANEL_PORT": "Web interface TCP port: integer from 1024 to 65535, for example 8000.",
+    "AMP_PANEL_DATA_DIR": "Data directory: /var/lib/amp-panel or a path below /mnt, /media or /srv.",
+    "DEVICE_PROFILE": "Device profile: amplifier (serial) or fts-ls (daemon XML interface pending).",
+    "SERIAL_PORT": "Amplifier serial device, for example /dev/ttyUSB0 or /dev/serial/by-id/name.",
+    "SERIAL_BAUDRATE": "Amplifier serial speed in baud; normally 9600.",
+    "GAIN_SET_MIN": "Minimum safe amplifier gain setpoint; use the device specification.",
+    "GAIN_SET_MAX": "Maximum safe amplifier gain setpoint; must exceed GAIN_SET_MIN.",
+    "DEVICE_NAME": "Device name used in logs and as the default RADIUS identifier.",
+    "MDNS_HOSTNAME": "mDNS hostname without .local: lowercase letters, digits and hyphens, for example amp-panel.",
+    "INITIAL_ADMIN_USERNAME": "Administrator name: letters, digits, dot, underscore, @ or hyphen.",
+    "INITIAL_ADMIN_PASSWORD_HASH": "Generated local-admin password hash; never enter a plain-text password here.",
+    "INITIAL_ADMIN_PASSWORD_SALT": "Generated local-admin password salt; do not change manually.",
+    "AUTH_MODE": "Browser authentication mode: radius or local.",
+    "PERSISTED_STATE_FILE": "JSON file for panel settings and local accounts; must be inside AMP_PANEL_DATA_DIR.",
+    "DATABASE_FILE": "SQLite measurement database; must be inside AMP_PANEL_DATA_DIR.",
+    "DATABASE_MAX_RECORDS": "Maximum stored records; 0 means unlimited.",
+    "HISTORY_MAX_POINTS": "Maximum chart points returned by the API; integer of at least 100.",
+    "LOGIN_MAX_ATTEMPTS": "Failed login attempts allowed within LOGIN_WINDOW_SECONDS.",
+    "LOGIN_WINDOW_SECONDS": "Login rate-limit window in seconds.",
+    "SESSION_MAX_AGE_SECONDS": "Maximum browser session age in seconds.",
+    "SESSION_COOKIE_SECURE": "true only when served over HTTPS; false for HTTP, which cannot send Secure cookies.",
+    "TRUST_PROXY_HEADERS": "true only behind a trusted reverse proxy; otherwise false.",
+    "SYSLOG_ENABLED": "Send application events to syslog: true or false.",
+    "SYSLOG_HOST": "Local syslog receiver address, normally 127.0.0.1.",
+    "SYSLOG_PORT": "Local syslog receiver UDP port, normally 514.",
+    "SYSLOG_APP_NAME": "Application name shown in syslog entries.",
+    "SYSLOG_FACILITY": "Numeric syslog facility, normally 16 (local0).",
+    "SYSLOG_TIMEZONE": "IANA timezone for syslog timestamps, for example Europe/Warsaw.",
+    "SYSLOG_HEARTBEAT_SECONDS": "Seconds between health messages; 0 disables them.",
+    "SYSLOG_EXPORT_FILE": "Text log file available for export from the panel.",
+    "REMOTE_SYSLOG_ENABLED": "Forward logs to a remote server: true or false.",
+    "REMOTE_SYSLOG_HOST": "Remote syslog address; required when REMOTE_SYSLOG_ENABLED=true.",
+    "REMOTE_SYSLOG_PORT": "Remote syslog port: integer from 1 to 65535.",
+    "REMOTE_SYSLOG_PROTOCOL": "Remote syslog transport: tcp or udp.",
+    "TZ": "Process timezone, normally the same as SYSLOG_TIMEZONE.",
+    "SNMP_PORT": "Local SNMP agent UDP port: integer from 1024 to 65535.",
+    "SNMP_COMMUNITY": "Required SNMP community secret; use a long random value and keep it private.",
+    "NTP_SERVER": "NTP server hostname used for time diagnostics.",
+    "NTP_SERVER_FALLBACK_IP": "Fallback NTP server IPv4 address.",
+    "NTP_PORT": "NTP server UDP port, normally 123.",
+    "NTP_TIMEOUT_SECONDS": "NTP response timeout in seconds.",
+    "NTP_CACHE_SECONDS": "Time-diagnostics result cache duration in seconds.",
+    "RADIUS_SERVER": "RADIUS hostname or IP address; required when AUTH_MODE=radius.",
+    "RADIUS_PORT": "RADIUS authentication UDP port: integer from 1 to 65535, normally 1812.",
+    "RADIUS_SECRET": "RADIUS shared secret; required when AUTH_MODE=radius. Keep it private.",
+    "RADIUS_TIMEOUT_SECONDS": "RADIUS response timeout in seconds.",
+    "RADIUS_RETRIES": "RADIUS retries after the first request.",
+    "RADIUS_NAS_IDENTIFIER": "Panel identifier sent to the RADIUS server.",
+    "NETWORK_AGENT_SOCKET": "Unix socket for protected network configuration; do not change manually.",
+}
 
 
 class ConfigurationError(RuntimeError):
@@ -239,11 +300,21 @@ def write_env_file(path: pathlib.Path, values: dict[str, str]) -> None:
 
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# Managed by amp-panel. Run 'sudo amp-panel configure' to change it.",
+        "# Amp Panel configuration. Edit with: sudo amp-panel configure",
+        "# Lines starting with # are comments; values containing spaces or # are quoted automatically.",
+        "# Values are validated before changes are applied.",
         f"# Updated {datetime.datetime.now(datetime.timezone.utc).isoformat()}",
     ]
     for key in CONFIG_KEYS:
         if key in values:
+            if values.get("DEVICE_PROFILE") == "fts-ls" and key in {"SERIAL_PORT", "SERIAL_BAUDRATE"}:
+                continue
+            section = CONFIG_SECTIONS.get(key)
+            if section:
+                lines.extend(("", f"# --- {section} ---"))
+            help_text = CONFIG_HELP.get(key)
+            if help_text:
+                lines.append(f"# {help_text}")
             lines.append(f"{key}={_env_value(str(values[key]))}")
     content = "\n".join(lines) + "\n"
     fd, temporary_name = tempfile.mkstemp(
@@ -361,11 +432,6 @@ def default_configuration() -> dict[str, str]:
         "DEVICE_PROFILE": "amplifier",
         "SERIAL_PORT": _serial_device(),
         "SERIAL_BAUDRATE": "9600",
-        "FTS_LS_USERNAME": "appadmin",
-        "FTS_LS_PASSWORD": "",
-        "FTS_LS_POLL_SECONDS": "10",
-        "FTS_LS_FREQUENCY_MIN_GHZ": "194392.6",
-        "FTS_LS_FREQUENCY_MAX_GHZ": "194405.6",
         "GAIN_SET_MIN": "",
         "GAIN_SET_MAX": "",
         "DEVICE_NAME": device_name,
@@ -474,31 +540,17 @@ def validate_configuration(values: dict[str, str]) -> None:
     profile = values.get("DEVICE_PROFILE", "amplifier").strip().lower()
     if profile not in {"amplifier", "fts-ls"}:
         raise ConfigurationError("Device profile must be amplifier or fts-ls.")
-    _safe_int(values.get("SERIAL_BAUDRATE"), "Serial baud rate", 1, 10_000_000)
     if profile == "amplifier":
+        _safe_int(values.get("SERIAL_BAUDRATE"), "Serial baud rate", 1, 10_000_000)
         gain_min = _safe_float(values.get("GAIN_SET_MIN"), "Minimum safe gain")
         gain_max = _safe_float(values.get("GAIN_SET_MAX"), "Maximum safe gain")
         if gain_min >= gain_max:
             raise ConfigurationError("Minimum safe gain must be lower than maximum safe gain.")
-    else:
-        if not USERNAME_PATTERN.fullmatch(values.get("FTS_LS_USERNAME", "")):
-            raise ConfigurationError("The FTS-LS console username is invalid.")
-        _safe_int(values.get("FTS_LS_POLL_SECONDS"), "FTS-LS poll interval", 2, 3600)
-        frequency_min = _safe_float(
-            values.get("FTS_LS_FREQUENCY_MIN_GHZ"), "FTS-LS minimum laser frequency"
-        )
-        frequency_max = _safe_float(
-            values.get("FTS_LS_FREQUENCY_MAX_GHZ"), "FTS-LS maximum laser frequency"
-        )
-        if frequency_min >= frequency_max:
+        serial_port = values.get("SERIAL_PORT", "")
+        if serial_port != "/dev/null" and not SERIAL_PATTERN.fullmatch(serial_port):
             raise ConfigurationError(
-                "FTS-LS minimum laser frequency must be lower than the maximum."
+                "Serial device must be a supported /dev/tty* device or /dev/serial/by-id entry."
             )
-    serial_port = values.get("SERIAL_PORT", "")
-    if serial_port != "/dev/null" and not SERIAL_PATTERN.fullmatch(serial_port):
-        raise ConfigurationError(
-            "Serial device must be a supported /dev/tty* device or /dev/serial/by-id entry."
-        )
     data_dir = _normalized_data_dir(values.get("AMP_PANEL_DATA_DIR", ""))
     database_file = pathlib.Path(values.get("DATABASE_FILE", ""))
     state_file = pathlib.Path(values.get("PERSISTED_STATE_FILE", ""))
@@ -561,7 +613,7 @@ def _set_local_admin_password(values: dict[str, str], password: str) -> None:
 
 
 def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
-    """Prompt an administrator for profile, serial, host, and service settings."""
+    """Prompt an administrator for profile, host, and service settings."""
 
     print("\nAmp Panel configuration\n")
     previous_profile = values.get("DEVICE_PROFILE", "amplifier")
@@ -590,18 +642,9 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
             raise ConfigurationError("Local administrator passwords do not match.")
         _set_local_admin_password(values, password)
     values["AMP_PANEL_PORT"] = _prompt("Web interface port", values["AMP_PANEL_PORT"])
-    values["SERIAL_PORT"] = _prompt("Serial device", values["SERIAL_PORT"])
-    if values["DEVICE_PROFILE"] == "fts-ls":
-        values["SERIAL_BAUDRATE"] = "115200"
-        values["FTS_LS_USERNAME"] = _prompt(
-            "FTS-LS ADMIN console username",
-            values.get("FTS_LS_USERNAME", "appadmin"),
-        )
-        values["FTS_LS_PASSWORD"] = _prompt(
-            "FTS-LS ADMIN console password",
-            values.get("FTS_LS_PASSWORD", ""),
-            secret=True,
-        )
+    if values["DEVICE_PROFILE"] == "amplifier":
+        values["SERIAL_PORT"] = _prompt("Serial device", values["SERIAL_PORT"])
+    else:
         values["GAIN_SET_MIN"] = values.get("GAIN_SET_MIN") or "-100"
         values["GAIN_SET_MAX"] = values.get("GAIN_SET_MAX") or "100"
     values["AMP_PANEL_DATA_DIR"] = _prompt(
@@ -644,8 +687,6 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
         "port": "AMP_PANEL_PORT",
         "data_dir": "AMP_PANEL_DATA_DIR",
         "serial_port": "SERIAL_PORT",
-        "fts_ls_username": "FTS_LS_USERNAME",
-        "fts_ls_password": "FTS_LS_PASSWORD",
         "gain_min": "GAIN_SET_MIN",
         "gain_max": "GAIN_SET_MAX",
         "radius_server": "RADIUS_SERVER",
@@ -681,7 +722,6 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
     if values.get("DEVICE_PROFILE") == "fts-ls":
-        values["SERIAL_BAUDRATE"] = "115200"
         values["GAIN_SET_MIN"] = values.get("GAIN_SET_MIN") or "-100"
         values["GAIN_SET_MAX"] = values.get("GAIN_SET_MAX") or "100"
 
@@ -937,7 +977,6 @@ def configure_command(args: argparse.Namespace) -> int:
         if args.device_profile:
             values["DEVICE_PROFILE"] = args.device_profile
             if args.device_profile == "fts-ls":
-                values["SERIAL_BAUDRATE"] = "115200"
                 values["GAIN_SET_MIN"] = values.get("GAIN_SET_MIN") or "-100"
                 values["GAIN_SET_MAX"] = values.get("GAIN_SET_MAX") or "100"
             else:
@@ -958,12 +997,8 @@ def configure_command(args: argparse.Namespace) -> int:
             values["AMP_PANEL_DATA_DIR"] = str(data_dir)
             values["DATABASE_FILE"] = str(data_dir / "measurements.db")
             values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
-        if args.serial_port:
+        if args.serial_port and values["DEVICE_PROFILE"] == "amplifier":
             values["SERIAL_PORT"] = args.serial_port
-        if args.fts_ls_username:
-            values["FTS_LS_USERNAME"] = args.fts_ls_username
-        if args.fts_ls_password:
-            values["FTS_LS_PASSWORD"] = args.fts_ls_password
         if args.gain_min is not None:
             values["GAIN_SET_MIN"] = str(args.gain_min)
         if args.gain_max is not None:
@@ -1091,11 +1126,14 @@ def doctor_command(_args: argparse.Namespace) -> int:
         failures += 0 if valid else 1
     else:
         print("[OK] SQLite database will be created on the first measurement.")
-    serial_port = pathlib.Path(values["SERIAL_PORT"])
-    if serial_port.exists():
-        print(f"[OK] serial device: {serial_port}")
+    if values.get("DEVICE_PROFILE") == "amplifier":
+        serial_port = pathlib.Path(values["SERIAL_PORT"])
+        if serial_port.exists():
+            print(f"[OK] serial device: {serial_port}")
+        else:
+            print(f"[WARN] serial device is not currently connected: {serial_port}")
     else:
-        print(f"[WARN] serial device is not currently connected: {serial_port}")
+        print("[WARN] FTS-LS acquisition awaits the station daemon XML interface.")
     for service in (CURRENT_SERVICE, NETWORK_AGENT_SERVICE):
         if _service_exists(service):
             result = _run(["systemctl", "is-active", service], capture=True)
@@ -1221,8 +1259,6 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--data-dir")
     configure.add_argument("--device-profile", choices=("amplifier", "fts-ls"))
     configure.add_argument("--serial-port")
-    configure.add_argument("--fts-ls-username")
-    configure.add_argument("--fts-ls-password")
     configure.add_argument("--gain-min")
     configure.add_argument("--gain-max")
     configure.add_argument("--radius-server")

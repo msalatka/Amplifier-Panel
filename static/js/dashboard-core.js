@@ -521,7 +521,7 @@ function applyRoleUi() {
 	})
 
 	document.querySelectorAll('[data-operator-control]').forEach((element) => {
-		element.disabled = !canOperate()
+		element.disabled = !canOperate() || (deviceProfile === 'fts-ls' && !!element.closest('.fts-settings-panel'))
 	})
 
 	document.querySelectorAll('[data-operator-only]').forEach((element) => {

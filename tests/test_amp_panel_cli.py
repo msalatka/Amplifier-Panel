@@ -146,14 +146,24 @@ class AmpPanelCliTests(unittest.TestCase):
     def test_environment_file_round_trip_preserves_secrets(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "amp-panel.env"
-            values = {
-                "AMP_PANEL_PORT": "8123",
-                "RADIUS_SECRET": 'space and "quotes" = # safe',
-            }
+            values = amp_panel_cli.default_configuration()
+            values.update(
+                {
+                    "AMP_PANEL_PORT": "8123",
+                    "RADIUS_SECRET": 'space and "quotes" = # safe',
+                }
+            )
 
             amp_panel_cli.write_env_file(path, values)
 
             self.assertEqual(amp_panel_cli.read_env_file(path), values)
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("# --- Browser authentication ---", content)
+            self.assertIn("# RADIUS shared secret; required when AUTH_MODE=radius. Keep it private.", content)
+            self.assertIn("# Web interface TCP port: integer from 1024 to 65535, for example 8000.", content)
+
+    def test_each_configuration_key_has_a_help_comment(self):
+        self.assertEqual(set(amp_panel_cli.CONFIG_KEYS), set(amp_panel_cli.CONFIG_HELP))
 
     def test_editor_configuration_rejects_an_unknown_key(self):
         values = amp_panel_cli.default_configuration()
@@ -192,13 +202,10 @@ class AmpPanelCliTests(unittest.TestCase):
 
         self.assertEqual(values["RADIUS_SECRET"], secret)
 
-    def test_fts_ls_installer_answers_select_profile_and_serial_defaults(self):
-        password = "adm!n with spaces"
+    def test_fts_ls_installer_answers_do_not_write_serial_configuration(self):
         values = amp_panel_cli.default_configuration()
         answers = {
             "device_profile_b64": base64.b64encode(b"fts-ls").decode(),
-            "fts_ls_username_b64": base64.b64encode(b"appadmin").decode(),
-            "fts_ls_password_b64": base64.b64encode(password.encode()).decode(),
         }
         with mock.patch.object(
             amp_panel_cli,
@@ -208,10 +215,14 @@ class AmpPanelCliTests(unittest.TestCase):
             amp_panel_cli._apply_answers(values, answers)
 
         self.assertEqual(values["DEVICE_PROFILE"], "fts-ls")
-        self.assertEqual(values["SERIAL_BAUDRATE"], "115200")
-        self.assertEqual(values["FTS_LS_PASSWORD"], password)
         self.assertEqual(values["GAIN_SET_MIN"], "-100")
         self.assertEqual(values["GAIN_SET_MAX"], "100")
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "amp-panel.env"
+            amp_panel_cli.write_env_file(path, values)
+            content = path.read_text(encoding="utf-8")
+            self.assertNotIn("SERIAL_PORT=", content)
+            self.assertNotIn("SERIAL_BAUDRATE=", content)
 
 
 if __name__ == "__main__":

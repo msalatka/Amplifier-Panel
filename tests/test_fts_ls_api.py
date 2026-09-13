@@ -7,6 +7,22 @@ from app.api import fts_ls
 
 
 class FtsLsApiTests(unittest.TestCase):
+    def test_station_capabilities_are_read_only_without_daemon_contract(self):
+        with mock.patch.object(fts_ls.config, "DEVICE_PROFILE", "fts-ls"):
+            result = fts_ls.capabilities(_current_user={"role": "Viewer"})
+        self.assertTrue(result["read_only"])
+        self.assertEqual(result["controls"], [])
+
+    def test_station_command_fails_closed_without_daemon_contract(self):
+        with mock.patch.object(fts_ls.config, "DEVICE_PROFILE", "fts-ls"):
+            with self.assertRaises(fastapi.HTTPException) as raised:
+                fts_ls.command(
+                    body=fts_ls.DeviceCommandRequest(action="power_reset", confirmed=True),
+                    request=mock.MagicMock(),
+                    current_user={"username": "admin", "role": "Administrator"},
+                )
+        self.assertEqual(raised.exception.status_code, 503)
+
     def test_history_uses_the_common_range_validation(self):
         with self.assertRaisesRegex(fastapi.HTTPException, "Invalid history range"):
             fts_ls._history("invalid", None, None, 2000)

@@ -80,17 +80,7 @@ def _device_profile(value: str | None) -> str:
 
 DEVICE_PROFILE = _device_profile(os.getenv("DEVICE_PROFILE"))
 SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyACM0")
-SERIAL_BAUDRATE = _env_int(
-    "SERIAL_BAUDRATE",
-    115200 if DEVICE_PROFILE == "fts-ls" else 9600,
-)
-FTS_LS_USERNAME = os.getenv("FTS_LS_USERNAME", "appadmin")
-FTS_LS_PASSWORD = os.getenv("FTS_LS_PASSWORD", "")
-FTS_LS_POLL_SECONDS = max(2, _env_int("FTS_LS_POLL_SECONDS", 10))
-FTS_LS_FREQUENCY_MIN_GHZ = _env_float("FTS_LS_FREQUENCY_MIN_GHZ", 194392.6)
-FTS_LS_FREQUENCY_MAX_GHZ = _env_float("FTS_LS_FREQUENCY_MAX_GHZ", 194405.6)
-if FTS_LS_FREQUENCY_MIN_GHZ >= FTS_LS_FREQUENCY_MAX_GHZ:
-    raise RuntimeError("FTS-LS laser frequency minimum must be lower than maximum.")
+SERIAL_BAUDRATE = _env_int("SERIAL_BAUDRATE", 9600)
 GAIN_SET_MIN, GAIN_SET_MAX = _gain_bounds(
     os.getenv("GAIN_SET_MIN"),
     os.getenv("GAIN_SET_MAX"),
