@@ -68,6 +68,18 @@ def login(
             api_security.audit_event(request, "login_failed", username, "radius_reject")
             raise fastapi.HTTPException(status_code=401, detail="Invalid username or password")
         state.login_failures.pop(client_ip, None)
+        session_now = datetime.datetime.now(datetime.timezone.utc)
+        max_age = datetime.timedelta(seconds=config.SESSION_MAX_AGE_SECONDS)
+        for token, session in list(state.auth_sessions.items()):
+            created_at = datetime.datetime.fromisoformat(session["created_at"])
+            if session_now - created_at > max_age:
+                state.auth_sessions.pop(token, None)
+        if any(session["username"] == username for session in state.auth_sessions.values()):
+            api_security.audit_event(request, "login_session_conflict", username)
+            raise fastapi.HTTPException(
+                status_code=409,
+                detail="This account is already logged in. Log out of the existing session or wait for it to expire.",
+            )
         token = api_security.create_session(username)
         public_user = state.access_user_public(user)
 
