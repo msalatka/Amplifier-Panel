@@ -12,8 +12,13 @@ from app.core import config, state
 
 
 class LoginSessionTests(unittest.TestCase):
+    auth_mode = "radius"
+
     def setUp(self):
+        self.backend = auth.passwords if self.auth_mode == "local" else auth.radius_service
+        self.method = "verify_password" if self.auth_mode == "local" else "authenticate"
         for patcher in (
+            mock.patch.object(config, "AUTH_MODE", self.auth_mode),
             mock.patch.object(state, "auth_sessions", {}),
             mock.patch.object(state, "login_failures", {}),
             mock.patch.object(
@@ -24,7 +29,7 @@ class LoginSessionTests(unittest.TestCase):
                     for name in ("alice", "bob")
                 ],
             ),
-            mock.patch.object(auth.radius_service, "authenticate", return_value=True),
+            mock.patch.object(self.backend, self.method, return_value=True),
             mock.patch.object(auth.api_security, "audit_event"),
         ):
             patcher.start()
@@ -74,7 +79,7 @@ class LoginSessionTests(unittest.TestCase):
 
     def test_invalid_password_does_not_reveal_existing_session(self):
         self.login()
-        with mock.patch.object(auth.radius_service, "authenticate", return_value=False):
+        with mock.patch.object(self.backend, self.method, return_value=False):
             with self.assertRaises(fastapi.HTTPException) as error:
                 self.login()
         self.assertEqual(error.exception.status_code, 401)
@@ -93,8 +98,12 @@ class LoginSessionTests(unittest.TestCase):
             except fastapi.HTTPException as error:
                 return error.status_code
 
-        with mock.patch.object(auth.radius_service, "authenticate", side_effect=authenticate):
+        with mock.patch.object(self.backend, self.method, side_effect=authenticate):
             with ThreadPoolExecutor(max_workers=2) as executor:
                 results = list(executor.map(lambda _: attempt(), range(2)))
         self.assertEqual(sorted(results), [200, 409])
         self.assertEqual(len(state.auth_sessions), 1)
+
+
+class LocalLoginSessionTests(LoginSessionTests):
+    auth_mode = "local"
