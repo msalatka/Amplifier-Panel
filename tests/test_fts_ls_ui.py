@@ -55,8 +55,11 @@ class FtsLsUiTests(unittest.TestCase):
     def test_live_view_builds_module_inventory_from_device_data(self):
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
         script = dashboard_scripts()
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
 
-        self.assertIn('id="fts-modules"', template)
+        self.assertIn('id="fts-modules" class="fts-module-grid" aria-label="Uplink and optical modules"', template)
+        self.assertLess(template.index('<h2>Modular optical station</h2>'), template.index('id="fts-modules"'))
+        self.assertLess(template.index('id="fts-modules"'), template.index('class="fts-controller-rack"'))
         self.assertNotIn("fts-power-a", template)
         self.assertNotIn("fts-power-b", template)
         self.assertNotIn("status.power", script)
@@ -65,6 +68,10 @@ class FtsLsUiTests(unittest.TestCase):
         self.assertIn("...(status.ports || []).map", script)
         self.assertIn("syncFtsModuleTargets(inventory)", script)
         self.assertIn("data-fts-module-target", script)
+        self.assertIn('...(status.uplink ? [{ module: status.uplink, index: 0, uplink: true }]', script)
+        self.assertIn('grid-template-columns: repeat(4, minmax(0, 1fr));', stylesheet)
+        self.assertNotIn('fts-port-connectors', script)
+        self.assertNotIn('fts-connector-socket', stylesheet)
         self.assertNotIn('id="fts-warning-count"', template)
 
     def test_laser_states_are_neutral_and_laser_warnings_are_not_exposed(self):
@@ -95,9 +102,8 @@ class FtsLsUiTests(unittest.TestCase):
         self.assertNotIn("fts-signal-bus", template)
         self.assertNotIn(".fts-signal-bus", stylesheet)
         self.assertNotIn(".fts-pluggable-module:not(.unequipped):hover", stylesheet)
-        rack_rule = stylesheet.split(".fts-optical-rack {", 1)[1].split("}", 1)[0]
-        self.assertNotIn("border:", rack_rule)
-        self.assertNotIn("background:", rack_rule)
+        self.assertNotIn(".fts-optical-rack", stylesheet)
+        self.assertNotIn("fts-optical-rack", template)
         station_rules = [rule.split("}", 1)[0] for rule in stylesheet.split(".fts-station {")[1:]]
         self.assertTrue(station_rules)
         self.assertTrue(all("border:" not in rule for rule in station_rules))
@@ -116,14 +122,15 @@ class FtsLsUiTests(unittest.TestCase):
         self.assertIn('class="service-diagnostics-list"', template)
         self.assertNotIn('class="service-diagnostics-grid"', template)
 
-    def test_front_panel_uses_manual_connector_names_and_normalized_units(self):
+    def test_front_panel_uses_normalized_units_without_connector_lamps(self):
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
         script = dashboard_scripts()
 
-        self.assertIn("FTS-LS front panel", template)
+        self.assertIn("Modular optical station", template)
         self.assertNotIn("Optical module rack", template)
         self.assertIn("function displayMeasurement", script)
-        self.assertIn("connector === 'BN_A' ? 'BNA'", script)
+        self.assertNotIn("ftsConnectorCode", script)
+        self.assertNotIn("ftsConnectorLabel", script)
         self.assertIn("displayMeasurement(firstValue(module, ['jitter']), '%')", script)
         self.assertIn("firstValue(module, ['optical_power_display', 'optical_power'])", script)
         self.assertIn("displayMeasurement(", script)

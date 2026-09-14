@@ -57,6 +57,7 @@ let lastWarningHistoryRefresh = 0
 const warningHistoryLimit = 100
 const chartSeriesVisibility = new Map()
 const deviceProfile = document.body.dataset.deviceProfile || 'amplifier'
+const selectedDeviceId = document.body.dataset.deviceId || deviceProfile
 let latestFtsStatus = null
 
 function historyRefreshInterval(rangeValue) {
@@ -220,21 +221,6 @@ function ftsModuleIsEquipped(module) {
 	return !type.includes('unequipped') && stateValue !== 'unequipped'
 }
 
-function ftsConnectorLabel(connector) {
-	const labels = {
-		O: 'Optical',
-		BN: 'Beat note',
-		BNA: 'Amplified beat note',
-		BN_A: 'Amplified beat note',
-		TR: 'Tracking oscillator output',
-	}
-	return labels[connector] || connector
-}
-
-function ftsConnectorCode(connector) {
-	return connector === 'BN_A' ? 'BNA' : connector
-}
-
 function renderFtsModule(module, index, uplink = false) {
 	const stateValue = firstValue(module, ['state'], 'UNKNOWN')
 	const stateClass = ftsStateClass(stateValue)
@@ -271,15 +257,6 @@ function renderFtsModule(module, index, uplink = false) {
 				),
 			)
 	}
-	const connectors = (module.connectors || [])
-		.map(
-			(connector) => `
-		<span class="fts-connector" title="${escapeHtml(ftsConnectorLabel(connector))}">
-			<span class="fts-connector-socket" aria-hidden="true"></span>
-			<span>${escapeHtml(ftsConnectorCode(connector))}</span>
-		</span>`,
-		)
-		.join('')
 	return `
 		<article class="fts-module fts-pluggable-module ${stateClass} ${unequipped ? 'unequipped' : ''}" data-fts-module-target="${escapeHtml(target)}"${unequipped ? '' : ' tabindex="0"'}>
 			<div class="fts-slot-label">${escapeHtml(slotLabel)}</div>
@@ -289,7 +266,6 @@ function renderFtsModule(module, index, uplink = false) {
 				${metrics.join('')}
 				${ftsMetric('Description', firstValue(module, ['description']))}
 			</dl>
-			<div class="fts-port-connectors">${connectors || '<span class="fts-no-connectors">No physical ports</span>'}</div>
 		</article>`
 }
 

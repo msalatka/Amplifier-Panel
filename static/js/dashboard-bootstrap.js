@@ -8,13 +8,32 @@ function updateStatisticsTable() {
 }
 
 async function startDataRefresh() {
-	await loadSettings()
+	if (selectedDeviceId === 'amplifier') await loadSettings()
+	await refreshDeviceList()
 	await updateDashboard()
-	await updateWarningsTable()
+	if (selectedDeviceId === 'amplifier') await updateWarningsTable()
 	await updateStatisticsTable()
 
 	if (isAdministrator()) {
 		await loadAccessUsers()
+	}
+}
+
+async function refreshDeviceList() {
+	if (!currentUser) return
+	try {
+		const response = await fetch('/api/devices')
+		handleAuthResponse(response)
+		if (!response.ok) return
+		const result = await response.json()
+		for (const device of result.devices || []) {
+			const status = [...document.querySelectorAll('[data-device-status]')].find(
+				(element) => element.dataset.deviceStatus === device.id,
+			)
+			if (status) status.textContent = device.connected ? 'Connected' : 'Disconnected'
+		}
+	} catch (error) {
+		console.error('Could not refresh device list:', error)
 	}
 }
 
@@ -33,7 +52,8 @@ checkAuth().then((isAuthenticated) => {
 })
 
 setInterval(updateDashboard, 1000)
-setInterval(updateWarningsTable, 3000)
+setInterval(refreshDeviceList, 3000)
+setInterval(() => { if (selectedDeviceId === 'amplifier') updateWarningsTable() }, 3000)
 setInterval(() => {
 	if (!currentUser) return
 

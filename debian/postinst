@@ -47,14 +47,19 @@ printf 'AUTH_MODE_B64=%s\n' "${encoded_auth_mode}" >>"${answers_file}"
 read_answer local-admin-password LOCAL_ADMIN_PASSWORD
 read_answer port PORT
 read_answer data-dir DATA_DIR
-db_get amp-panel/device-profile || RET="amplifier"
+db_get amp-panel/enabled-devices || RET="amplifier, fts-ls"
+enabled_devices=""
 case "${RET}" in
-    fts-ls|"FTS-LS Laser Station") device_profile=fts-ls ;;
-    *) device_profile=amplifier ;;
+    *amplifier*|*"Optical amplifier"*) enabled_devices=amplifier ;;
 esac
-encoded_profile="$(printf '%s' "${device_profile}" | base64 | tr -d '\n')"
-printf 'DEVICE_PROFILE_B64=%s\n' "${encoded_profile}" >>"${answers_file}"
-if [ "${device_profile}" = amplifier ]; then
+case "${RET}" in
+    *fts-ls*|*"FTS-LS Laser Station"*)
+        if [ -n "${enabled_devices}" ]; then enabled_devices="${enabled_devices},fts-ls"; else enabled_devices=fts-ls; fi
+        ;;
+esac
+encoded_devices="$(printf '%s' "${enabled_devices:-amplifier,fts-ls}" | base64 | tr -d '\n')"
+printf 'ENABLED_DEVICES_B64=%s\n' "${encoded_devices}" >>"${answers_file}"
+if [ "${enabled_devices}" = amplifier ] || [ "${enabled_devices}" = amplifier,fts-ls ]; then
     read_answer serial-port SERIAL_PORT
 fi
 read_answer gain-min GAIN_MIN

@@ -71,12 +71,22 @@ USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._@-]{1,128}$")
 HOST_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
 MDNS_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 SERIAL_PATTERN = re.compile(r"^/dev/(?:tty(?:ACM|USB|S|O)[0-9]+|serial/by-id/[A-Za-z0-9._:+-]+)$")
+KNOWN_DEVICE_IDS = ("amplifier", "fts-ls")
+
+
+def _enabled_devices(value: str | None) -> tuple[str, ...]:
+    """Validate the configured device set without importing runtime dependencies."""
+
+    ids = tuple(part.strip().lower() for part in (value or "").split(","))
+    if not ids or any(part not in KNOWN_DEVICE_IDS for part in ids) or len(ids) != len(set(ids)):
+        raise ConfigurationError("ENABLED_DEVICES must list unique registered IDs: amplifier,fts-ls.")
+    return ids
 
 CONFIG_KEYS = (
     "AMP_PANEL_CONFIG_VERSION",
     "AMP_PANEL_PORT",
     "AMP_PANEL_DATA_DIR",
-    "DEVICE_PROFILE",
+    "ENABLED_DEVICES",
     "SERIAL_PORT",
     "SERIAL_BAUDRATE",
     "GAIN_SET_MIN",
@@ -127,7 +137,7 @@ CONFIG_KEYS = (
 
 CONFIG_SECTIONS = {
     "AMP_PANEL_CONFIG_VERSION": "Panel and web interface",
-    "DEVICE_PROFILE": "Connected device",
+    "ENABLED_DEVICES": "Connected devices",
     "DEVICE_NAME": "Panel identity",
     "INITIAL_ADMIN_USERNAME": "Browser authentication",
     "PERSISTED_STATE_FILE": "Stored data and browser sessions",
@@ -142,7 +152,7 @@ CONFIG_HELP = {
     "AMP_PANEL_CONFIG_VERSION": "Configuration format version; do not change manually.",
     "AMP_PANEL_PORT": "Web interface TCP port: integer from 1024 to 65535, for example 8000.",
     "AMP_PANEL_DATA_DIR": "Data directory: /var/lib/amp-panel or a path below /mnt, /media or /srv.",
-    "DEVICE_PROFILE": "Device profile: amplifier (serial) or fts-ls (daemon XML interface pending).",
+    "ENABLED_DEVICES": "Comma-separated registered devices: amplifier,fts-ls. Both can run at once.",
     "SERIAL_PORT": "Amplifier serial device, for example /dev/ttyUSB0 or /dev/serial/by-id/name.",
     "SERIAL_BAUDRATE": "Amplifier serial speed in baud; normally 9600.",
     "GAIN_SET_MIN": "Minimum safe amplifier gain setpoint; use the device specification.",
@@ -307,7 +317,9 @@ def write_env_file(path: pathlib.Path, values: dict[str, str]) -> None:
     ]
     for key in CONFIG_KEYS:
         if key in values:
-            if values.get("DEVICE_PROFILE") == "fts-ls" and key in {"SERIAL_PORT", "SERIAL_BAUDRATE"}:
+            if "amplifier" not in [part.strip() for part in values.get("ENABLED_DEVICES", "").split(",")] and key in {
+                "SERIAL_PORT", "SERIAL_BAUDRATE", "GAIN_SET_MIN", "GAIN_SET_MAX"
+            }:
                 continue
             section = CONFIG_SECTIONS.get(key)
             if section:
@@ -429,7 +441,7 @@ def default_configuration() -> dict[str, str]:
         "AMP_PANEL_CONFIG_VERSION": "2",
         "AMP_PANEL_PORT": "8000",
         "AMP_PANEL_DATA_DIR": str(data_dir),
-        "DEVICE_PROFILE": "amplifier",
+        "ENABLED_DEVICES": "amplifier,fts-ls",
         "SERIAL_PORT": _serial_device(),
         "SERIAL_BAUDRATE": "9600",
         "GAIN_SET_MIN": "",
@@ -537,10 +549,8 @@ def validate_configuration(values: dict[str, str]) -> None:
     if not USERNAME_PATTERN.fullmatch(values.get("INITIAL_ADMIN_USERNAME", "")):
         raise ConfigurationError("The Administrator username is invalid.")
     _safe_int(values.get("AMP_PANEL_PORT"), "Web port", 1024, 65535)
-    profile = values.get("DEVICE_PROFILE", "amplifier").strip().lower()
-    if profile not in {"amplifier", "fts-ls"}:
-        raise ConfigurationError("Device profile must be amplifier or fts-ls.")
-    if profile == "amplifier":
+    enabled_devices = _enabled_devices(values.get("ENABLED_DEVICES"))
+    if "amplifier" in enabled_devices:
         _safe_int(values.get("SERIAL_BAUDRATE"), "Serial baud rate", 1, 10_000_000)
         gain_min = _safe_float(values.get("GAIN_SET_MIN"), "Minimum safe gain")
         gain_max = _safe_float(values.get("GAIN_SET_MAX"), "Maximum safe gain")
@@ -613,21 +623,15 @@ def _set_local_admin_password(values: dict[str, str], password: str) -> None:
 
 
 def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
-    """Prompt an administrator for profile, host, and service settings."""
+    """Prompt an administrator for devices, host, and service settings."""
 
     print("\nAmp Panel configuration\n")
-    previous_profile = values.get("DEVICE_PROFILE", "amplifier")
-    profile = _prompt(
-        "Device profile (amplifier/fts-ls)",
-        values.get("DEVICE_PROFILE", "amplifier"),
+    values["ENABLED_DEVICES"] = _prompt(
+        "Enabled devices (comma-separated: amplifier,fts-ls)",
+        values.get("ENABLED_DEVICES", "amplifier,fts-ls"),
     ).lower()
-    profile_aliases = {"amp": "amplifier", "fts_ls": "fts-ls", "laser-station": "fts-ls"}
-    values["DEVICE_PROFILE"] = profile_aliases.get(profile, profile)
-    if values["DEVICE_PROFILE"] == "amplifier":
+    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
         values["SERIAL_BAUDRATE"] = "9600"
-        if previous_profile == "fts-ls":
-            values["GAIN_SET_MIN"] = ""
-            values["GAIN_SET_MAX"] = ""
     values["INITIAL_ADMIN_USERNAME"] = _prompt(
         "Administrator username",
         values["INITIAL_ADMIN_USERNAME"],
@@ -642,11 +646,8 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
             raise ConfigurationError("Local administrator passwords do not match.")
         _set_local_admin_password(values, password)
     values["AMP_PANEL_PORT"] = _prompt("Web interface port", values["AMP_PANEL_PORT"])
-    if values["DEVICE_PROFILE"] == "amplifier":
+    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
         values["SERIAL_PORT"] = _prompt("Serial device", values["SERIAL_PORT"])
-    else:
-        values["GAIN_SET_MIN"] = values.get("GAIN_SET_MIN") or "-100"
-        values["GAIN_SET_MAX"] = values.get("GAIN_SET_MAX") or "100"
     values["AMP_PANEL_DATA_DIR"] = _prompt(
         "Measurement data directory",
         values["AMP_PANEL_DATA_DIR"],
@@ -655,7 +656,7 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
-    if values["DEVICE_PROFILE"] == "amplifier":
+    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
         values["GAIN_SET_MIN"] = _prompt(
             "Minimum safe gain from the device specification",
             values["GAIN_SET_MIN"],
@@ -681,7 +682,7 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
 
 def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     mapping = {
-        "device_profile": "DEVICE_PROFILE",
+        "enabled_devices": "ENABLED_DEVICES",
         "admin_username": "INITIAL_ADMIN_USERNAME",
         "auth_mode": "AUTH_MODE",
         "port": "AMP_PANEL_PORT",
@@ -721,9 +722,6 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
-    if values.get("DEVICE_PROFILE") == "fts-ls":
-        values["GAIN_SET_MIN"] = values.get("GAIN_SET_MIN") or "-100"
-        values["GAIN_SET_MAX"] = values.get("GAIN_SET_MAX") or "100"
 
 
 def _lookup_identity() -> tuple[int | None, int | None]:
@@ -968,22 +966,13 @@ def configure_command(args: argparse.Namespace) -> int:
     source = discover_configuration()
     try:
         values = _configuration_from_source(source)
-        source_device_profile = values.get("DEVICE_PROFILE", "amplifier")
         answers: dict[str, str] = {}
         if args.answers_file:
             answers = read_env_file(pathlib.Path(args.answers_file))
             answers = {key.lower(): value for key, value in answers.items()}
         _apply_answers(values, answers)
-        if args.device_profile:
-            values["DEVICE_PROFILE"] = args.device_profile
-            if args.device_profile == "fts-ls":
-                values["GAIN_SET_MIN"] = values.get("GAIN_SET_MIN") or "-100"
-                values["GAIN_SET_MAX"] = values.get("GAIN_SET_MAX") or "100"
-            else:
-                values["SERIAL_BAUDRATE"] = "9600"
-                if source_device_profile == "fts-ls":
-                    values["GAIN_SET_MIN"] = ""
-                    values["GAIN_SET_MAX"] = ""
+        if args.enabled_devices:
+            values["ENABLED_DEVICES"] = args.enabled_devices
         if args.admin_username:
             values["INITIAL_ADMIN_USERNAME"] = args.admin_username
         if args.auth_mode:
@@ -997,7 +986,7 @@ def configure_command(args: argparse.Namespace) -> int:
             values["AMP_PANEL_DATA_DIR"] = str(data_dir)
             values["DATABASE_FILE"] = str(data_dir / "measurements.db")
             values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
-        if args.serial_port and values["DEVICE_PROFILE"] == "amplifier":
+        if args.serial_port and "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
             values["SERIAL_PORT"] = args.serial_port
         if args.gain_min is not None:
             values["GAIN_SET_MIN"] = str(args.gain_min)
@@ -1126,13 +1115,13 @@ def doctor_command(_args: argparse.Namespace) -> int:
         failures += 0 if valid else 1
     else:
         print("[OK] SQLite database will be created on the first measurement.")
-    if values.get("DEVICE_PROFILE") == "amplifier":
+    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
         serial_port = pathlib.Path(values["SERIAL_PORT"])
         if serial_port.exists():
             print(f"[OK] serial device: {serial_port}")
         else:
             print(f"[WARN] serial device is not currently connected: {serial_port}")
-    else:
+    if "fts-ls" in _enabled_devices(values["ENABLED_DEVICES"]):
         print("[WARN] FTS-LS acquisition awaits the station daemon XML interface.")
     for service in (CURRENT_SERVICE, NETWORK_AGENT_SERVICE):
         if _service_exists(service):
@@ -1257,7 +1246,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     configure.add_argument("--port", type=int)
     configure.add_argument("--data-dir")
-    configure.add_argument("--device-profile", choices=("amplifier", "fts-ls"))
+    configure.add_argument("--enabled-devices", help="comma-separated registered device IDs")
     configure.add_argument("--serial-port")
     configure.add_argument("--gain-min")
     configure.add_argument("--gain-max")

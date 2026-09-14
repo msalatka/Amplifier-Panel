@@ -10,10 +10,15 @@ import fastapi.responses
 import starlette.requests
 
 from app.api import security as api_security
-from app.core import device_schema
+from app.core import config, device_schema
 from app.services import database as database_service
 
-router = fastapi.APIRouter()
+def require_amplifier() -> None:
+    if "amplifier" not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Amplifier is not enabled")
+
+
+router = fastapi.APIRouter(dependencies=[fastapi.Depends(require_amplifier)])
 ALLOWED_RANGES = {"5m", "1h", "24h", "7d", "30d", "all"}
 CSV_FIELDS = device_schema.AMPLIFIER_CSV_FIELDS
 CSV_EXPORT_LOCK = threading.Lock()

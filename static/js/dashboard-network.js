@@ -358,7 +358,7 @@ function updateDatabaseLimitPreview() {
 async function loadServiceDiagnostics() {
 	if (!isAdministrator() || !document.getElementById('service-database-state')) return
 	try {
-		const response = await fetch('/api/service-diagnostics')
+		const response = await fetch(`/api/service-diagnostics?device=${encodeURIComponent(deviceProfile)}`)
 		handleAuthResponse(response)
 		const data = await response.json()
 		if (!response.ok) throw new Error(data.detail || 'Could not read service diagnostics')
@@ -479,6 +479,7 @@ serviceSettingsForm?.addEventListener('submit', async (event) => {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
+				device_id: deviceProfile,
 				serial_port: document.getElementById('service-serial-port-input')?.value || null,
 				syslog_heartbeat_seconds: heartbeatEnabled
 					? Number(document.getElementById('service-heartbeat-input').value)

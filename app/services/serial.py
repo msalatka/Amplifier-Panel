@@ -213,6 +213,7 @@ def _serial_reader_session(port: str):
         with state.state_lock:
             state.serial_connected = True
             state.serial_error = None
+        state.update_device_live("amplifier", connected=True, error=None)
 
         print(f"Connected to serial port {port}")
 
@@ -250,6 +251,7 @@ def _serial_reader_session(port: str):
 
                     state.serial_connected = True
                     state.serial_error = None
+                state.update_device_live("amplifier", connected=True, error=None)
 
                 print("Command response:", data)
                 continue
@@ -271,6 +273,7 @@ def _serial_reader_session(port: str):
                 state.last_update = now
                 state.serial_connected = True
                 state.serial_error = None
+            state.update_device_live("amplifier", connected=True, error=None, last_update=now, data=data)
 
             # The same receive time is used for live state, warnings and SQLite.
             database_service.write_measurement(data, now)
@@ -293,6 +296,7 @@ def _serial_reader_session(port: str):
         with state.state_lock:
             state.serial_connected = False
             state.serial_error = str(e)
+        state.update_device_live("amplifier", connected=False, error=str(e))
 
         print("Serial port error:", e)
 
@@ -308,12 +312,13 @@ def _serial_reader_session(port: str):
 
         with state.state_lock:
             state.serial_connected = False
+        state.update_device_live("amplifier", connected=False)
 
 
 def serial_reader_loop():
     """Run the amplifier's serial worker until shutdown."""
 
-    if config.DEVICE_PROFILE != "amplifier":
+    if "amplifier" not in config.ENABLED_DEVICES:
         raise RuntimeError("Serial acquisition is available only for the amplifier profile")
     while not state.stop_event.is_set():
         with state.state_lock:
@@ -331,6 +336,7 @@ def reconnect(port: str) -> None:
     with state.state_lock:
         state.serial_connected = False
         state.serial_error = f"Switching to {port}"
+    state.update_device_live("amplifier", connected=False, error=f"Switching to {port}")
     state.serial_reconnect_event.set()
     with state.serial_lock:
         if state.serial_port is not None:
@@ -343,7 +349,7 @@ def reconnect(port: str) -> None:
 def send_gain_set(gain_set: float):
     """Send, persist, and record a validated amplifier gain setpoint."""
 
-    if config.DEVICE_PROFILE != "amplifier":
+    if "amplifier" not in config.ENABLED_DEVICES:
         raise RuntimeError("Gain setpoint is only available for the amplifier profile")
     gain_set = validation.validate_gain_set(
         gain_set,

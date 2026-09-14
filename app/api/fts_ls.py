@@ -14,6 +14,7 @@ from app.api import history as history_api
 from app.api import security as api_security
 from app.core import config, state
 from app.services import database as database_service
+from app.services import device_statistics
 
 router = fastapi.APIRouter(prefix="/api/fts-ls")
 
@@ -29,12 +30,12 @@ class DeviceCommandRequest(pydantic.BaseModel):
 
 
 def require_profile() -> None:
-    """Reject an FTS-LS request when another device profile is active."""
+    """Reject FTS-LS requests only when that device is not configured."""
 
-    if config.DEVICE_PROFILE != "fts-ls":
+    if "fts-ls" not in config.ENABLED_DEVICES:
         raise fastapi.HTTPException(
             status_code=409,
-            detail="The FTS-LS API is unavailable for the amplifier profile.",
+            detail="The FTS-LS device is not enabled.",
         )
 
 
@@ -67,13 +68,13 @@ def get_status(
     """Return the latest normalized FTS-LS station status."""
 
     require_profile()
-    with state.state_lock:
-        return {
-            "connected": state.serial_connected,
-            "error": state.serial_error,
-            "last_update": state.last_update,
-            "status": state.fts_ls_status,
-        }
+    live = state.snapshot_device_live("fts-ls")
+    return {
+        "connected": live["connected"],
+        "error": live["error"],
+        "last_update": live["last_update"],
+        "status": live["data"] or state.fts_ls_status,
+    }
 
 
 @router.post("/command")
@@ -128,73 +129,77 @@ def history(
     }
 
 
-def _flatten(point: dict) -> dict:
-    snapshot = point["snapshot"]
-    row = {"time": point["time"]}
-    for key, value in snapshot.get("laser", {}).items():
-        if not isinstance(value, (dict, list)):
-            row[f"laser_{key}"] = value
-    for key, value in snapshot.get("tec", {}).items():
-        if not isinstance(value, (dict, list)):
-            row[f"tec_{key}"] = value
-    for key, value in snapshot.get("synth", {}).items():
-        if not isinstance(value, (dict, list)):
-            row[f"synth_{key}"] = value
-    for module in [snapshot.get("uplink", {}), *snapshot.get("ports", [])]:
-        prefix = str(module.get("name", "module")).lower()
-        for key, value in module.items():
-            if key != "connectors" and not isinstance(value, (dict, list)):
-                row[f"{prefix}_{key}"] = value
-    return row
-
-
 @router.get("/history/export.csv")
 def export_history(
     request: starlette.requests.Request,
     range_value: str = fastapi.Query(default="5m", alias="range"),
     start: str | None = None,
     end: str | None = None,
-    limit: int = fastapi.Query(default=10000, ge=1, le=10000),
     current_user: dict = fastapi.Depends(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
-    """Flatten and export normalized FTS-LS snapshots as CSV."""
+    """Stream every selected FTS-LS observation as long-form CSV."""
 
     require_profile()
+    range_value, start, end = history_api.normalize_history_request(range_value, start, end)
     if not CSV_EXPORT_LOCK.acquire(blocking=False):
         raise fastapi.HTTPException(status_code=429, detail="Another CSV export is in progress")
-    try:
-        range_value, start, end, points = _history(range_value, start, end, limit)
-        rows = [_flatten(point) for point in points]
-        fieldnames = ["time"]
-        for row in rows:
-            for key in row:
-                if key not in fieldnames:
-                    fieldnames.append(key)
+    points = database_service.stream_device_snapshots("fts-ls", range_value, start, end)
+    if points is None:
+        CSV_EXPORT_LOCK.release()
+        raise fastapi.HTTPException(status_code=503, detail="History database is unavailable")
+
+    api_security.audit_event(
+        request,
+        "history_csv_exported",
+        current_user["username"],
+        f"profile=fts-ls; range={range_value}; start={start}; end={end}; streaming=true",
+    )
+
+    def safe_cell(value):
+        if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+            return "'" + value
+        return value
+
+    def generate_csv():
         output = io.StringIO()
-        output.write("sep=;\r\n")
         writer = csv.DictWriter(
             output,
-            fieldnames=fieldnames,
-            extrasaction="ignore",
+            fieldnames=["time", "device_id", "field", "value"],
             delimiter=";",
             lineterminator="\r\n",
         )
-        writer.writeheader()
-        writer.writerows(rows)
-        api_security.audit_event(
-            request,
-            "history_csv_exported",
-            current_user["username"],
-            f"profile=fts-ls; range={range_value}; start={start}; end={end}",
-        )
-        content = output.getvalue()
-    finally:
-        CSV_EXPORT_LOCK.release()
+        try:
+            output.write("sep=;\r\n")
+            writer.writeheader()
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+            for point in points:
+                fields = device_statistics.scalar_fields(point["snapshot"])
+                if not fields:
+                    fields = {"snapshot": "{}"}
+                for field, value in fields.items():
+                    writer.writerow({
+                        "time": point["time"],
+                        "device_id": "fts-ls",
+                        "field": safe_cell(field),
+                        "value": safe_cell(value),
+                    })
+                    if output.tell() >= 64 * 1024:
+                        yield output.getvalue()
+                        output.seek(0)
+                        output.truncate(0)
+            if output.tell():
+                yield output.getvalue()
+        finally:
+            points.close()
+            CSV_EXPORT_LOCK.release()
+
     filename = f"fts_ls_history_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    return starlette.responses.Response(
-        content,
-        media_type="text/csv; charset=utf-8",
+    return starlette.responses.StreamingResponse(
+        generate_csv(),
+        media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

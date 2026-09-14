@@ -205,7 +205,7 @@ class AmpPanelCliTests(unittest.TestCase):
     def test_fts_ls_installer_answers_do_not_write_serial_configuration(self):
         values = amp_panel_cli.default_configuration()
         answers = {
-            "device_profile_b64": base64.b64encode(b"fts-ls").decode(),
+            "enabled_devices_b64": base64.b64encode(b"fts-ls").decode(),
         }
         with mock.patch.object(
             amp_panel_cli,
@@ -214,15 +214,14 @@ class AmpPanelCliTests(unittest.TestCase):
         ):
             amp_panel_cli._apply_answers(values, answers)
 
-        self.assertEqual(values["DEVICE_PROFILE"], "fts-ls")
-        self.assertEqual(values["GAIN_SET_MIN"], "-100")
-        self.assertEqual(values["GAIN_SET_MAX"], "100")
+        self.assertEqual(values["ENABLED_DEVICES"], "fts-ls")
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "amp-panel.env"
             amp_panel_cli.write_env_file(path, values)
             content = path.read_text(encoding="utf-8")
             self.assertNotIn("SERIAL_PORT=", content)
             self.assertNotIn("SERIAL_BAUDRATE=", content)
+            self.assertNotIn("GAIN_SET_MIN=", content)
 
 
 if __name__ == "__main__":

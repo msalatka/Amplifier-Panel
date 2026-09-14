@@ -1,11 +1,11 @@
-Template: amp-panel/device-profile
-Type: select
+Template: amp-panel/enabled-devices
+Type: multiselect
 Choices: Optical amplifier, FTS-LS Laser Station
 Choices-C: amplifier, fts-ls
-Default: amplifier
-Description: Device connected to Amp Panel:
- The amplifier uses a serial connection. FTS-LS has a modular 1 x 7 view,
- but acquisition awaits the external station daemon XML interface.
+Default: amplifier, fts-ls
+Description: Devices available in Amp Panel:
+ Both devices can run concurrently. The FTS-LS view is available now, but
+ acquisition awaits the external station daemon XML interface.
 
 Template: amp-panel/admin-username
 Type: string

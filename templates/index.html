@@ -6,7 +6,7 @@
     <title>Amp Panel</title>
     <link rel="stylesheet" href="/static/css/style.css?v={{ static_asset_version }}">
 </head>
-<body data-device-profile="{{ device_profile }}">
+<body data-device-profile="{{ device_profile }}" data-device-id="{{ selected_device }}">
     <div id="login-screen" class="login-screen">
         <form id="login-form" class="login-panel">
             <h1>Amp Panel</h1>
@@ -25,7 +25,16 @@
 
     <div id="app-layout" class="layout app-hidden">
         <aside class="sidebar">
-            <div class="sidebar-logo">Amp Panel</div>
+            <details class="device-switcher">
+                <summary class="sidebar-logo">Amp Panel <span aria-hidden="true">▾</span></summary>
+                <div class="device-switcher-list" aria-label="Configured devices">
+                    {% for device in devices %}
+                    <a href="/?device={{ device.id | urlencode }}" {% if device.id == selected_device %}aria-current="page"{% endif %}>
+                        <span>{{ device.label }}</span><small data-device-status="{{ device.id }}">--</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </details>
 
             <nav class="sidebar-nav">
                 <div class="nav-group">
@@ -139,7 +148,9 @@
                                 <h2>Modular optical station</h2>
                                 <p id="fts-rack-summary" class="fts-rack-summary">Waiting for the port layout...</p>
                             </div>
+                            <span id="fts-equipped-count" class="fts-equipped-count">0 / 7 positions equipped</span>
                         </div>
+                        <div id="fts-modules" class="fts-module-grid" aria-label="Uplink and optical modules" aria-live="polite"></div>
                         <div class="fts-controller-rack" aria-label="Station controller modules">
                             <article class="fts-module fts-laser-module">
                                 <div class="fts-module-title"><span class="fts-led unknown" id="fts-laser-led"></span><strong>Internal laser</strong></div>
@@ -168,16 +179,6 @@
                                 </dl>
                             </article>
                         </div>
-                        <section class="fts-optical-rack" aria-labelledby="fts-optical-rack-title">
-                            <div class="fts-rack-header">
-                                <div>
-                                    <span class="fts-rack-label">FTS-LS front panel</span>
-                                    <h3 id="fts-optical-rack-title">Installed modules and physical connectors</h3>
-                                </div>
-                                <span id="fts-equipped-count" class="fts-equipped-count">0 / 7 positions equipped</span>
-                            </div>
-                            <div id="fts-modules" class="fts-module-grid" aria-live="polite"></div>
-                        </section>
                         <div class="fts-live-footer">
                             <span id="fts-module-inventory">No module inventory received</span>
                         </div>

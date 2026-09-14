@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import hashlib
+import importlib
 import pathlib
 import threading
 
@@ -14,11 +15,12 @@ import starlette.requests
 from app.api import auth as auth_routes
 from app.api import dashboard as dashboard_routes
 from app.api import diagnostics as service_routes
+from app.api import devices as device_routes
 from app.api import fts_ls as fts_ls_routes
 from app.api import history as history_routes
 from app.core import config, state
+from app.devices.registry import DEVICES
 from app.services import database as database_service
-from app.services import serial as serial_reader
 from app.services import snmp as snmp_service
 from app.services import syslog as syslog_service
 
@@ -41,11 +43,15 @@ async def syslog_heartbeat_loop() -> None:
             continue
         except TimeoutError:
             pass
-        database_status = database_service.get_runtime_status()
+        database_status = database_service.get_runtime_status(config.ENABLED_DEVICES[0])
+        stored_records = sum(
+            database_service.get_runtime_status(device_id)["records"]
+            for device_id in config.ENABLED_DEVICES
+        )
         syslog_service.send_lifecycle(
             "heartbeat",
             database=database_status["state"],
-            stored_records=database_status["records"],
+            stored_records=stored_records,
         )
 
 
@@ -57,14 +63,21 @@ async def lifespan(_app: fastapi.FastAPI):
     state.save_persisted_state()
     snmp_service.init_snmp()
     state.stop_event.clear()
-    serial_thread = None
-    if config.DEVICE_PROFILE == "amplifier":
-        serial_thread = threading.Thread(target=serial_reader.serial_reader_loop, daemon=True)
-        serial_thread.start()
-    else:
-        with state.state_lock:
-            state.serial_connected = False
-            state.serial_error = "Waiting for the FTS-LS daemon XML interface."
+    workers = []
+    for device_id in config.ENABLED_DEVICES:
+        definition = DEVICES[device_id]
+        if definition.worker is None:
+            state.update_device_live(
+                device_id,
+                connected=False,
+                error="Waiting for the station daemon XML interface.",
+            )
+            continue
+        module_name, function_name = definition.worker.split(":", 1)
+        worker = getattr(importlib.import_module(module_name), function_name)
+        thread = threading.Thread(target=worker, name=f"{device_id}-reader", daemon=True)
+        thread.start()
+        workers.append(thread)
     syslog_service.send_lifecycle("started")
     service_routes.heartbeat_settings_changed.clear()
     heartbeat_task = asyncio.create_task(syslog_heartbeat_loop())
@@ -76,8 +89,8 @@ async def lifespan(_app: fastapi.FastAPI):
         await heartbeat_task
     syslog_service.send_lifecycle("stopped", reason="graceful_shutdown")
     state.stop_event.set()
-    if serial_thread is not None:
-        serial_thread.join(timeout=2)
+    for worker in workers:
+        worker.join(timeout=2)
     snmp_service.close_snmp()
     database_service.close_database()
 
@@ -88,6 +101,7 @@ app.include_router(auth_routes.router)
 app.include_router(dashboard_routes.router)
 app.include_router(history_routes.router)
 app.include_router(service_routes.router)
+app.include_router(device_routes.router)
 app.include_router(fts_ls_routes.router)
 
 templates = fastapi.templating.Jinja2Templates(directory="templates")
@@ -110,14 +124,20 @@ STATIC_ASSET_VERSION = static_asset_version()
 
 
 @app.get("/")
-def home(request: starlette.requests.Request):
-    """Render the dashboard shell for the configured device profile."""
+def home(request: starlette.requests.Request, device: str | None = None):
+    """Render one browser-selected device without switching the running workers."""
+
+    selected = device or config.ENABLED_DEVICES[0]
+    if selected not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
 
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
             "static_asset_version": STATIC_ASSET_VERSION,
-            "device_profile": config.DEVICE_PROFILE,
+            "device_profile": DEVICES[selected].view_profile,
+            "selected_device": selected,
+            "devices": [DEVICES[device_id] for device_id in config.ENABLED_DEVICES],
         },
     )

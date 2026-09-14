@@ -4,6 +4,8 @@ import math
 import os
 import re
 
+from app.devices.registry import parse_enabled_devices
+
 
 def _env_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -64,26 +66,16 @@ def _initial_admin_username(value: str | None) -> str:
     return username
 
 
-def _device_profile(value: str | None) -> str:
-    profile = (value or "amplifier").strip().lower()
-    aliases = {
-        "amp": "amplifier",
-        "optical-amplifier": "amplifier",
-        "fts_ls": "fts-ls",
-        "laser-station": "fts-ls",
-    }
-    profile = aliases.get(profile, profile)
-    if profile not in {"amplifier", "fts-ls"}:
-        raise RuntimeError("DEVICE_PROFILE must be 'amplifier' or 'fts-ls'.")
-    return profile
-
-
-DEVICE_PROFILE = _device_profile(os.getenv("DEVICE_PROFILE"))
+try:
+    ENABLED_DEVICES = parse_enabled_devices(os.getenv("ENABLED_DEVICES"))
+except ValueError as exc:
+    raise RuntimeError(str(exc)) from exc
 SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyACM0")
 SERIAL_BAUDRATE = _env_int("SERIAL_BAUDRATE", 9600)
-GAIN_SET_MIN, GAIN_SET_MAX = _gain_bounds(
-    os.getenv("GAIN_SET_MIN"),
-    os.getenv("GAIN_SET_MAX"),
+GAIN_SET_MIN, GAIN_SET_MAX = (
+    _gain_bounds(os.getenv("GAIN_SET_MIN"), os.getenv("GAIN_SET_MAX"))
+    if "amplifier" in ENABLED_DEVICES
+    else (-100.0, 100.0)
 )
 
 DEVICE_NAME = os.getenv("DEVICE_NAME", "unconfigured-device")

@@ -13,7 +13,12 @@ from app.services import database as database_service
 from app.services import serial as serial_reader
 from app.services import syslog as syslog_service
 
-router = fastapi.APIRouter()
+def require_amplifier() -> None:
+    if "amplifier" not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Amplifier is not enabled")
+
+
+router = fastapi.APIRouter(dependencies=[fastapi.Depends(require_amplifier)])
 
 
 class GainSetRequest(pydantic.BaseModel):
@@ -27,30 +32,6 @@ class DashboardSettingsRequest(pydantic.BaseModel):
 
     gain_tolerance: float | None = None
     warn_limits: dict[str, dict[str, float | None]] | None = None
-
-
-@router.get("/api/latest")
-def latest(
-    _current_user: dict = fastapi.Depends(
-        api_security.require_roles("Administrator", "Operator", "Viewer")
-    ),
-):
-    """Return the latest device state and database health summary."""
-
-    database_status = database_service.get_runtime_status()
-    system_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with state.state_lock:
-        return {
-            "device_profile": config.DEVICE_PROFILE,
-            "connected": state.serial_connected,
-            "error": state.serial_error,
-            "last_update": state.last_update,
-            "system_time": system_time,
-            "last_known_gain_set": state.last_known_gain_set,
-            "data": state.latest_data,
-            "fts_ls": state.fts_ls_status if config.DEVICE_PROFILE == "fts-ls" else None,
-            "database": database_status,
-        }
 
 
 @router.get("/api/settings")

@@ -45,6 +45,7 @@ class ServiceSettingsRequest(pydantic.BaseModel):
     syslog_heartbeat_seconds: int
     database_max_records: int
     serial_port: str | None = None
+    device_id: str = "amplifier"
 
 
 class SnmpSettingsUpdateRequest(pydantic.BaseModel):
@@ -59,24 +60,28 @@ class SnmpSettingsUpdateRequest(pydantic.BaseModel):
 
 @router.get("/api/service-diagnostics")
 def service_diagnostics(
+    device: str = "amplifier",
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
     """Return acquisition, storage, syslog, and service runtime diagnostics."""
 
+    if device not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
     with state.state_lock:
         settings = state.service_settings.copy()
-    storage = database_service.get_storage_status()
+    storage = database_service.get_storage_status(device)
+    live = state.snapshot_device_live(device)
     return {
         "serial": {
-            "port": settings["serial_port"] if config.DEVICE_PROFILE == "amplifier" else None,
-            "available_ports": serial_reader.available_serial_ports() if config.DEVICE_PROFILE == "amplifier" else [],
-            "baudrate": config.SERIAL_BAUDRATE if config.DEVICE_PROFILE == "amplifier" else None,
-            "connected": state.serial_connected,
-            "error": state.serial_error,
-            "source": "serial" if config.DEVICE_PROFILE == "amplifier" else "daemon-xml-pending",
+            "port": settings["serial_port"] if device == "amplifier" else None,
+            "available_ports": serial_reader.available_serial_ports() if device == "amplifier" else [],
+            "baudrate": config.SERIAL_BAUDRATE if device == "amplifier" else None,
+            "connected": live["connected"],
+            "error": live["error"],
+            "source": "serial" if device == "amplifier" else "daemon-xml-pending",
         },
         "database": {
-            **database_service.get_runtime_status(),
+            **database_service.get_runtime_status(device),
             "file": config.DATABASE_FILE,
             "record_limit": settings["database_max_records"],
             "size_bytes": storage["size_bytes"],
@@ -119,8 +124,10 @@ async def update_service_diagnostics_settings(
             status_code=400,
             detail="Database limit must be 0 (unlimited) or between 1 and 10000000 records",
         )
+    if request.device_id not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
     serial_port = None
-    if config.DEVICE_PROFILE == "amplifier":
+    if request.device_id == "amplifier":
         serial_port = (request.serial_port or "").strip()
         if not re.fullmatch(r"/dev/tty(?:ACM|USB)[0-9]+", serial_port):
             raise fastapi.HTTPException(status_code=400, detail="Select an available USB serial port")

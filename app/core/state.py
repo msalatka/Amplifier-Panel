@@ -1,5 +1,6 @@
 """Shared runtime state and atomic persistence of operator-managed settings."""
 
+import copy
 import datetime
 import json
 import pathlib
@@ -267,6 +268,15 @@ fts_ls_status: FtsStatus = empty_fts_ls_status()
 serial_connected = False
 serial_error = None
 last_update = None
+device_live = {
+    device_id: {
+        "connected": False,
+        "error": None,
+        "last_update": None,
+        "data": empty_fts_ls_status() if device_id == "fts-ls" else {},
+    }
+    for device_id in config.ENABLED_DEVICES
+}
 last_known_gain_set = merge_last_known_gain_set(persisted_state.get("last_known_gain_set", 15.0))
 
 serial_port = None
@@ -281,6 +291,37 @@ acknowledged_warning_keys = set()
 app_started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
 auth_sessions = {}
 login_failures = {}
+_UNSET = object()
+
+
+def update_device_live(
+    device_id: str,
+    *,
+    connected: bool | None = None,
+    error: str | None | object = _UNSET,
+    last_update: str | None = None,
+    data: dict | None = None,
+) -> None:
+    """Publish one device's status without changing the other devices."""
+
+    with state_lock:
+        live = device_live[device_id]
+        if connected is not None:
+            live["connected"] = connected
+        if error is not _UNSET:
+            live["error"] = error
+        if last_update is not None:
+            live["last_update"] = last_update
+        if data is not None:
+            live["data"] = copy.deepcopy(data)
+
+
+def snapshot_device_live(device_id: str) -> dict:
+    """Return a detached status snapshot for an API response."""
+
+    with state_lock:
+        live = device_live[device_id]
+        return {**live, "data": copy.deepcopy(live["data"])}
 
 dashboard_settings = merge_dashboard_settings(persisted_state.get("dashboard_settings"))
 access_users = merge_access_users(persisted_state.get("access_users"))

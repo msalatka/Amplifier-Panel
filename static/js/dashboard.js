@@ -140,7 +140,7 @@ async function updateDashboard() {
 	if (!currentUser) return
 
 	try {
-		const response = await fetch('/api/latest')
+		const response = await fetch(`/api/devices/${encodeURIComponent(selectedDeviceId)}/latest`)
 		handleAuthResponse(response)
 		if (!response.ok) throw new Error('HTTP error ' + response.status)
 		const json = await response.json()
@@ -182,7 +182,7 @@ async function updateDashboard() {
 		statusEl.textContent = 'API ERROR'
 		statusEl.className = 'status-error'
 		updateDatabaseStatus({ state: 'error', ready: false, records: '--' })
-		console.error('Error fetching /api/latest:', error)
+		console.error('Error fetching device latest status:', error)
 	}
 }
 

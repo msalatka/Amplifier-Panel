@@ -93,6 +93,19 @@ def create_schema(connection: sqlite3.Connection) -> None:
         "ON device_snapshots (timestamp_ms)"
     )
     connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_device_snapshots_device_time "
+        "ON device_snapshots (profile, timestamp_ms, id)"
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS device_hourly_statistics (
+            device_id TEXT NOT NULL,
+            bucket_ms INTEGER NOT NULL,
+            sample_count INTEGER NOT NULL,
+            statistics_json TEXT NOT NULL,
+            PRIMARY KEY (device_id, bucket_ms)
+        )"""
+    )
+    connection.execute(
         """
         INSERT OR IGNORE INTO database_metadata (key, value)
         VALUES ('device_snapshot_count', (SELECT COUNT(*) FROM device_snapshots))
