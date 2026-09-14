@@ -1,8 +1,13 @@
 amp-panel (0.1.0) unstable; urgency=medium
 
   * Initial pre-release of the optical equipment control panel.
-  * Support optical amplifier and FTS-LS device profiles.
-  * Provide authenticated monitoring, control, history, diagnostics, and Debian packaging.
-  * Bundle Chart.js locally for offline operation.
+  * Run one optical amplifier and one FTS-LS station view concurrently, with
+    independent live state, SQLite history, hourly statistics, and CSV export.
+  * Acquire and control the amplifier over serial. Keep FTS-LS read-only until
+    the external station daemon XML interface is defined.
+  * Provide authenticated web access, SNMP, syslog, and service and network
+    diagnostics.
+  * Package the application and its Python dependencies for systemd, with
+    Chart.js bundled locally for offline operation.
 
- -- Amp Panel Team <amp-panel@localhost>  Sat, 08 Aug 2026 12:00:00 +0200
+ -- Michał Surówka <msurowka@student.agh.edu.pl>  Mon, 14 Sep 2026 13:15:36 +0200

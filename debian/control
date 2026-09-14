@@ -1,7 +1,7 @@
 Source: amp-panel
 Section: admin
 Priority: optional
-Maintainer: Amp Panel Team <amp-panel@localhost>
+Maintainer: Michał Surówka <msurowka@student.agh.edu.pl>
 Build-Depends: debhelper-compat (= 13), python3 (>= 3.10)
 Standards-Version: 4.6.2
 Rules-Requires-Root: no
@@ -20,6 +20,7 @@ Depends:
  systemd
 Recommends: systemd-timesyncd
 Description: control and monitoring panel for optical transfer equipment
- Amp Panel supports optical amplifiers and modular FTS-LS Laser Stations,
+ Amp Panel acquires and controls an optical amplifier over serial and provides
+ a read-only FTS-LS Laser Station view pending its daemon XML interface. It
  stores measurements in SQLite, exposes a local web interface and SNMP
  endpoint, and integrates with RADIUS, syslog, NTP and NetworkManager.
