@@ -1,3 +1,5 @@
+"""Client for privileged network operations exposed by the local host agent."""
+
 from __future__ import annotations
 
 import http.client
@@ -21,6 +23,8 @@ class _UnixConnection(http.client.HTTPConnection):
         self.socket_path = socket_path
 
     def connect(self) -> None:
+        """Open the HTTP connection through the configured Unix socket."""
+
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.settimeout(self.timeout)
         self.sock.connect(self.socket_path)
@@ -55,6 +59,8 @@ def _request(
 
 
 def get_network_state(client_ip: str = "") -> dict[str, Any]:
+    """Read host network state and route information for an optional client."""
+
     path = "/v1/network"
     if client_ip:
         from urllib.parse import quote
@@ -64,10 +70,14 @@ def get_network_state(client_ip: str = "") -> dict[str, Any]:
 
 
 def apply_network_settings(payload: dict[str, Any]) -> dict[str, Any]:
+    """Request a guarded network change from the privileged host agent."""
+
     return _request("POST", "/v1/network", payload, timeout=45)
 
 
 def confirm_network_settings(token: str, client_ip: str = "") -> dict[str, Any]:
+    """Confirm reachability after a guarded network change."""
+
     return _request(
         "POST",
         "/v1/network/confirm",

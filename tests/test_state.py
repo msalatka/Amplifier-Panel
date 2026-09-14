@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from app.core import config, state
+from app.core import config, passwords, state
 
 
 class StateSecurityTests(unittest.TestCase):
@@ -69,15 +69,16 @@ class StateSecurityTests(unittest.TestCase):
         self.assertNotIn("password_hash", users[0])
         self.assertNotIn("password_salt", users[0])
 
-    def test_unsupported_password_hashes_are_removed(self):
+    def test_valid_password_hashes_are_preserved(self):
+        password_hash, password_salt = passwords.hash_password("correct-horse-battery")
         users = state.merge_access_users(
             [
                 {
                     "username": "operator",
                     "role": "Operator",
                     "active": True,
-                    "password_hash": "unsupported-hash",
-                    "password_salt": "unsupported-salt",
+                    "password_hash": password_hash,
+                    "password_salt": password_salt,
                 }
             ]
         )
@@ -88,6 +89,8 @@ class StateSecurityTests(unittest.TestCase):
                     "username": "operator",
                     "role": "Operator",
                     "active": True,
+                    "password_hash": password_hash,
+                    "password_salt": password_salt,
                 }
             ],
         )
@@ -99,9 +102,33 @@ class StateSecurityTests(unittest.TestCase):
                 state.save_persisted_state()
             payload = json.loads(path.read_text(encoding="utf-8"))
             self.assertIn("access_users", payload)
-            self.assertNotIn("password_hash", json.dumps(payload))
-            self.assertNotIn("password_salt", json.dumps(payload))
             self.assertFalse(path.with_suffix(".json.tmp").exists())
+
+    def test_local_password_hash_verifies_without_storing_clear_text(self):
+        password_hash, password_salt = passwords.hash_password("correct-horse-battery")
+        self.assertTrue(passwords.verify_password("correct-horse-battery", password_hash, password_salt))
+        self.assertFalse(passwords.verify_password("wrong-password", password_hash, password_salt))
+        self.assertNotIn("correct-horse-battery", password_hash)
+
+    def test_switching_to_local_authentication_seeds_an_existing_radius_admin(self):
+        password_hash, password_salt = passwords.hash_password("correct-horse-battery")
+        with mock.patch.multiple(
+            config,
+            AUTH_MODE="local",
+            INITIAL_ADMIN_USERNAME="admin",
+            INITIAL_ADMIN_PASSWORD_HASH=password_hash,
+            INITIAL_ADMIN_PASSWORD_SALT=password_salt,
+        ):
+            users = state.merge_access_users(
+                [{"username": "admin", "role": "Administrator", "active": True}]
+            )
+        self.assertTrue(
+            passwords.verify_password(
+                "correct-horse-battery",
+                users[0]["password_hash"],
+                users[0]["password_salt"],
+            )
+        )
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import threading
 from typing import Any
 
 from app.core import config, device_schema, state
-from app.services import database_schema, database_statistics
+from app.services import database_schema, database_statistics, device_statistics
 from app.services import syslog as syslog_service
 
 logger = logging.getLogger(__name__)
@@ -45,25 +45,6 @@ def _set_error(operation: str, error: Exception) -> None:
 
 def _create_schema(opened_connection: sqlite3.Connection) -> None:
     database_schema.create_schema(opened_connection)
-
-
-def _empty_statistics_state() -> dict:
-    return database_statistics.empty_statistics_state(HISTORY_FIELDS)
-
-
-def _consume_statistics_row(statistics: dict, row: sqlite3.Row) -> None:
-    database_statistics.consume_statistics_row(statistics, row, HISTORY_FIELDS)
-
-
-def _store_hourly_statistics(
-    opened_connection: sqlite3.Connection,
-    bucket_ms: int,
-    sample_count: int,
-    statistics: dict,
-) -> None:
-    database_statistics.store_hourly_statistics(
-        opened_connection, bucket_ms, sample_count, statistics
-    )
 
 
 def _rebuild_hourly_bucket(
@@ -109,7 +90,7 @@ def init_database() -> None:
                 if schema_version < 4:
                     opened_connection.execute("DELETE FROM hourly_statistics")
                     _backfill_hourly_statistics(opened_connection)
-                opened_connection.execute("PRAGMA user_version=5")
+                opened_connection.execute("PRAGMA user_version=6")
             connection = opened_connection
             last_error = None
         except (OSError, sqlite3.Error) as error:
@@ -119,6 +100,8 @@ def init_database() -> None:
 
 
 def close_database() -> None:
+    """Checkpoint pending WAL data and close the shared SQLite connection."""
+
     global connection
     with database_lock:
         if connection is not None:
@@ -178,6 +161,19 @@ def _prune_device_snapshots(max_records: int, profile: str) -> int:
             "ORDER BY id ASC LIMIT ?)",
             (profile, records_to_remove),
         )
+        first_remaining = connection.execute(
+            "SELECT MIN(timestamp_ms) FROM device_snapshots WHERE profile = ?", (profile,)
+        ).fetchone()[0]
+        if first_remaining is None:
+            connection.execute(
+                "DELETE FROM device_hourly_statistics WHERE device_id = ?", (profile,)
+            )
+        else:
+            first_bucket = (int(first_remaining) // HOUR_MS) * HOUR_MS
+            connection.execute(
+                "DELETE FROM device_hourly_statistics WHERE device_id = ? AND bucket_ms <= ?",
+                (profile, first_bucket),
+            )
         discarded_records += records_to_remove
     return records_to_remove
 
@@ -243,6 +239,8 @@ def write_measurement(data: dict, timestamp: str | None = None) -> bool:
 
 
 def write_setpoint(gain_set: float, timestamp: str | None = None) -> bool:
+    """Persist one amplifier gain-setpoint event."""
+
     global last_error
     try:
         timestamp_value = _timestamp_ms(timestamp)
@@ -287,11 +285,27 @@ def write_device_snapshot(
     max_records = max(0, int(state.service_settings["database_max_records"]))
     with database_lock:
         try:
+            previous_last_timestamp = connection.execute(
+                "SELECT MAX(timestamp_ms) FROM device_snapshots WHERE profile = ?",
+                (profile,),
+            ).fetchone()[0]
             connection.execute(
                 "INSERT INTO device_snapshots (timestamp_ms, profile, snapshot_json) "
                 "VALUES (?, ?, ?)",
                 (timestamp_value, profile, payload),
             )
+            inserted_bucket = (timestamp_value // HOUR_MS) * HOUR_MS
+            if previous_last_timestamp is not None:
+                previous_bucket = (int(previous_last_timestamp) // HOUR_MS) * HOUR_MS
+                if inserted_bucket > previous_bucket:
+                    device_statistics.rebuild_hour(connection, profile, previous_bucket, HOUR_MS)
+                elif inserted_bucket <= previous_bucket:
+                    existing = connection.execute(
+                        "SELECT 1 FROM device_hourly_statistics WHERE device_id = ? AND bucket_ms = ?",
+                        (profile, inserted_bucket),
+                    ).fetchone()
+                    if existing:
+                        device_statistics.rebuild_hour(connection, profile, inserted_bucket, HOUR_MS)
             if max_records:
                 _prune_device_snapshots(max_records, profile)
             connection.commit()
@@ -304,6 +318,8 @@ def write_device_snapshot(
 
 
 def get_record_count() -> int:
+    """Return the number of stored amplifier measurement samples."""
+
     init_database()
     if connection is None:
         return 0
@@ -318,6 +334,8 @@ def get_record_count() -> int:
 
 
 def get_device_snapshot_count(profile: str | None = None) -> int:
+    """Return stored device-snapshot count, optionally for one profile."""
+
     init_database()
     if connection is None:
         return 0
@@ -341,16 +359,19 @@ def get_device_snapshot_count(profile: str | None = None) -> int:
 
 
 def apply_record_limit() -> int:
+    """Apply the configured per-device record cap to every stored device."""
+
     init_database()
     if connection is None:
         return 0
     with database_lock:
         try:
             max_records = max(0, int(state.service_settings["database_max_records"]))
-            if max_records and config.DEVICE_PROFILE == "fts-ls":
-                removed = _prune_device_snapshots(max_records, "fts-ls")
-            else:
-                removed = _prune_to_limit(max_records) if max_records else 0
+            removed = 0
+            if max_records:
+                removed += _prune_to_limit(max_records)
+                for row in connection.execute("SELECT DISTINCT profile FROM device_snapshots").fetchall():
+                    removed += _prune_device_snapshots(max_records, row[0])
             connection.commit()
             return removed
         except sqlite3.Error as error:
@@ -359,7 +380,9 @@ def apply_record_limit() -> int:
             return 0
 
 
-def get_storage_status() -> dict:
+def get_storage_status(device_id: str = "amplifier") -> dict:
+    """Return database capacity and selected-device retention estimates."""
+
     database_path = pathlib.Path(config.DATABASE_FILE)
     database_files = (
         database_path,
@@ -378,18 +401,16 @@ def get_storage_status() -> dict:
     if connection is not None:
         with database_lock:
             try:
-                source_table = (
-                    "device_snapshots" if config.DEVICE_PROFILE == "fts-ls" else "samples"
-                )
-                source_filter = (
-                    "WHERE profile = 'fts-ls'" if source_table == "device_snapshots" else ""
-                )
+                source_table = "samples" if device_id == "amplifier" else "device_snapshots"
+                source_filter = "" if device_id == "amplifier" else "WHERE profile = ?"
+                source_args = () if device_id == "amplifier" else (device_id,)
                 latest_timestamp = connection.execute(
-                    f"SELECT MAX(timestamp_ms) FROM {source_table} {source_filter}"
+                    f"SELECT MAX(timestamp_ms) FROM {source_table} {source_filter}",
+                    source_args,
                 ).fetchone()[0]
                 if latest_timestamp is not None:
                     recent_filter = (
-                        "profile = 'fts-ls' AND " if source_table == "device_snapshots" else ""
+                        "profile = ? AND " if device_id != "amplifier" else ""
                     )
                     recent = connection.execute(
                         f"""
@@ -399,7 +420,7 @@ def get_storage_status() -> dict:
                         FROM {source_table}
                         WHERE {recent_filter}timestamp_ms >= ?
                         """,
-                        (int(latest_timestamp) - HOUR_MS,),
+                        (*source_args, int(latest_timestamp) - HOUR_MS),
                     ).fetchone()
                     span_seconds = (
                         (int(recent["last_ms"]) - int(recent["first_ms"])) / 1000
@@ -412,11 +433,7 @@ def get_storage_status() -> dict:
                 _set_error("storage estimate", error)
 
     record_limit = max(0, int(state.service_settings["database_max_records"]))
-    records = (
-        get_device_snapshot_count("fts-ls")
-        if config.DEVICE_PROFILE == "fts-ls"
-        else get_record_count()
-    )
+    records = get_record_count() if device_id == "amplifier" else get_device_snapshot_count(device_id)
     estimated_retention_seconds = None
     estimated_seconds_to_limit = None
     estimated_seconds_until_disk_full = None
@@ -440,14 +457,10 @@ def get_storage_status() -> dict:
     }
 
 
-def get_runtime_status() -> dict:
+def get_runtime_status(device_id: str = "amplifier") -> dict:
     """Return readiness, record counts, retention estimate and the last SQL error."""
     init_database()
-    records = (
-        get_device_snapshot_count(config.DEVICE_PROFILE)
-        if config.DEVICE_PROFILE == "fts-ls"
-        else get_record_count()
-    )
+    records = get_record_count() if device_id == "amplifier" else get_device_snapshot_count(device_id)
     return {
         "state": "ready" if connection is not None else "error",
         "ready": connection is not None,
@@ -524,6 +537,64 @@ def query_device_snapshots(
         ]
     except (TypeError, ValueError, json.JSONDecodeError, sqlite3.Error) as error:
         _set_error("device snapshot query", error)
+        return None
+
+
+def query_device_statistics(
+    device_id: str,
+    range_value: str,
+    start: str | None = None,
+    end: str | None = None,
+) -> dict | None:
+    """Merge saved complete-hour summaries with raw boundary observations."""
+
+    init_database()
+    if connection is None:
+        return None
+    try:
+        start_ms = _parse_boundary(start)
+        if start_ms is None:
+            range_start = _range_start(range_value)
+            start_ms = round(range_start.timestamp() * 1000) if range_start else None
+        end_ms = _parse_boundary(end)
+        if end_ms is None:
+            end_ms = _timestamp_ms(None)
+        with database_lock:
+            if start_ms is None:
+                start_ms = connection.execute(
+                    "SELECT MIN(timestamp_ms) FROM device_snapshots WHERE profile = ?",
+                    (device_id,),
+                ).fetchone()[0]
+            if start_ms is None:
+                return {"sample_count": 0, "statistics": {}}
+            first_full = ((start_ms + HOUR_MS - 1) // HOUR_MS) * HOUR_MS
+            last_full_exclusive = (end_ms // HOUR_MS) * HOUR_MS
+            stats = {}
+            sample_count = 0
+            summaries = connection.execute(
+                "SELECT sample_count, statistics_json FROM device_hourly_statistics "
+                "WHERE device_id = ? AND bucket_ms >= ? AND bucket_ms < ?",
+                (device_id, first_full, last_full_exclusive),
+            )
+            for summary in summaries:
+                sample_count += int(summary["sample_count"])
+                device_statistics.merge_stats(stats, json.loads(summary["statistics_json"]))
+            raw_rows = connection.execute(
+                "SELECT snapshot_json FROM device_snapshots AS d "
+                "WHERE d.profile = ? AND d.timestamp_ms >= ? AND d.timestamp_ms <= ? "
+                "AND NOT EXISTS (SELECT 1 FROM device_hourly_statistics AS h "
+                "WHERE h.device_id = d.profile "
+                "AND h.bucket_ms = (d.timestamp_ms / ?) * ? "
+                "AND h.bucket_ms >= ? AND h.bucket_ms < ?) "
+                "ORDER BY d.timestamp_ms, d.id",
+                (device_id, start_ms, end_ms, HOUR_MS, HOUR_MS, first_full, last_full_exclusive),
+            )
+            for row in raw_rows:
+                device_statistics.add_snapshot(stats, json.loads(row["snapshot_json"]))
+                sample_count += 1
+        return {"sample_count": sample_count, "statistics": device_statistics.finalize(stats)}
+    except (TypeError, ValueError, json.JSONDecodeError, sqlite3.Error) as error:
+        _set_error("device statistics query", error)
         return None
 
 
@@ -855,6 +926,8 @@ def stream_raw_history(
         return None
 
     def generate_points():
+        """Yield raw history rows while holding the database lock safely."""
+
         try:
             while rows := cursor.fetchmany(max(1, batch_size)):
                 for row in rows:
@@ -869,6 +942,69 @@ def stream_raw_history(
                     yield point
         except (OSError, sqlite3.Error) as error:
             _set_error("raw history stream", error)
+            raise
+        finally:
+            cursor.close()
+            read_connection.close()
+
+    return generate_points()
+
+
+def stream_device_snapshots(
+    device_id: str,
+    range_value: str,
+    start: str | None = None,
+    end: str | None = None,
+    batch_size: int = 1000,
+):
+    """Stream complete device observations without limiting or loading the result set."""
+
+    init_database()
+    if connection is None:
+        return None
+    read_connection = None
+    try:
+        start_ms = _parse_boundary(start)
+        if start_ms is None:
+            range_start = _range_start(range_value)
+            start_ms = round(range_start.timestamp() * 1000) if range_start else None
+        end_ms = _parse_boundary(end)
+        clauses = ["profile = ?"]
+        parameters = [device_id]
+        if start_ms is not None:
+            clauses.append("timestamp_ms >= ?")
+            parameters.append(start_ms)
+        if end_ms is not None:
+            clauses.append("timestamp_ms <= ?")
+            parameters.append(end_ms)
+        database_uri = pathlib.Path(config.DATABASE_FILE).resolve().as_uri() + "?mode=ro"
+        read_connection = sqlite3.connect(database_uri, uri=True, timeout=5, check_same_thread=False)
+        read_connection.row_factory = sqlite3.Row
+        read_connection.execute("PRAGMA query_only=ON")
+        read_connection.execute("PRAGMA busy_timeout=5000")
+        cursor = read_connection.execute(
+            "SELECT timestamp_ms, snapshot_json FROM device_snapshots "
+            f"WHERE {' AND '.join(clauses)} ORDER BY timestamp_ms ASC, id ASC",
+            parameters,
+        )
+    except (OSError, TypeError, ValueError, sqlite3.Error) as error:
+        _set_error("device snapshot stream", error)
+        if read_connection is not None:
+            read_connection.close()
+        return None
+
+    def generate_points():
+        try:
+            while rows := cursor.fetchmany(max(1, batch_size)):
+                for row in rows:
+                    yield {
+                        "time": datetime.datetime.fromtimestamp(
+                            row["timestamp_ms"] / 1000, datetime.timezone.utc
+                        ).isoformat(),
+                        "snapshot": json.loads(row["snapshot_json"]),
+                    }
+        except (OSError, sqlite3.Error, json.JSONDecodeError) as error:
+            _set_error("device snapshot stream", error)
             raise
         finally:
             cursor.close()

@@ -1,3 +1,5 @@
+"""Live amplifier data, settings, warnings, and gain-control endpoints."""
+
 import datetime
 import json
 
@@ -11,38 +13,25 @@ from app.services import database as database_service
 from app.services import serial as serial_reader
 from app.services import syslog as syslog_service
 
-router = fastapi.APIRouter()
+def require_amplifier() -> None:
+    if "amplifier" not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Amplifier is not enabled")
+
+
+router = fastapi.APIRouter(dependencies=[fastapi.Depends(require_amplifier)])
 
 
 class GainSetRequest(pydantic.BaseModel):
+    """Requested optical-amplifier gain setpoint."""
+
     gain_set: float
 
 
 class DashboardSettingsRequest(pydantic.BaseModel):
+    """Editable warning thresholds and gain-tolerance settings."""
+
     gain_tolerance: float | None = None
     warn_limits: dict[str, dict[str, float | None]] | None = None
-
-
-@router.get("/api/latest")
-def latest(
-    _current_user: dict = fastapi.Depends(
-        api_security.require_roles("Administrator", "Operator", "Viewer")
-    ),
-):
-    database_status = database_service.get_runtime_status()
-    system_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    with state.state_lock:
-        return {
-            "device_profile": config.DEVICE_PROFILE,
-            "connected": state.serial_connected,
-            "error": state.serial_error,
-            "last_update": state.last_update,
-            "system_time": system_time,
-            "last_known_gain_set": state.last_known_gain_set,
-            "data": state.latest_data,
-            "fts_ls": state.fts_ls_status if config.DEVICE_PROFILE == "fts-ls" else None,
-            "database": database_status,
-        }
 
 
 @router.get("/api/settings")
@@ -51,6 +40,8 @@ def get_settings(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return the active dashboard settings and configured gain bounds."""
+
     with state.state_lock:
         return {
             **json.loads(json.dumps(state.dashboard_settings)),
@@ -67,6 +58,8 @@ def update_settings(
     http_request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
+    """Validate, persist, and audit editable dashboard settings."""
+
     with state.state_lock:
         before = json.loads(json.dumps(state.dashboard_settings))
         try:
@@ -94,19 +87,21 @@ def update_settings(
     }
 
 
-@router.get("/api/errors")
-def get_errors(
+@router.get("/api/warnings/active")
+def get_active_warnings(
     _current_user: dict = fastapi.Depends(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return the currently active warnings without reading history logs."""
+
     with state.state_lock:
         warnings = sorted(
             (dict(item) for item in state.active_warnings.values()),
             key=lambda item: item.get("opened_at", ""),
             reverse=True,
         )
-        return {"errors": warnings}
+        return {"active": warnings}
 
 
 @router.get("/api/warnings")
@@ -122,6 +117,8 @@ def get_warnings(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return filtered warning history together with currently active warnings."""
+
     now = datetime.datetime.now(datetime.timezone.utc)
     durations = {
         "1h": datetime.timedelta(hours=1),
@@ -195,6 +192,8 @@ def acknowledge_warnings(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
+    """Mark every currently active warning as acknowledged."""
+
     with state.state_lock:
         keys = set(state.active_warnings)
         state.acknowledged_warning_keys.update(keys)
@@ -210,32 +209,14 @@ def acknowledge_warnings(
     return {"acknowledged": acknowledged_count}
 
 
-@router.post("/api/errors/clear")
-def clear_errors(
-    request: starlette.requests.Request,
-    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
-):
-    with state.state_lock:
-        keys = set(state.active_warnings)
-        state.acknowledged_warning_keys.update(keys)
-        for key in keys:
-            state.active_warnings[key]["acknowledged"] = True
-        cleared_count = len(keys)
-    api_security.audit_event(
-        request,
-        "warnings_acknowledged",
-        current_user["username"],
-        f"count={cleared_count}",
-    )
-    return {"errors": list(state.active_warnings.values())}
-
-
 @router.post("/api/set_gain")
 def set_gain(
     request: GainSetRequest,
     http_request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
+    """Validate and send a new optical-amplifier gain setpoint."""
+
     with state.state_lock:
         previous_gain_set = state.last_known_gain_set
     try:

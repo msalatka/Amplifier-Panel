@@ -6,7 +6,7 @@
     <title>Amp Panel</title>
     <link rel="stylesheet" href="/static/css/style.css?v={{ static_asset_version }}">
 </head>
-<body data-device-profile="{{ device_profile }}">
+<body data-device-profile="{{ device_profile }}" data-device-id="{{ selected_device }}">
     <div id="login-screen" class="login-screen">
         <form id="login-form" class="login-panel">
             <h1>Amp Panel</h1>
@@ -25,7 +25,16 @@
 
     <div id="app-layout" class="layout app-hidden">
         <aside class="sidebar">
-            <div class="sidebar-logo">Amp Panel</div>
+            <details class="device-switcher">
+                <summary class="sidebar-logo">Amp Panel <span aria-hidden="true">▾</span></summary>
+                <div class="device-switcher-list" aria-label="Configured devices">
+                    {% for device in devices %}
+                    <a href="/?device={{ device.id | urlencode }}" {% if device.id == selected_device %}aria-current="page"{% endif %}>
+                        <span>{{ device.label }}</span><small data-device-status="{{ device.id }}">--</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </details>
 
             <nav class="sidebar-nav">
                 <div class="nav-group">
@@ -140,43 +149,44 @@
                                 <p id="fts-rack-summary" class="fts-rack-summary">Waiting for the port layout...</p>
                             </div>
                         </div>
-                        <div class="fts-controller-rack" aria-label="Station controller modules">
-                            <article class="fts-module fts-laser-module">
-                                <div class="fts-module-title"><span class="fts-led unknown" id="fts-laser-led"></span><strong>Internal laser</strong></div>
-                                <dl class="fts-metrics">
-                                    <div><dt>State</dt><dd id="fts-laser-state">--</dd></div>
-                                    <div><dt>Frequency</dt><dd id="fts-laser-frequency">--</dd></div>
-                                    <div><dt>Wavelength</dt><dd id="fts-laser-wavelength">--</dd></div>
-                                    <div><dt>Scan centre</dt><dd id="fts-laser-centre">--</dd></div>
-                                    <div><dt>Scan span</dt><dd id="fts-laser-span">--</dd></div>
-                                </dl>
-                            </article>
-                            <article class="fts-module fts-aux-module">
-                                <div class="fts-module-title"><span class="fts-led unknown" id="fts-synth-led"></span><strong>10 MHz synthesizer</strong></div>
-                                <dl class="fts-metrics">
-                                    <div><dt>Status</dt><dd id="fts-synth-state">--</dd></div>
-                                    <div><dt>Reference</dt><dd id="fts-synth-reference">--</dd></div>
-                                    <div><dt>External 10 MHz</dt><dd id="fts-synth-external">--</dd></div>
-                                </dl>
-                            </article>
-                            <article class="fts-module fts-aux-module">
-                                <div class="fts-module-title"><span class="fts-led unknown" id="fts-tec-led"></span><strong>TEC heater</strong></div>
-                                <dl class="fts-metrics">
-                                    <div><dt>Status</dt><dd id="fts-tec-state">--</dd></div>
-                                    <div><dt>Set / read</dt><dd id="fts-tec-temperature">--</dd></div>
-                                    <div><dt>Heating power</dt><dd id="fts-tec-power">--</dd></div>
-                                </dl>
-                            </article>
-                        </div>
-                        <section class="fts-optical-rack" aria-labelledby="fts-optical-rack-title">
-                            <div class="fts-rack-header">
-                                <div>
-                                    <span class="fts-rack-label">FTS-LS front panel</span>
-                                    <h3 id="fts-optical-rack-title">Installed modules and physical connectors</h3>
-                                </div>
+                        <section class="fts-station-group" aria-label="Station systems">
+                            <div class="fts-section-heading"><h3>Station systems</h3></div>
+                            <div class="fts-station-systems">
+                                <div id="fts-uplink" aria-label="Uplink module"></div>
+                                <article class="fts-module fts-laser-module">
+                                    <div class="fts-module-title"><span class="fts-led unknown" id="fts-laser-led"></span><strong>Internal laser</strong></div>
+                                    <dl class="fts-metrics">
+                                        <div><dt>State</dt><dd id="fts-laser-state">--</dd></div>
+                                        <div><dt>Frequency</dt><dd id="fts-laser-frequency">--</dd></div>
+                                        <div><dt>Wavelength</dt><dd id="fts-laser-wavelength">--</dd></div>
+                                        <div><dt>Scan centre</dt><dd id="fts-laser-centre">--</dd></div>
+                                        <div><dt>Scan span</dt><dd id="fts-laser-span">--</dd></div>
+                                    </dl>
+                                </article>
+                                <article class="fts-module fts-aux-module">
+                                    <div class="fts-module-title"><span class="fts-led unknown" id="fts-synth-led"></span><strong>10 MHz synthesizer</strong></div>
+                                    <dl class="fts-metrics">
+                                        <div><dt>Status</dt><dd id="fts-synth-state">--</dd></div>
+                                        <div><dt>Reference</dt><dd id="fts-synth-reference">--</dd></div>
+                                        <div><dt>External 10 MHz</dt><dd id="fts-synth-external">--</dd></div>
+                                    </dl>
+                                </article>
+                                <article class="fts-module fts-aux-module">
+                                    <div class="fts-module-title"><span class="fts-led unknown" id="fts-tec-led"></span><strong>TEC heater</strong></div>
+                                    <dl class="fts-metrics">
+                                        <div><dt>Status</dt><dd id="fts-tec-state">--</dd></div>
+                                        <div><dt>Set / read</dt><dd id="fts-tec-temperature">--</dd></div>
+                                        <div><dt>Heating power</dt><dd id="fts-tec-power">--</dd></div>
+                                    </dl>
+                                </article>
+                            </div>
+                        </section>
+                        <section class="fts-station-group" aria-label="Optical ports">
+                            <div class="fts-section-heading">
+                                <h3>Optical ports</h3>
                                 <span id="fts-equipped-count" class="fts-equipped-count">0 / 7 positions equipped</span>
                             </div>
-                            <div id="fts-modules" class="fts-module-grid" aria-live="polite"></div>
+                            <div id="fts-modules" class="fts-module-grid" aria-label="Optical port modules" aria-live="polite"></div>
                         </section>
                         <div class="fts-live-footer">
                             <span id="fts-module-inventory">No module inventory received</span>
@@ -513,9 +523,10 @@
                         <div class="settings-header fts-settings-page-header">
                             <div>
                                 <h2>Device Settings</h2>
-                                <p class="settings-description">Configure the station using the same section-based layout as the amplifier profile.</p>
+                                <p class="settings-description">Station values are read-only until the external daemon XML interface is defined.</p>
                             </div>
                         </div>
+                        <p class="network-warning">FTS-LS serial control has been removed. Settings and station actions are unavailable until the daemon XML contract is provided.</p>
                         <div class="fts-settings-list">
                         <form id="fts-laser-settings-form" class="fts-settings-form fts-settings-section">
                             <div class="settings-header control-save-header">
@@ -612,6 +623,11 @@
                                 <input id="access-username-input" type="text" autocomplete="off" required>
                             </label>
 
+                            <label id="access-password-field" class="form-field" hidden>
+                                Password
+                                <input id="access-password-input" type="password" autocomplete="new-password">
+                            </label>
+
                             <label class="form-field">
                                 Role
                                 <select id="access-role-input">
@@ -638,11 +654,12 @@
                                         <th>Username</th>
                                         <th>Role</th>
                                         <th>Status</th>
+                                        <th class="access-password-column" hidden>Password</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="access-users-table-body">
-                                    <tr><td colspan="4">No users</td></tr>
+                                    <tr><td colspan="5">No users</td></tr>
                                 </tbody>
                             </table>
                         </section>
@@ -773,8 +790,12 @@
                             <div class="settings-header"><h2>Data Acquisition</h2></div>
                             <div class="network-status-grid service-status-grid">
                                 <div><span>Status</span><strong id="service-serial-state">--</strong></div>
+                                {% if device_profile == 'amplifier' %}
                                 <div><span>Selected port</span><strong id="service-serial-port">--</strong></div>
                                 <div><span>Baud rate</span><strong id="service-serial-baudrate">--</strong></div>
+                                {% else %}
+                                <div><span>Source</span><strong>Station daemon XML (pending)</strong></div>
+                                {% endif %}
                                 <div><span>Last error</span><strong id="service-serial-error">--</strong></div>
                             </div>
                         </section>
@@ -819,10 +840,12 @@
                             <button type="submit">Save changes</button>
                         </div>
                         <div class="service-settings-sections">
+                            {% if device_profile == 'amplifier' %}
                             <fieldset class="service-settings-section">
                                 <legend>Data acquisition</legend>
                                 <label class="form-field">Serial port<select id="service-serial-port-input" required></select></label>
                             </fieldset>
+                            {% endif %}
                             <fieldset class="service-settings-section">
                                 <legend>History retention</legend>
                                 <label class="setting-toggle">

@@ -1,3 +1,5 @@
+"""Side-effect-free validation for operator-provided numeric settings."""
+
 from __future__ import annotations
 
 import copy
@@ -6,6 +8,8 @@ from typing import Any
 
 
 def finite_float(value: Any, label: str) -> float:
+    """Convert a value to a finite float or raise a labeled validation error."""
+
     try:
         number = float(value)
     except (TypeError, ValueError, OverflowError) as exc:
@@ -16,6 +20,8 @@ def finite_float(value: Any, label: str) -> float:
 
 
 def validate_gain_set(value: Any, minimum: float, maximum: float) -> float:
+    """Return a finite gain setpoint constrained to configured bounds."""
+
     gain_set = finite_float(value, "Gain setpoint")
     if not minimum <= gain_set <= maximum:
         raise ValueError(f"Gain setpoint must be between {minimum:g} and {maximum:g}.")
@@ -27,6 +33,8 @@ def validated_dashboard_settings(
     gain_tolerance: Any | None,
     warn_limits: dict[str, dict[str, Any]] | None,
 ) -> dict[str, Any]:
+    """Return a validated copy of dashboard settings with requested updates."""
+
     candidate = copy.deepcopy(current)
     if gain_tolerance is not None:
         tolerance = finite_float(gain_tolerance, "Gain tolerance")

@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from unittest import mock
 
@@ -7,6 +8,22 @@ from app.api import fts_ls
 
 
 class FtsLsApiTests(unittest.TestCase):
+    def test_station_capabilities_are_read_only_without_daemon_contract(self):
+        with mock.patch.object(fts_ls.config, "ENABLED_DEVICES", ("amplifier", "fts-ls")):
+            result = fts_ls.capabilities(_current_user={"role": "Viewer"})
+        self.assertTrue(result["read_only"])
+        self.assertEqual(result["controls"], [])
+
+    def test_station_command_fails_closed_without_daemon_contract(self):
+        with mock.patch.object(fts_ls.config, "ENABLED_DEVICES", ("amplifier", "fts-ls")):
+            with self.assertRaises(fastapi.HTTPException) as raised:
+                fts_ls.command(
+                    body=fts_ls.DeviceCommandRequest(action="power_reset", confirmed=True),
+                    request=mock.MagicMock(),
+                    current_user={"username": "admin", "role": "Administrator"},
+                )
+        self.assertEqual(raised.exception.status_code, 503)
+
     def test_history_uses_the_common_range_validation(self):
         with self.assertRaisesRegex(fastapi.HTTPException, "Invalid history range"):
             fts_ls._history("invalid", None, None, 2000)
@@ -30,11 +47,11 @@ class FtsLsApiTests(unittest.TestCase):
             },
         }
         with (
-            mock.patch.object(fts_ls.config, "DEVICE_PROFILE", "fts-ls"),
+            mock.patch.object(fts_ls.config, "ENABLED_DEVICES", ("amplifier", "fts-ls")),
             mock.patch.object(
-                fts_ls,
-                "_history",
-                return_value=("5m", None, None, [point]),
+                fts_ls.database_service,
+                "stream_device_snapshots",
+                return_value=_point_stream([point]),
             ),
             mock.patch.object(fts_ls.api_security, "audit_event") as audit_event,
         ):
@@ -43,13 +60,15 @@ class FtsLsApiTests(unittest.TestCase):
                 range_value="5m",
                 start=None,
                 end=None,
-                limit=10000,
                 current_user={"username": "viewer", "role": "Viewer"},
             )
 
-        csv_text = response.body.decode("utf-8")
-        self.assertTrue(csv_text.startswith("sep=;\r\ntime;laser_optical_frequency\r\n"))
-        self.assertIn("2026-08-03T12:00:00+00:00;194400.0", csv_text)
+        async def read_response():
+            return "".join([chunk async for chunk in response.body_iterator])
+
+        csv_text = asyncio.run(read_response())
+        self.assertTrue(csv_text.startswith("sep=;\r\ntime;device_id;field;value\r\n"))
+        self.assertIn("2026-08-03T12:00:00+00:00;fts-ls;laser.optical_frequency;194400.0", csv_text)
         self.assertIn("fts_ls_history_", response.headers["content-disposition"])
         audit_event.assert_called_once()
         self.assertTrue(fts_ls.CSV_EXPORT_LOCK.acquire(blocking=False))
@@ -58,3 +77,22 @@ class FtsLsApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _point_stream(points):
+    """Return an iterator matching the closeable database streaming interface."""
+
+    class PointStream:
+        def __init__(self, values):
+            self.values = iter(values)
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            return next(self.values)
+
+        def close(self):
+            pass
+
+    return PointStream(points)

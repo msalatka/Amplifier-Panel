@@ -22,11 +22,15 @@ from typing import Any, Callable
 
 
 class NetworkAgentError(RuntimeError):
+    """A validated network request or NetworkManager operation failed."""
+
     pass
 
 
 @dataclass
 class CommandResult:
+    """Captured result of a bounded host command."""
+
     returncode: int
     stdout: str
     stderr: str
@@ -397,6 +401,8 @@ class _UnixServer(getattr(socketserver, "UnixStreamServer", socketserver.TCPServ
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
+    """Serve the restricted network API over a local Unix socket."""
+
     def _send(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload).encode()
         self.send_response(status)
@@ -406,6 +412,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
+        """Return current network state for the supported endpoint."""
+
         parsed = urllib.parse.urlsplit(self.path)
         if parsed.path != "/v1/network":
             self._send(404, {"detail": "Not found."})
@@ -420,6 +428,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(503, {"detail": str(exc)})
 
     def do_POST(self) -> None:
+        """Apply or confirm one validated checkpointed network change."""
+
         if self.path not in {"/v1/network", "/v1/network/confirm"}:
             self._send(404, {"detail": "Not found."})
             return
@@ -443,10 +453,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(400, {"detail": str(exc)})
 
     def log_message(self, format: str, *args: Any) -> None:
+        """Prefix HTTP request messages for the system service journal."""
+
         print(f"network-agent: {format % args}", flush=True)
 
 
 def main() -> None:
+    """Create the protected Unix socket and serve network-agent requests."""
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--socket", default="/run/amp-panel/network-agent.sock")
     args = parser.parse_args()

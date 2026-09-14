@@ -1,6 +1,10 @@
+"""Validated process configuration loaded from environment variables."""
+
 import math
 import os
 import re
+
+from app.devices.registry import parse_enabled_devices
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -62,40 +66,22 @@ def _initial_admin_username(value: str | None) -> str:
     return username
 
 
-def _device_profile(value: str | None) -> str:
-    profile = (value or "amplifier").strip().lower()
-    aliases = {
-        "amp": "amplifier",
-        "optical-amplifier": "amplifier",
-        "fts_ls": "fts-ls",
-        "laser-station": "fts-ls",
-    }
-    profile = aliases.get(profile, profile)
-    if profile not in {"amplifier", "fts-ls"}:
-        raise RuntimeError("DEVICE_PROFILE must be 'amplifier' or 'fts-ls'.")
-    return profile
-
-
-DEVICE_PROFILE = _device_profile(os.getenv("DEVICE_PROFILE"))
+try:
+    ENABLED_DEVICES = parse_enabled_devices(os.getenv("ENABLED_DEVICES"))
+except ValueError as exc:
+    raise RuntimeError(str(exc)) from exc
 SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyACM0")
-SERIAL_BAUDRATE = _env_int(
-    "SERIAL_BAUDRATE",
-    115200 if DEVICE_PROFILE == "fts-ls" else 9600,
-)
-FTS_LS_USERNAME = os.getenv("FTS_LS_USERNAME", "appadmin")
-FTS_LS_PASSWORD = os.getenv("FTS_LS_PASSWORD", "")
-FTS_LS_POLL_SECONDS = max(2, _env_int("FTS_LS_POLL_SECONDS", 10))
-FTS_LS_FREQUENCY_MIN_GHZ = _env_float("FTS_LS_FREQUENCY_MIN_GHZ", 194392.6)
-FTS_LS_FREQUENCY_MAX_GHZ = _env_float("FTS_LS_FREQUENCY_MAX_GHZ", 194405.6)
-if FTS_LS_FREQUENCY_MIN_GHZ >= FTS_LS_FREQUENCY_MAX_GHZ:
-    raise RuntimeError("FTS-LS laser frequency minimum must be lower than maximum.")
-GAIN_SET_MIN, GAIN_SET_MAX = _gain_bounds(
-    os.getenv("GAIN_SET_MIN"),
-    os.getenv("GAIN_SET_MAX"),
+SERIAL_BAUDRATE = _env_int("SERIAL_BAUDRATE", 9600)
+GAIN_SET_MIN, GAIN_SET_MAX = (
+    _gain_bounds(os.getenv("GAIN_SET_MIN"), os.getenv("GAIN_SET_MAX"))
+    if "amplifier" in ENABLED_DEVICES
+    else (-100.0, 100.0)
 )
 
 DEVICE_NAME = os.getenv("DEVICE_NAME", "unconfigured-device")
 INITIAL_ADMIN_USERNAME = _initial_admin_username(os.getenv("INITIAL_ADMIN_USERNAME"))
+INITIAL_ADMIN_PASSWORD_HASH = os.getenv("INITIAL_ADMIN_PASSWORD_HASH", "")
+INITIAL_ADMIN_PASSWORD_SALT = os.getenv("INITIAL_ADMIN_PASSWORD_SALT", "")
 
 DATABASE_FILE = os.getenv("DATABASE_FILE", "/var/lib/amp-panel/measurements.db")
 DATABASE_MAX_RECORDS = max(0, _env_int("DATABASE_MAX_RECORDS", 0))
@@ -145,3 +131,15 @@ RADIUS_SECRET = os.getenv("RADIUS_SECRET", "")
 RADIUS_TIMEOUT_SECONDS = _env_int("RADIUS_TIMEOUT_SECONDS", 3)
 RADIUS_RETRIES = _env_int("RADIUS_RETRIES", 1)
 RADIUS_NAS_IDENTIFIER = os.getenv("RADIUS_NAS_IDENTIFIER", DEVICE_NAME)
+
+
+def _auth_mode(value: str | None) -> str:
+    """Validate the selected browser authentication backend."""
+
+    mode = (value or "radius").strip().lower()
+    if mode not in {"local", "radius"}:
+        raise RuntimeError("AUTH_MODE must be 'local' or 'radius'.")
+    return mode
+
+
+AUTH_MODE = _auth_mode(os.getenv("AUTH_MODE"))

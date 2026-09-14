@@ -1,3 +1,5 @@
+"""RADIUS PAP authentication adapter with explicit availability failures."""
+
 import logging
 import os
 

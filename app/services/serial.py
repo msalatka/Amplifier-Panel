@@ -1,3 +1,5 @@
+"""Serial acquisition, amplifier enrichment, and warning-state evaluation."""
+
 import datetime
 import pathlib
 import time
@@ -15,6 +17,8 @@ FIELD_LABELS = device_schema.AMPLIFIER_FIELD_LABELS
 
 
 def write_gain_command(ser, gain_set: float) -> None:
+    """Validate and write one gain command to an open amplifier serial port."""
+
     gain_set = validation.validate_gain_set(
         gain_set,
         config.GAIN_SET_MIN,
@@ -25,6 +29,8 @@ def write_gain_command(ser, gain_set: float) -> None:
 
 
 def enrich_data(data: dict) -> dict:
+    """Add derived gain values to an amplifier measurement when possible."""
+
     if "gain_set" not in data:
         data["gain_set"] = state.last_known_gain_set
 
@@ -44,10 +50,14 @@ def enrich_data(data: dict) -> dict:
 
 
 def is_command_response(data: dict) -> bool:
+    """Return whether parsed amplifier data represents a command response."""
+
     return "status" in data and not any(field in data for field in MEASUREMENT_FIELDS)
 
 
 def build_limit_errors(data: dict, now: str) -> list:
+    """Evaluate one amplifier sample against configured warning thresholds."""
+
     errors = []
     settings = state.dashboard_settings
     warn_limits = settings["warn_limits"]
@@ -115,6 +125,8 @@ def build_limit_errors(data: dict, now: str) -> list:
 
 
 def warning_key(error: dict) -> tuple:
+    """Return the stable field-and-kind identity of one warning."""
+
     return (error.get("field"), error.get("kind"))
 
 
@@ -123,6 +135,8 @@ def update_warning_state(
     now: str,
     current_data: dict | None = None,
 ) -> tuple[list[dict], list[dict]]:
+    """Reconcile evaluated warnings and return newly opened and cleared events."""
+
     current_by_key = {warning_key(error): error for error in current_errors}
     opened_events = []
     cleared_events = []
@@ -177,6 +191,8 @@ def update_warning_state(
 
 
 def available_serial_ports() -> list[str]:
+    """List serial device nodes and stable by-id links visible on the host."""
+
     ports = set()
     for base in (pathlib.Path("/dev"),):
         for pattern in ("ttyACM*", "ttyUSB*", "ttyS*", "ttyO*"):
@@ -197,6 +213,7 @@ def _serial_reader_session(port: str):
         with state.state_lock:
             state.serial_connected = True
             state.serial_error = None
+        state.update_device_live("amplifier", connected=True, error=None)
 
         print(f"Connected to serial port {port}")
 
@@ -234,6 +251,7 @@ def _serial_reader_session(port: str):
 
                     state.serial_connected = True
                     state.serial_error = None
+                state.update_device_live("amplifier", connected=True, error=None)
 
                 print("Command response:", data)
                 continue
@@ -255,6 +273,7 @@ def _serial_reader_session(port: str):
                 state.last_update = now
                 state.serial_connected = True
                 state.serial_error = None
+            state.update_device_live("amplifier", connected=True, error=None, last_update=now, data=data)
 
             # The same receive time is used for live state, warnings and SQLite.
             database_service.write_measurement(data, now)
@@ -277,6 +296,7 @@ def _serial_reader_session(port: str):
         with state.state_lock:
             state.serial_connected = False
             state.serial_error = str(e)
+        state.update_device_live("amplifier", connected=False, error=str(e))
 
         print("Serial port error:", e)
 
@@ -292,14 +312,14 @@ def _serial_reader_session(port: str):
 
         with state.state_lock:
             state.serial_connected = False
+        state.update_device_live("amplifier", connected=False)
 
 
 def serial_reader_loop():
-    if config.DEVICE_PROFILE == "fts-ls":
-        from app.services import fts_ls
+    """Run the amplifier's serial worker until shutdown."""
 
-        fts_ls.reader_loop()
-        return
+    if "amplifier" not in config.ENABLED_DEVICES:
+        raise RuntimeError("Serial acquisition is available only for the amplifier profile")
     while not state.stop_event.is_set():
         with state.state_lock:
             port = str(state.service_settings["serial_port"])
@@ -311,9 +331,12 @@ def serial_reader_loop():
 
 
 def reconnect(port: str) -> None:
+    """Interrupt the active serial session so the worker reconnects to a port."""
+
     with state.state_lock:
         state.serial_connected = False
         state.serial_error = f"Switching to {port}"
+    state.update_device_live("amplifier", connected=False, error=f"Switching to {port}")
     state.serial_reconnect_event.set()
     with state.serial_lock:
         if state.serial_port is not None:
@@ -324,7 +347,9 @@ def reconnect(port: str) -> None:
 
 
 def send_gain_set(gain_set: float):
-    if config.DEVICE_PROFILE != "amplifier":
+    """Send, persist, and record a validated amplifier gain setpoint."""
+
+    if "amplifier" not in config.ENABLED_DEVICES:
         raise RuntimeError("Gain setpoint is only available for the amplifier profile")
     gain_set = validation.validate_gain_set(
         gain_set,

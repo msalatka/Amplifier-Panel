@@ -29,27 +29,32 @@ if [ -z "${RET}" ]; then
     db_set amp-panel/mdns-hostname "${mdns_hostname:-amp-panel}"
 fi
 
-db_input high amp-panel/device-profile || true
+db_input high amp-panel/enabled-devices || true
 db_go
-db_get amp-panel/device-profile || RET="amplifier"
-device_profile="${RET}"
+db_get amp-panel/enabled-devices || RET="amplifier, fts-ls"
+enabled_devices="${RET}"
 
 db_input high amp-panel/admin-username || true
+db_input high amp-panel/auth-mode || true
 db_input high amp-panel/port || true
 db_input high amp-panel/data-dir || true
-db_input high amp-panel/serial-port || true
-case "${device_profile}" in
-    fts-ls|"FTS-LS Laser Station")
-        db_input high amp-panel/fts-ls-username || true
-        db_input high amp-panel/fts-ls-password || true
-        ;;
-    *)
+case "${enabled_devices}" in
+    *amplifier*|*"Optical amplifier"*)
+        db_input high amp-panel/serial-port || true
         db_input high amp-panel/gain-min || true
         db_input high amp-panel/gain-max || true
         ;;
 esac
-db_input high amp-panel/radius-server || true
-db_input high amp-panel/radius-port || true
-db_input high amp-panel/radius-secret || true
+db_get amp-panel/auth-mode || RET="radius"
+case "${RET}" in
+    local|"Local passwords on this device")
+        db_input high amp-panel/local-admin-password || true
+        ;;
+    *)
+        db_input high amp-panel/radius-server || true
+        db_input high amp-panel/radius-port || true
+        db_input high amp-panel/radius-secret || true
+        ;;
+esac
 db_input high amp-panel/mdns-hostname || true
 db_go

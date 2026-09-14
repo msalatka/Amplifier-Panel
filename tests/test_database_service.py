@@ -236,8 +236,62 @@ class DatabaseServiceTests(unittest.TestCase):
         )
         self.assertEqual(
             database_service.connection.execute("PRAGMA user_version").fetchone()[0],
-            5,
+            6,
         )
+
+    def test_device_statistics_include_completed_hour_and_exact_range_edges(self):
+        snapshots = [
+            ("2026-07-17T10:00:00+00:00", 100),
+            ("2026-07-17T10:15:00+00:00", 2),
+            ("2026-07-17T10:45:00+00:00", 6),
+            ("2026-07-17T11:00:00+00:00", 4),
+        ]
+        for timestamp, value in snapshots:
+            self.assertTrue(database_service.write_device_snapshot(
+                "fts-ls", {"laser": {"optical_frequency": value}}, timestamp
+            ))
+        summary = database_service.connection.execute(
+            "SELECT sample_count FROM device_hourly_statistics WHERE device_id = 'fts-ls'"
+        ).fetchone()
+        self.assertEqual(summary["sample_count"], 3)
+
+        result = database_service.query_device_statistics(
+            "fts-ls", "all", "2026-07-17T10:10:00+00:00", "2026-07-17T11:00:00+00:00"
+        )
+        metric = result["statistics"]["laser.optical_frequency"]
+        self.assertEqual(result["sample_count"], 3)
+        self.assertEqual(metric["min"], 2)
+        self.assertEqual(metric["max"], 6)
+        self.assertEqual(metric["average"], 4)
+        self.assertAlmostEqual(metric["standard_deviation"], (8 / 3) ** 0.5)
+
+    def test_device_statistics_and_retention_are_independent(self):
+        state.service_settings["database_max_records"] = 2
+        for index in range(3):
+            stamp = f"2026-07-17T10:00:0{index}+00:00"
+            self.assertTrue(database_service.write_device_snapshot(
+                "fts-ls", {"laser": {"optical_frequency": index}}, stamp
+            ))
+            self.assertTrue(database_service.write_measurement({"PiA": index}, stamp))
+        self.assertEqual(database_service.get_device_snapshot_count("fts-ls"), 2)
+        self.assertEqual(database_service.get_record_count(), 2)
+        result = database_service.query_device_statistics("fts-ls", "all")
+        self.assertEqual(result["sample_count"], 2)
+        self.assertEqual(result["statistics"]["laser.optical_frequency"]["min"], 1)
+
+    def test_device_snapshot_stream_returns_complete_history_without_writer_lock(self):
+        state.service_settings["database_max_records"] = 0
+        for index in range(5):
+            database_service.write_device_snapshot(
+                "fts-ls", {"sequence": index}, f"2026-07-17T10:00:0{index}+00:00"
+            )
+        points = database_service.stream_device_snapshots("fts-ls", "all", batch_size=1)
+        first = next(points)
+        self.assertEqual(first["snapshot"]["sequence"], 0)
+        self.assertTrue(database_service.write_device_snapshot(
+            "fts-ls", {"sequence": 5}, "2026-07-17T10:00:05+00:00"
+        ))
+        self.assertEqual([point["snapshot"]["sequence"] for point in points], [1, 2, 3, 4])
 
     def test_fts_ls_snapshots_are_stored_pruned_and_queried(self):
         state.service_settings["database_max_records"] = 2

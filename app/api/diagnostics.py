@@ -1,3 +1,5 @@
+"""Administrative diagnostics and host-integration HTTP endpoints."""
+
 import asyncio
 import datetime
 import re
@@ -21,6 +23,8 @@ heartbeat_settings_changed = asyncio.Event()
 
 
 class NetworkSettingsRequest(pydantic.BaseModel):
+    """NetworkManager settings submitted for a guarded network change."""
+
     interface: str
     mode: str
     ip_address: str = ""
@@ -30,16 +34,23 @@ class NetworkSettingsRequest(pydantic.BaseModel):
 
 
 class NetworkConfirmationRequest(pydantic.BaseModel):
+    """Token confirming that a network change kept the panel reachable."""
+
     token: str
 
 
 class ServiceSettingsRequest(pydantic.BaseModel):
+    """Runtime service settings editable from the diagnostics page."""
+
     syslog_heartbeat_seconds: int
     database_max_records: int
-    serial_port: str
+    serial_port: str | None = None
+    device_id: str = "amplifier"
 
 
 class SnmpSettingsUpdateRequest(pydantic.BaseModel):
+    """SNMP agent and trap destination settings."""
+
     enabled: bool
     port: int
     community: str
@@ -49,21 +60,28 @@ class SnmpSettingsUpdateRequest(pydantic.BaseModel):
 
 @router.get("/api/service-diagnostics")
 def service_diagnostics(
+    device: str = "amplifier",
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return acquisition, storage, syslog, and service runtime diagnostics."""
+
+    if device not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
     with state.state_lock:
         settings = state.service_settings.copy()
-    storage = database_service.get_storage_status()
+    storage = database_service.get_storage_status(device)
+    live = state.snapshot_device_live(device)
     return {
         "serial": {
-            "port": settings["serial_port"],
-            "available_ports": serial_reader.available_serial_ports(),
-            "baudrate": config.SERIAL_BAUDRATE,
-            "connected": state.serial_connected,
-            "error": state.serial_error,
+            "port": settings["serial_port"] if device == "amplifier" else None,
+            "available_ports": serial_reader.available_serial_ports() if device == "amplifier" else [],
+            "baudrate": config.SERIAL_BAUDRATE if device == "amplifier" else None,
+            "connected": live["connected"],
+            "error": live["error"],
+            "source": "serial" if device == "amplifier" else "daemon-xml-pending",
         },
         "database": {
-            **database_service.get_runtime_status(),
+            **database_service.get_runtime_status(device),
             "file": config.DATABASE_FILE,
             "record_limit": settings["database_max_records"],
             "size_bytes": storage["size_bytes"],
@@ -93,6 +111,8 @@ async def update_service_diagnostics_settings(
     http_request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Validate and apply editable service diagnostics settings."""
+
     if request.syslog_heartbeat_seconds != 0 and request.syslog_heartbeat_seconds < 10:
         raise fastapi.HTTPException(
             status_code=400, detail="Heartbeat must be 0 or at least 10 seconds"
@@ -104,21 +124,30 @@ async def update_service_diagnostics_settings(
             status_code=400,
             detail="Database limit must be 0 (unlimited) or between 1 and 10000000 records",
         )
-    serial_port = request.serial_port.strip()
-    if not re.fullmatch(r"/dev/tty(?:ACM|USB)[0-9]+", serial_port):
-        raise fastapi.HTTPException(status_code=400, detail="Select an available USB serial port")
-    if serial_port not in serial_reader.available_serial_ports():
-        raise fastapi.HTTPException(
-            status_code=400, detail="Selected serial port is not currently available"
-        )
+    if request.device_id not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
+    serial_port = None
+    if request.device_id == "amplifier":
+        serial_port = (request.serial_port or "").strip()
+        if not re.fullmatch(r"/dev/tty(?:ACM|USB)[0-9]+", serial_port):
+            raise fastapi.HTTPException(status_code=400, detail="Select an available USB serial port")
+        if serial_port not in serial_reader.available_serial_ports():
+            raise fastapi.HTTPException(
+                status_code=400, detail="Selected serial port is not currently available"
+            )
 
     with state.state_lock:
         before = state.service_settings.copy()
-        state.service_settings.update({**request.model_dump(), "serial_port": serial_port})
+        state.service_settings.update({
+            "syslog_heartbeat_seconds": request.syslog_heartbeat_seconds,
+            "database_max_records": request.database_max_records,
+        })
+        if serial_port is not None:
+            state.service_settings["serial_port"] = serial_port
         state.save_persisted_state()
         after = state.service_settings.copy()
     removed_records = database_service.apply_record_limit()
-    if before["serial_port"] != serial_port:
+    if serial_port is not None and before["serial_port"] != serial_port:
         serial_reader.reconnect(serial_port)
     heartbeat_settings_changed.set()
     api_security.audit_event(
@@ -135,6 +164,8 @@ def get_network_settings(
     request: starlette.requests.Request,
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return network state from the restricted host network agent."""
+
     try:
         return network_service.get_network_state(api_security.get_client_ip(request))
     except network_service.NetworkError as exc:
@@ -147,6 +178,8 @@ def update_network_settings(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Apply a guarded network change and return its confirmation token."""
+
     client_ip = api_security.get_client_ip(request)
     try:
         before = network_service.get_network_state(client_ip)
@@ -176,6 +209,8 @@ def confirm_network_settings(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Confirm a pending network change before its rollback deadline."""
+
     try:
         result = network_service.confirm_network_settings(
             confirmation.token,
@@ -196,6 +231,8 @@ def get_ntp_status(
     force: bool = False,
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return cached or freshly queried NTP synchronization diagnostics."""
+
     return ntp_service.query_ntp_status(force=force)
 
 
@@ -204,6 +241,8 @@ def export_syslog_log(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Audit and download the locally exported application log."""
+
     api_security.audit_event(request, "syslog_exported", current_user["username"])
     path = syslog_service.get_syslog_log_path()
     filename = f"amp_syslog_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -222,6 +261,8 @@ def get_snmp_live_data(
         api_security.require_roles("Administrator", "Operator", "Viewer")
     ),
 ):
+    """Return the values currently exposed by the SNMP agent."""
+
     with state.state_lock:
         return dict(state.latest_snmp_data)
 
@@ -230,6 +271,8 @@ def get_snmp_live_data(
 def get_snmp_settings(
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Return persisted SNMP agent and trap settings."""
+
     with state.state_lock:
         return dict(state.snmp_settings)
 
@@ -240,6 +283,8 @@ def update_snmp_settings(
     request: starlette.requests.Request,
     current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
+    """Validate, persist, audit, and activate SNMP settings."""
+
     if settings.port != config.SNMP_PORT:
         raise fastapi.HTTPException(
             status_code=400,

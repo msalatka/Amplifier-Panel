@@ -11,6 +11,11 @@ select = [
     "F",
     "I",
     "B",
+    # Require documentation for public Python modules, classes, functions and methods.
+    "D100",
+    "D101",
+    "D102",
+    "D103",
 ]
 ignore = [
     # FastAPI dependency defaults intentionally call functions in signatures.
@@ -20,7 +25,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]
+"tests/**/*.py" = ["S101", "D100", "D101", "D102", "D103"]
 "tests/test_network.py" = ["E701"]
 "tests/test_serial_service.py" = ["E402"]
 "app/services/snmp.py" = ["F403", "F405"]

@@ -1,3 +1,5 @@
+"""Minimal cached NTP client used for administrator time diagnostics."""
+
 import datetime
 import socket
 import struct
@@ -97,6 +99,8 @@ def _query_once(host: str) -> dict:
 
 
 def query_ntp_status(force: bool = False) -> dict:
+    """Return cached NTP diagnostics or query configured servers immediately."""
+
     global _cached_result, _cached_at
 
     with _cache_lock:

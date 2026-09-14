@@ -107,6 +107,47 @@ select {
     letter-spacing: 0.2px;
 }
 
+.device-switcher {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.device-switcher .sidebar-logo {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 0;
+    cursor: pointer;
+    list-style: none;
+}
+
+.device-switcher .sidebar-logo::-webkit-details-marker { display: none; }
+
+.device-switcher-list {
+    display: grid;
+    gap: 4px;
+    margin-top: 10px;
+    padding: 6px;
+    border: 1px solid #30483e;
+    border-radius: 8px;
+    background: #121c18;
+}
+
+.device-switcher-list a {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 5px;
+    color: #dce9e1;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.device-switcher-list a:hover,
+.device-switcher-list a[aria-current="page"] { background: #233a2e; }
+.device-switcher-list small { color: #9db4a7; }
+
 .nav-group {
     margin-bottom: 22px;
 }
@@ -1284,6 +1325,10 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
     gap: 20px;
 }
 
+.fts-station-header {
+    flex-wrap: wrap;
+}
+
 .fts-station-header h2 {
     margin: 3px 0 0;
     color: #edf3ef;
@@ -1307,10 +1352,36 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
 .fts-state.reported { color: #d7e2dd; }
 .fts-state.unknown { color: #8fa59b; }
 
-.fts-controller-rack {
+.fts-station-systems {
     display: grid;
-    grid-template-columns: 1.45fr 1fr 1fr;
+    grid-template-columns: 1.1fr 1.4fr 1fr 1fr;
     gap: 12px;
+    align-items: stretch;
+}
+
+.fts-station-systems > #fts-uplink > .fts-module {
+    height: 100%;
+}
+
+.fts-station-group {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.fts-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid #2a3d35;
+    padding-bottom: 8px;
+}
+
+.fts-section-heading h3 {
+    margin: 0;
+    color: #dce9e1;
+    font-size: 14px;
 }
 
 .fts-rack-summary {
@@ -1319,24 +1390,6 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
     font-size: 13px;
 }
 
-.fts-optical-rack {
-    min-width: 0;
-}
-
-.fts-rack-header {
-    display: flex;
-    align-items: end;
-    justify-content: space-between;
-    gap: 18px;
-}
-
-.fts-rack-header h3 {
-    margin: 3px 0 0;
-    color: #e7f0eb;
-    font-size: 16px;
-}
-
-.fts-rack-label,
 .fts-slot-label {
     color: #68d19b;
     font-size: 10px;
@@ -1364,12 +1417,14 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
 }
 
 .fts-module.unequipped {
-    opacity: 0.56;
+    opacity: 0.42;
     border-top-color: #5d6b65;
 }
 
-.fts-module.unlocked { border-top-color: #db6d6d; }
-.fts-module.shutdown { border-top-color: #c4a65f; }
+.fts-pluggable-module.down:not(.unequipped) {
+    opacity: 0.56;
+    border-top-color: #5d6b65;
+}
 
 .fts-module-title {
     display: flex;
@@ -1395,6 +1450,8 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
 }
 
 .fts-led.reported { background: #8fa59b; }
+.fts-led.up { background: #4eb782; box-shadow: 0 0 0 3px rgb(78 183 130 / 16%); }
+.fts-led.down { background: #68756f; box-shadow: 0 0 0 3px rgb(104 117 111 / 12%); }
 
 .fts-metrics {
     display: grid;
@@ -1420,7 +1477,7 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
 
 .fts-module-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -1445,32 +1502,6 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
     margin-bottom: 8px;
 }
 
-.fts-port-connectors {
-    display: flex;
-    gap: 6px;
-    margin: 13px 0 0;
-}
-
-.fts-connector {
-    display: grid;
-    min-width: 48px;
-    justify-items: center;
-    gap: 4px;
-    color: #e6efea;
-    font-size: 10px;
-    font-weight: 850;
-}
-
-.fts-connector-socket {
-    width: 25px;
-    height: 25px;
-    border: 5px solid #587066;
-    border-radius: 50%;
-    background: #070c0a;
-    box-shadow: inset 0 0 0 2px #1b2b24;
-}
-
-.fts-no-connectors,
 .fts-empty-rack {
     color: #71857c;
     font-size: 12px;
@@ -1580,8 +1611,12 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
     margin: 4px 0 0;
 }
 
+@media (max-width: 1000px) {
+    .fts-module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 1250px) {
-    .fts-module-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .fts-station-systems { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1100px) {
@@ -1650,10 +1685,10 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
     }
 
     .fts-station {
-        min-width: 720px;
+        min-width: 0;
     }
 
-    .fts-controller-rack,
+    .fts-station-systems,
     .fts-settings-fields {
         grid-template-columns: 1fr;
     }
@@ -1687,4 +1722,8 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
     .administration-panel .network-status-grid {
         grid-template-columns: 1fr;
     }
+}
+
+@media (max-width: 520px) {
+    .fts-module-grid { grid-template-columns: minmax(0, 1fr); }
 }

@@ -2,18 +2,18 @@ import datetime
 import unittest
 from unittest import mock
 
-from app.api import dashboard
+from app.api import devices
 
 
 class DashboardApiTests(unittest.TestCase):
     def test_latest_includes_current_host_system_time(self):
         before = datetime.datetime.now(datetime.timezone.utc)
         with mock.patch.object(
-            dashboard.database_service,
+            devices.database_service,
             "get_runtime_status",
             return_value={"state": "ready"},
         ):
-            result = dashboard.latest({})
+            result = devices.latest("amplifier", {})
         after = datetime.datetime.now(datetime.timezone.utc)
 
         system_time = datetime.datetime.fromisoformat(result["system_time"])

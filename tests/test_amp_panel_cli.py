@@ -110,17 +110,81 @@ class AmpPanelCliTests(unittest.TestCase):
         ):
             amp_panel_cli.validate_configuration(values)
 
+    def test_local_authentication_requires_a_hashed_administrator_password(self):
+        values = amp_panel_cli.default_configuration()
+        values.update({"AUTH_MODE": "local", "GAIN_SET_MIN": "0", "GAIN_SET_MAX": "20"})
+
+        with mock.patch.object(
+            amp_panel_cli,
+            "_normalized_data_dir",
+            return_value=pathlib.Path(values["AMP_PANEL_DATA_DIR"]),
+        ):
+            with self.assertRaisesRegex(amp_panel_cli.ConfigurationError, "password is required"):
+                amp_panel_cli.validate_configuration(values)
+
+            amp_panel_cli._set_local_admin_password(values, "correct-horse-battery")
+            amp_panel_cli.validate_configuration(values)
+
+    def test_installer_answer_hashes_local_administrator_password(self):
+        values = amp_panel_cli.default_configuration()
+        password = "correct-horse-battery"
+        answers = {
+            "auth_mode_b64": base64.b64encode(b"local").decode(),
+            "local_admin_password_b64": base64.b64encode(password.encode()).decode(),
+        }
+        with mock.patch.object(
+            amp_panel_cli,
+            "_normalized_data_dir",
+            return_value=pathlib.Path(values["AMP_PANEL_DATA_DIR"]),
+        ):
+            amp_panel_cli._apply_answers(values, answers)
+
+        self.assertEqual(values["AUTH_MODE"], "local")
+        self.assertNotEqual(values["INITIAL_ADMIN_PASSWORD_HASH"], password)
+        self.assertTrue(values["INITIAL_ADMIN_PASSWORD_SALT"])
+
     def test_environment_file_round_trip_preserves_secrets(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "amp-panel.env"
-            values = {
-                "AMP_PANEL_PORT": "8123",
-                "RADIUS_SECRET": 'space and "quotes" = # safe',
-            }
+            values = amp_panel_cli.default_configuration()
+            values.update(
+                {
+                    "AMP_PANEL_PORT": "8123",
+                    "RADIUS_SECRET": 'space and "quotes" = # safe',
+                }
+            )
 
             amp_panel_cli.write_env_file(path, values)
 
             self.assertEqual(amp_panel_cli.read_env_file(path), values)
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("# --- Browser authentication ---", content)
+            self.assertIn("# RADIUS shared secret; required when AUTH_MODE=radius. Keep it private.", content)
+            self.assertIn("# Web interface TCP port: integer from 1024 to 65535, for example 8000.", content)
+
+    def test_each_configuration_key_has_a_help_comment(self):
+        self.assertEqual(set(amp_panel_cli.CONFIG_KEYS), set(amp_panel_cli.CONFIG_HELP))
+
+    def test_editor_configuration_rejects_an_unknown_key(self):
+        values = amp_panel_cli.default_configuration()
+
+        def write_unknown_key(command, check):
+            pathlib.Path(command[-1]).write_text("UNKNOWN_OPTION=true\n", encoding="utf-8")
+            return mock.Mock(returncode=0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            configuration_file = pathlib.Path(directory) / "amp-panel.env"
+            with (
+                mock.patch.object(amp_panel_cli, "CONFIG_FILE", configuration_file),
+                mock.patch.object(amp_panel_cli.shutil, "which", return_value="/usr/bin/editor"),
+                mock.patch.object(
+                    amp_panel_cli.subprocess,
+                    "run",
+                    side_effect=write_unknown_key,
+                ),
+            ):
+                with self.assertRaisesRegex(amp_panel_cli.ConfigurationError, "Unknown configuration key"):
+                    amp_panel_cli.edit_configuration(values)
 
     def test_encoded_installer_answers_preserve_special_characters(self):
         secret = ' radius # "secret" = value '
@@ -138,13 +202,10 @@ class AmpPanelCliTests(unittest.TestCase):
 
         self.assertEqual(values["RADIUS_SECRET"], secret)
 
-    def test_fts_ls_installer_answers_select_profile_and_serial_defaults(self):
-        password = "adm!n with spaces"
+    def test_fts_ls_installer_answers_do_not_write_serial_configuration(self):
         values = amp_panel_cli.default_configuration()
         answers = {
-            "device_profile_b64": base64.b64encode(b"fts-ls").decode(),
-            "fts_ls_username_b64": base64.b64encode(b"appadmin").decode(),
-            "fts_ls_password_b64": base64.b64encode(password.encode()).decode(),
+            "enabled_devices_b64": base64.b64encode(b"fts-ls").decode(),
         }
         with mock.patch.object(
             amp_panel_cli,
@@ -153,11 +214,14 @@ class AmpPanelCliTests(unittest.TestCase):
         ):
             amp_panel_cli._apply_answers(values, answers)
 
-        self.assertEqual(values["DEVICE_PROFILE"], "fts-ls")
-        self.assertEqual(values["SERIAL_BAUDRATE"], "115200")
-        self.assertEqual(values["FTS_LS_PASSWORD"], password)
-        self.assertEqual(values["GAIN_SET_MIN"], "-100")
-        self.assertEqual(values["GAIN_SET_MAX"], "100")
+        self.assertEqual(values["ENABLED_DEVICES"], "fts-ls")
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "amp-panel.env"
+            amp_panel_cli.write_env_file(path, values)
+            content = path.read_text(encoding="utf-8")
+            self.assertNotIn("SERIAL_PORT=", content)
+            self.assertNotIn("SERIAL_BAUDRATE=", content)
+            self.assertNotIn("GAIN_SET_MIN=", content)
 
 
 if __name__ == "__main__":

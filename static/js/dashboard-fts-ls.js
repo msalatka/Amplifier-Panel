@@ -25,7 +25,7 @@ function updateFtsFormState(form) {
 	)
 	form.classList.toggle('dirty', dirty)
 	const save = form.querySelector('.fts-save-settings')
-	if (save) save.disabled = !dirty || !canOperate()
+	if (save) save.disabled = deviceProfile === 'fts-ls' || !dirty || !canOperate()
 }
 
 function clearFtsFormChanges(form) {
@@ -76,6 +76,9 @@ function updateFtsTargetForm(force = false) {
 		field.querySelectorAll('input, select').forEach((input) => {
 			input.disabled = !hasPolarization
 		})
+	})
+	document.querySelectorAll('[data-fts-setting-action]').forEach((input) => {
+		input.disabled = true
 	})
 	setTextIfExists(
 		'fts-port-settings-hint',
@@ -217,6 +220,10 @@ async function saveFtsSettings(form) {
 
 function setupFtsControls() {
 	if (deviceProfile !== 'fts-ls') return
+	// The station transport is intentionally read-only until its daemon XML contract exists.
+	document.querySelectorAll('[data-fts-setting-action], [data-fts-action], .fts-save-settings, .fts-cancel-settings').forEach((control) => {
+		control.disabled = true
+	})
 	document.querySelectorAll('.fts-settings-form').forEach((form) => {
 		updateFtsFormState(form)
 		form.querySelectorAll('[data-fts-setting-action]').forEach((input) => {
@@ -254,10 +261,11 @@ function setupFtsControls() {
 		highlightSelectedFtsModule()
 	})
 	const moduleRack = document.getElementById('fts-modules')
+	const uplinkRack = document.getElementById('fts-uplink')
 	const selectModule = (event) => {
 		if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return
 		const module = event.target.closest('[data-fts-module-target]:not(.unequipped)')
-		if (!module || !moduleRack?.contains(module)) return
+		if (!module || !(moduleRack?.contains(module) || uplinkRack?.contains(module))) return
 		if (event.type === 'keydown') event.preventDefault()
 		const select = document.getElementById('fts-target')
 		if (!select) return
@@ -282,6 +290,8 @@ function setupFtsControls() {
 	}
 	moduleRack?.addEventListener('click', selectModule)
 	moduleRack?.addEventListener('keydown', selectModule)
+	uplinkRack?.addEventListener('click', selectModule)
+	uplinkRack?.addEventListener('keydown', selectModule)
 	document.querySelectorAll('[data-fts-action]').forEach((button) => {
 		button.addEventListener('click', () => sendFtsAction(button))
 	})
@@ -441,45 +451,27 @@ function ftsStatisticsFields() {
 	const modules = ['UL', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7']
 	const fields = []
 	modules.forEach((name) => {
+		const metricPrefix = name === 'UL' ? 'uplink' : `ports.${name}`
 		fields.push({
 			key: `${name}_power`,
+			metricKey: `${metricPrefix}.optical_power`,
 			label: `${name} Optical Power`,
 			unit: 'dBm',
 		})
 		fields.push({
 			key: `${name}_noise_lf`,
+			metricKey: `${metricPrefix}.noise_lf`,
 			label: `${name} Low-frequency Noise`,
 			unit: '',
 		})
-		fields.push({ key: `${name}_noise_hf`, label: `${name} High-frequency Noise`, unit: '' })
+		fields.push({ key: `${name}_noise_hf`, metricKey: `${metricPrefix}.noise_hf`, label: `${name} High-frequency Noise`, unit: '' })
 		if (name !== 'UL')
-			fields.push({ key: `${name}_jitter`, label: `${name} Jitter`, unit: '%' })
+			fields.push({ key: `${name}_jitter`, metricKey: `${metricPrefix}.jitter`, label: `${name} Jitter`, unit: '%' })
 	})
-	fields.push({ key: 'laser_frequency', label: 'Laser Frequency', unit: 'GHz' })
-	fields.push({ key: 'tec_set', label: 'TEC Setpoint', unit: '°C' })
-	fields.push({ key: 'tec_read', label: 'TEC Temperature', unit: '°C' })
+	fields.push({ key: 'laser_frequency', metricKey: 'laser.optical_frequency', label: 'Laser Frequency', unit: 'GHz' })
+	fields.push({ key: 'tec_set', metricKey: 'tec.temperature_set_c', label: 'TEC Setpoint', unit: '°C' })
+	fields.push({ key: 'tec_read', metricKey: 'tec.temperature_read_c', label: 'TEC Temperature', unit: '°C' })
 	return fields
-}
-
-function ftsFieldStatistics(points, field) {
-	const values = points.map((point) => point[field.key]).filter(Number.isFinite)
-	if (!values.length) return null
-	const sum = values.reduce((total, value) => total + value, 0)
-	const average = sum / values.length
-	const variance =
-		values.reduce((total, value) => total + (value - average) ** 2, 0) / values.length
-	return {
-		count: values.length,
-		min: Math.min(...values),
-		max: Math.max(...values),
-		average,
-		stddev: Math.sqrt(Math.max(0, variance)),
-		outside: values.filter(
-			(value) =>
-				(field.min !== undefined && value < field.min) ||
-				(field.max !== undefined && value > field.max),
-		).length,
-	}
 }
 
 async function loadFtsStatistics() {
@@ -491,17 +483,16 @@ async function loadFtsStatistics() {
 	lastStatisticsRefresh = Date.now()
 	setTextIfExists('fts-statistics-source', 'Loading…')
 	try {
-		const response = await fetch(`/api/fts-ls/history?${buildStatisticsQuery()}&limit=10000`, {
+		const response = await fetch(`/api/devices/${encodeURIComponent(selectedDeviceId)}/statistics?${buildStatisticsQuery()}`, {
 			signal: requestController.signal,
 		})
 		handleAuthResponse(response)
 		if (!response.ok) throw await responseError(response, 'Could not load FTS-LS statistics')
 		const result = await response.json()
 		if (requestSequence !== statisticsRequestSequence) return
-		const rawPoints = result.points || []
-		const points = rawPoints.map(flattenFtsHistoryPoint)
+		const metrics = result.statistics || {}
 		const rows = ftsStatisticsFields()
-			.map((field) => [field, ftsFieldStatistics(points, field)])
+			.map((field) => [field, metrics[field.metricKey]])
 			.filter(([, statistics]) => statistics)
 		const body = document.getElementById('fts-statistics-body')
 		if (body) {
@@ -520,14 +511,14 @@ async function loadFtsStatistics() {
 								`<td>${formatPlainNumber(statistics.min, 3)}${unit}</td>` +
 								`<td>${formatPlainNumber(statistics.max, 3)}${unit}</td>` +
 								`<td>${formatPlainNumber(statistics.average, 3)}${unit}</td>` +
-								`<td>${formatPlainNumber(statistics.stddev, 3)}${unit}</td><td>${outside}</td></tr>`
+								`<td>${formatPlainNumber(statistics.standard_deviation, 3)}${unit}</td><td>${outside}</td></tr>`
 							)
 						})
 						.join('')
 				: '<tr><td colspan="7">No numeric data in this range</td></tr>'
 		}
 		const rangeText = statisticsStart || statisticsEnd ? 'custom range' : statisticsRange
-		setTextIfExists('fts-statistics-source', `${rawPoints.length} snapshots, ${rangeText}`)
+		setTextIfExists('fts-statistics-source', `${result.sample_count || 0} snapshots, ${rangeText}`)
 		lastStatisticsRefresh = Date.now()
 	} catch (error) {
 		if (error.name === 'AbortError' || requestSequence !== statisticsRequestSequence) return

@@ -1,9 +1,12 @@
+"""Shared runtime state and atomic persistence of operator-managed settings."""
+
+import copy
 import datetime
 import json
 import pathlib
 import threading
 
-from app.core import config, device_schema, validation
+from app.core import config, device_schema, passwords, validation
 from app.core.fts_types import FtsStatus
 
 persist_lock = threading.Lock()
@@ -35,12 +38,14 @@ def empty_fts_ls_status() -> FtsStatus:
     """Return a complete, independent snapshot for an unpolled FTS-LS station.
 
     Keeping all seven physical slots in the initial value gives the API and UI a
-    stable shape before the first successful serial poll.
+    stable shape before the first status snapshot from the station daemon.
     """
     return device_schema.empty_fts_ls_status()
 
 
 def load_persisted_state() -> dict:
+    """Load persisted JSON state, returning defaults after any read failure."""
+
     path = pathlib.Path(config.PERSISTED_STATE_FILE)
 
     try:
@@ -52,6 +57,8 @@ def load_persisted_state() -> dict:
 
 
 def merge_dashboard_settings(saved_settings: dict | None) -> dict:
+    """Merge and validate persisted warning settings against current defaults."""
+
     settings = json.loads(json.dumps(DEFAULT_DASHBOARD_SETTINGS))
 
     if not isinstance(saved_settings, dict):
@@ -90,6 +97,8 @@ def merge_dashboard_settings(saved_settings: dict | None) -> dict:
 
 
 def merge_last_known_gain_set(saved_gain_set: object) -> float:
+    """Validate a persisted gain setpoint or choose an in-range fallback."""
+
     try:
         return validation.validate_gain_set(
             saved_gain_set,
@@ -104,14 +113,21 @@ def merge_last_known_gain_set(saved_gain_set: object) -> float:
 
 
 def access_user_public(user: dict) -> dict:
+    """Return the non-sensitive fields exposed for a local access user."""
+
     return {
         "username": user["username"],
         "role": user["role"],
         "active": bool(user["active"]),
+        "password_set": passwords.password_is_usable(
+            user.get("password_hash"), user.get("password_salt")
+        ),
     }
 
 
 def merge_access_users(saved_users: list[dict] | None) -> list[dict]:
+    """Normalize persisted access users or create the initial administrator."""
+
     merged_users = []
     seen_usernames = set()
 
@@ -123,28 +139,56 @@ def merge_access_users(saved_users: list[dict] | None) -> list[dict]:
         if not username or username in seen_usernames:
             continue
 
-        merged_users.append(
-            {
-                "username": username,
-                "role": str(user.get("role", "Operator")).strip() or "Operator",
-                "active": bool(user.get("active", True)),
-            }
-        )
+        merged_user = {
+            "username": username,
+            "role": str(user.get("role", "Operator")).strip() or "Operator",
+            "active": bool(user.get("active", True)),
+        }
+        if passwords.password_is_usable(user.get("password_hash"), user.get("password_salt")):
+            merged_user["password_hash"] = user["password_hash"]
+            merged_user["password_salt"] = user["password_salt"]
+        merged_users.append(merged_user)
         seen_usernames.add(username)
 
-    if merged_users:
-        return merged_users
+    initial_user = {
+        "username": config.INITIAL_ADMIN_USERNAME,
+        "role": "Administrator",
+        "active": True,
+    }
+    def apply_initial_local_password() -> None:
+        """Attach the configured bootstrap password hash to the initial administrator."""
 
-    return [
-        {
-            "username": config.INITIAL_ADMIN_USERNAME,
-            "role": "Administrator",
-            "active": True,
-        }
-    ]
+        if not passwords.password_is_usable(
+            config.INITIAL_ADMIN_PASSWORD_HASH, config.INITIAL_ADMIN_PASSWORD_SALT
+        ):
+            raise RuntimeError(
+                "Local authentication requires an initial administrator password. "
+                "Run 'sudo amp-panel configure'."
+            )
+        initial_user["password_hash"] = config.INITIAL_ADMIN_PASSWORD_HASH
+        initial_user["password_salt"] = config.INITIAL_ADMIN_PASSWORD_SALT
+
+    if merged_users:
+        if config.AUTH_MODE == "local" and not any(
+            passwords.password_is_usable(user.get("password_hash"), user.get("password_salt"))
+            for user in merged_users
+        ):
+            apply_initial_local_password()
+            for user in merged_users:
+                if user["username"] == config.INITIAL_ADMIN_USERNAME:
+                    user.update(initial_user)
+                    break
+            else:
+                merged_users.append(initial_user)
+        return merged_users
+    if config.AUTH_MODE == "local":
+        apply_initial_local_password()
+    return [initial_user]
 
 
 def merge_snmp_settings(saved_settings: dict | None) -> dict:
+    """Merge persisted SNMP values while enforcing server-owned settings."""
+
     settings = DEFAULT_SNMP_SETTINGS.copy()
     if isinstance(saved_settings, dict):
         settings.update({key: saved_settings[key] for key in settings if key in saved_settings})
@@ -155,6 +199,8 @@ def merge_snmp_settings(saved_settings: dict | None) -> dict:
 
 
 def merge_service_settings(saved_settings: dict | None) -> dict:
+    """Normalize persisted heartbeat, database, and serial-port settings."""
+
     settings = DEFAULT_SERVICE_SETTINGS.copy()
     if isinstance(saved_settings, dict):
         for key in ("syslog_heartbeat_seconds", "database_max_records"):
@@ -174,6 +220,8 @@ persisted_state = load_persisted_state()
 
 
 def save_persisted_state() -> None:
+    """Atomically write all operator-managed settings with restricted permissions."""
+
     path = pathlib.Path(config.PERSISTED_STATE_FILE)
     temporary_path = path.with_suffix(path.suffix + ".tmp")
     payload = {
@@ -191,6 +239,8 @@ def save_persisted_state() -> None:
 
 
 def save_persisted_gain_set(gain_set: float) -> None:
+    """Validate and persist the last amplifier gain setpoint."""
+
     global last_known_gain_set
     last_known_gain_set = validation.validate_gain_set(
         gain_set,
@@ -201,10 +251,14 @@ def save_persisted_gain_set(gain_set: float) -> None:
 
 
 def save_persisted_dashboard_settings() -> None:
+    """Persist the current dashboard warning settings."""
+
     save_persisted_state()
 
 
 def save_persisted_access_users() -> None:
+    """Persist the current local authorization records."""
+
     save_persisted_state()
 
 
@@ -214,6 +268,15 @@ fts_ls_status: FtsStatus = empty_fts_ls_status()
 serial_connected = False
 serial_error = None
 last_update = None
+device_live = {
+    device_id: {
+        "connected": False,
+        "error": None,
+        "last_update": None,
+        "data": empty_fts_ls_status() if device_id == "fts-ls" else {},
+    }
+    for device_id in config.ENABLED_DEVICES
+}
 last_known_gain_set = merge_last_known_gain_set(persisted_state.get("last_known_gain_set", 15.0))
 
 serial_port = None
@@ -228,6 +291,37 @@ acknowledged_warning_keys = set()
 app_started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
 auth_sessions = {}
 login_failures = {}
+_UNSET = object()
+
+
+def update_device_live(
+    device_id: str,
+    *,
+    connected: bool | None = None,
+    error: str | None | object = _UNSET,
+    last_update: str | None = None,
+    data: dict | None = None,
+) -> None:
+    """Publish one device's status without changing the other devices."""
+
+    with state_lock:
+        live = device_live[device_id]
+        if connected is not None:
+            live["connected"] = connected
+        if error is not _UNSET:
+            live["error"] = error
+        if last_update is not None:
+            live["last_update"] = last_update
+        if data is not None:
+            live["data"] = copy.deepcopy(data)
+
+
+def snapshot_device_live(device_id: str) -> dict:
+    """Return a detached status snapshot for an API response."""
+
+    with state_lock:
+        live = device_live[device_id]
+        return {**live, "data": copy.deepcopy(live["data"])}
 
 dashboard_settings = merge_dashboard_settings(persisted_state.get("dashboard_settings"))
 access_users = merge_access_users(persisted_state.get("access_users"))

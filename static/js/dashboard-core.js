@@ -57,6 +57,7 @@ let lastWarningHistoryRefresh = 0
 const warningHistoryLimit = 100
 const chartSeriesVisibility = new Map()
 const deviceProfile = document.body.dataset.deviceProfile || 'amplifier'
+const selectedDeviceId = document.body.dataset.deviceId || deviceProfile
 let latestFtsStatus = null
 
 function historyRefreshInterval(rangeValue) {
@@ -204,6 +205,11 @@ function ftsStateClass(value) {
 	return !normalized || ['unknown', '-', '--'].includes(normalized) ? 'unknown' : 'reported'
 }
 
+function ftsPortState(module) {
+	const reported = String(firstValue(module, ['state'], '')).trim().toUpperCase()
+	return ['UP', 'LOCKED'].includes(reported) ? 'UP' : 'DOWN'
+}
+
 function ftsMetric(label, value, unit = '') {
 	return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(displayValue(value, unit))}</dd></div>`
 }
@@ -217,28 +223,14 @@ function ftsModuleTarget(module, index, uplink = false) {
 function ftsModuleIsEquipped(module) {
 	const type = String(firstValue(module, ['type'], 'Unknown')).toLowerCase()
 	const stateValue = String(firstValue(module, ['state'], 'UNKNOWN')).toLowerCase()
-	return !type.includes('unequipped') && stateValue !== 'unequipped'
-}
-
-function ftsConnectorLabel(connector) {
-	const labels = {
-		O: 'Optical',
-		BN: 'Beat note',
-		BNA: 'Amplified beat note',
-		BN_A: 'Amplified beat note',
-		TR: 'Tracking oscillator output',
-	}
-	return labels[connector] || connector
-}
-
-function ftsConnectorCode(connector) {
-	return connector === 'BN_A' ? 'BNA' : connector
+	return !['', 'unknown', '--'].includes(type) && !type.includes('unequipped') && stateValue !== 'unequipped'
 }
 
 function renderFtsModule(module, index, uplink = false) {
-	const stateValue = firstValue(module, ['state'], 'UNKNOWN')
-	const stateClass = ftsStateClass(stateValue)
-	const type = firstValue(module, ['type'], 'Unknown')
+	const stateValue = ftsPortState(module)
+	const stateClass = stateValue.toLowerCase()
+	const rawType = firstValue(module, ['type'], '')
+	const type = String(rawType).toLowerCase() === 'unknown' ? '--' : rawType
 	const unequipped = !ftsModuleIsEquipped(module)
 	const target = ftsModuleTarget(module, index, uplink)
 	const slotLabel = uplink ? 'UPLINK' : `SLOT ${index + 1}`
@@ -271,15 +263,6 @@ function renderFtsModule(module, index, uplink = false) {
 				),
 			)
 	}
-	const connectors = (module.connectors || [])
-		.map(
-			(connector) => `
-		<span class="fts-connector" title="${escapeHtml(ftsConnectorLabel(connector))}">
-			<span class="fts-connector-socket" aria-hidden="true"></span>
-			<span>${escapeHtml(ftsConnectorCode(connector))}</span>
-		</span>`,
-		)
-		.join('')
 	return `
 		<article class="fts-module fts-pluggable-module ${stateClass} ${unequipped ? 'unequipped' : ''}" data-fts-module-target="${escapeHtml(target)}"${unequipped ? '' : ' tabindex="0"'}>
 			<div class="fts-slot-label">${escapeHtml(slotLabel)}</div>
@@ -289,7 +272,6 @@ function renderFtsModule(module, index, uplink = false) {
 				${metrics.join('')}
 				${ftsMetric('Description', firstValue(module, ['description']))}
 			</dl>
-			<div class="fts-port-connectors">${connectors || '<span class="fts-no-connectors">No physical ports</span>'}</div>
 		</article>`
 }
 
@@ -382,13 +364,17 @@ function renderFtsStatus(status) {
 	const equippedPorts = portPositions.filter((item) => ftsModuleIsEquipped(item.module))
 	const uplinkEquipped = inventory.some((item) => item.uplink && ftsModuleIsEquipped(item.module))
 	const slotCount = portPositions.length
+	const uplinkContainer = document.getElementById('fts-uplink')
+	if (uplinkContainer) uplinkContainer.innerHTML = status.uplink
+		? renderFtsModule(status.uplink, 0, true)
+		: '<p class="fts-empty-rack">No uplink status received.</p>'
 	const modules = document.getElementById('fts-modules')
 	if (modules) {
-		modules.innerHTML = inventory.length
-			? inventory
+		modules.innerHTML = portPositions.length
+			? portPositions
 					.map((item) => renderFtsModule(item.module, item.index, item.uplink))
 					.join('')
-			: '<p class="fts-empty-rack">No optical modules were reported by the station.</p>'
+			: '<p class="fts-empty-rack">No optical ports were reported by the station.</p>'
 	}
 	setTextIfExists(
 		'fts-equipped-count',
@@ -521,7 +507,7 @@ function applyRoleUi() {
 	})
 
 	document.querySelectorAll('[data-operator-control]').forEach((element) => {
-		element.disabled = !canOperate()
+		element.disabled = !canOperate() || (deviceProfile === 'fts-ls' && !!element.closest('.fts-settings-panel'))
 	})
 
 	document.querySelectorAll('[data-operator-only]').forEach((element) => {

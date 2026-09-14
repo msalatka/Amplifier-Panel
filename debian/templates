@@ -1,18 +1,32 @@
-Template: amp-panel/device-profile
-Type: select
+Template: amp-panel/enabled-devices
+Type: multiselect
 Choices: Optical amplifier, FTS-LS Laser Station
 Choices-C: amplifier, fts-ls
-Default: amplifier
-Description: Device connected to Amp Panel:
- The amplifier uses the existing measurement protocol. FTS-LS uses its
- documented 115200 baud RS-232 management console and modular 1 x 7 view.
+Default: amplifier, fts-ls
+Description: Devices available in Amp Panel:
+ Both devices can run concurrently. The FTS-LS view is available now, but
+ acquisition awaits the external station daemon XML interface.
 
 Template: amp-panel/admin-username
 Type: string
 Default: admin
 Description: Administrator username:
- This is the first Amp Panel administrator account. Authentication is
- performed by the configured RADIUS server.
+ This is the first Amp Panel administrator account.
+
+Template: amp-panel/auth-mode
+Type: select
+Choices: RADIUS server, Local passwords on this device
+Choices-C: radius, local
+Default: radius
+Description: Browser authentication method:
+ RADIUS verifies passwords on a separate authentication server. Local passwords
+ are stored as salted password hashes on this device.
+
+Template: amp-panel/local-admin-password
+Type: password
+Description: Local administrator password:
+ This password is used only when local authentication is selected. It is stored
+ only as a salted password hash.
 
 Template: amp-panel/port
 Type: string
@@ -29,18 +43,7 @@ Description: Directory for the SQLite database and persistent state:
 
 Template: amp-panel/serial-port
 Type: string
-Description: Device serial port:
-
-Template: amp-panel/fts-ls-username
-Type: string
-Default: appadmin
-Description: FTS-LS ADMIN console username:
-
-Template: amp-panel/fts-ls-password
-Type: password
-Description: FTS-LS ADMIN console password:
- This credential is used only for the local RS-232 management session and is
- stored in the root-owned Amp Panel configuration file.
+Description: Amplifier serial port:
 
 Template: amp-panel/gain-min
 Type: string
