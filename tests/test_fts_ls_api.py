@@ -64,9 +64,9 @@ class FtsLsApiTests(unittest.TestCase):
             )
 
         async def read_response():
-            return b"".join([chunk async for chunk in response.body_iterator])
+            return "".join([chunk async for chunk in response.body_iterator])
 
-        csv_text = asyncio.run(read_response()).decode("utf-8")
+        csv_text = asyncio.run(read_response())
         self.assertTrue(csv_text.startswith("sep=;\r\ntime;device_id;field;value\r\n"))
         self.assertIn("2026-08-03T12:00:00+00:00;fts-ls;laser.optical_frequency;194400.0", csv_text)
         self.assertIn("fts_ls_history_", response.headers["content-disposition"])
