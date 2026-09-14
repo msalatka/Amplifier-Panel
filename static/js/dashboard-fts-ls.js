@@ -261,10 +261,11 @@ function setupFtsControls() {
 		highlightSelectedFtsModule()
 	})
 	const moduleRack = document.getElementById('fts-modules')
+	const uplinkRack = document.getElementById('fts-uplink')
 	const selectModule = (event) => {
 		if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return
 		const module = event.target.closest('[data-fts-module-target]:not(.unequipped)')
-		if (!module || !moduleRack?.contains(module)) return
+		if (!module || !(moduleRack?.contains(module) || uplinkRack?.contains(module))) return
 		if (event.type === 'keydown') event.preventDefault()
 		const select = document.getElementById('fts-target')
 		if (!select) return
@@ -289,6 +290,8 @@ function setupFtsControls() {
 	}
 	moduleRack?.addEventListener('click', selectModule)
 	moduleRack?.addEventListener('keydown', selectModule)
+	uplinkRack?.addEventListener('click', selectModule)
+	uplinkRack?.addEventListener('keydown', selectModule)
 	document.querySelectorAll('[data-fts-action]').forEach((button) => {
 		button.addEventListener('click', () => sendFtsAction(button))
 	})

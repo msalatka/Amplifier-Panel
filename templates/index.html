@@ -148,37 +148,46 @@
                                 <h2>Modular optical station</h2>
                                 <p id="fts-rack-summary" class="fts-rack-summary">Waiting for the port layout...</p>
                             </div>
-                            <span id="fts-equipped-count" class="fts-equipped-count">0 / 7 positions equipped</span>
                         </div>
-                        <div id="fts-modules" class="fts-module-grid" aria-label="Uplink and optical modules" aria-live="polite"></div>
-                        <div class="fts-controller-rack" aria-label="Station controller modules">
-                            <article class="fts-module fts-laser-module">
-                                <div class="fts-module-title"><span class="fts-led unknown" id="fts-laser-led"></span><strong>Internal laser</strong></div>
-                                <dl class="fts-metrics">
-                                    <div><dt>State</dt><dd id="fts-laser-state">--</dd></div>
-                                    <div><dt>Frequency</dt><dd id="fts-laser-frequency">--</dd></div>
-                                    <div><dt>Wavelength</dt><dd id="fts-laser-wavelength">--</dd></div>
-                                    <div><dt>Scan centre</dt><dd id="fts-laser-centre">--</dd></div>
-                                    <div><dt>Scan span</dt><dd id="fts-laser-span">--</dd></div>
-                                </dl>
-                            </article>
-                            <article class="fts-module fts-aux-module">
-                                <div class="fts-module-title"><span class="fts-led unknown" id="fts-synth-led"></span><strong>10 MHz synthesizer</strong></div>
-                                <dl class="fts-metrics">
-                                    <div><dt>Status</dt><dd id="fts-synth-state">--</dd></div>
-                                    <div><dt>Reference</dt><dd id="fts-synth-reference">--</dd></div>
-                                    <div><dt>External 10 MHz</dt><dd id="fts-synth-external">--</dd></div>
-                                </dl>
-                            </article>
-                            <article class="fts-module fts-aux-module">
-                                <div class="fts-module-title"><span class="fts-led unknown" id="fts-tec-led"></span><strong>TEC heater</strong></div>
-                                <dl class="fts-metrics">
-                                    <div><dt>Status</dt><dd id="fts-tec-state">--</dd></div>
-                                    <div><dt>Set / read</dt><dd id="fts-tec-temperature">--</dd></div>
-                                    <div><dt>Heating power</dt><dd id="fts-tec-power">--</dd></div>
-                                </dl>
-                            </article>
-                        </div>
+                        <section class="fts-station-group" aria-label="Station systems">
+                            <div class="fts-section-heading"><h3>Station systems</h3></div>
+                            <div class="fts-station-systems">
+                                <div id="fts-uplink" aria-label="Uplink module"></div>
+                                <article class="fts-module fts-laser-module">
+                                    <div class="fts-module-title"><span class="fts-led unknown" id="fts-laser-led"></span><strong>Internal laser</strong></div>
+                                    <dl class="fts-metrics">
+                                        <div><dt>State</dt><dd id="fts-laser-state">--</dd></div>
+                                        <div><dt>Frequency</dt><dd id="fts-laser-frequency">--</dd></div>
+                                        <div><dt>Wavelength</dt><dd id="fts-laser-wavelength">--</dd></div>
+                                        <div><dt>Scan centre</dt><dd id="fts-laser-centre">--</dd></div>
+                                        <div><dt>Scan span</dt><dd id="fts-laser-span">--</dd></div>
+                                    </dl>
+                                </article>
+                                <article class="fts-module fts-aux-module">
+                                    <div class="fts-module-title"><span class="fts-led unknown" id="fts-synth-led"></span><strong>10 MHz synthesizer</strong></div>
+                                    <dl class="fts-metrics">
+                                        <div><dt>Status</dt><dd id="fts-synth-state">--</dd></div>
+                                        <div><dt>Reference</dt><dd id="fts-synth-reference">--</dd></div>
+                                        <div><dt>External 10 MHz</dt><dd id="fts-synth-external">--</dd></div>
+                                    </dl>
+                                </article>
+                                <article class="fts-module fts-aux-module">
+                                    <div class="fts-module-title"><span class="fts-led unknown" id="fts-tec-led"></span><strong>TEC heater</strong></div>
+                                    <dl class="fts-metrics">
+                                        <div><dt>Status</dt><dd id="fts-tec-state">--</dd></div>
+                                        <div><dt>Set / read</dt><dd id="fts-tec-temperature">--</dd></div>
+                                        <div><dt>Heating power</dt><dd id="fts-tec-power">--</dd></div>
+                                    </dl>
+                                </article>
+                            </div>
+                        </section>
+                        <section class="fts-station-group" aria-label="Optical ports">
+                            <div class="fts-section-heading">
+                                <h3>Optical ports</h3>
+                                <span id="fts-equipped-count" class="fts-equipped-count">0 / 7 positions equipped</span>
+                            </div>
+                            <div id="fts-modules" class="fts-module-grid" aria-label="Optical port modules" aria-live="polite"></div>
+                        </section>
                         <div class="fts-live-footer">
                             <span id="fts-module-inventory">No module inventory received</span>
                         </div>
