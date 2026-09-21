@@ -1,0 +1,64 @@
+<section class="tab-panel active" data-tab="standard-view">
+    <div class="device-heading"><div><span class="fts-eyebrow">Optical equipment</span><h2 id="device-live-title">{{ device_label }}</h2><p id="device-source-time"></p></div><p id="device-source-message" role="status">Waiting for status.xml</p></div>
+    {% if device_profile == 'amplifier' %}
+    <div id="device-live-board" class="standard-grid">
+                        <div class="amp-board">
+                            <div class="amp-diagram" aria-label="Amplifier diagram">
+                                <svg class="amp-lines" viewBox="0 0 900 330" role="img">
+                                    <defs>
+                                        <marker id="arrow-right" markerWidth="28" markerHeight="20" refX="0" refY="10" orient="auto" markerUnits="userSpaceOnUse">
+                                            <path d="M 0 0 L 26 10 L 0 20 z"></path>
+                                        </marker>
+                                    </defs>
+
+                                    <line class="signal-line" x1="74" y1="88" x2="244" y2="88" marker-end="url(#arrow-right)"></line>
+                                    <line class="signal-line" x1="270" y1="242" x2="84" y2="242" marker-end="url(#arrow-right)"></line>
+                                    <line class="signal-line" x1="630" y1="88" x2="816" y2="88" marker-end="url(#arrow-right)"></line>
+                                    <line class="signal-line" x1="826" y1="242" x2="656" y2="242" marker-end="url(#arrow-right)"></line>
+
+                                    <path class="amp-shape" d="M 270 35 L 630 165 L 270 295 Z"></path>
+                                    <path class="amp-shape" d="M 630 35 L 270 165 L 630 295 Z"></path>
+                                </svg>
+
+                                <div class="port-readout port-a-in">
+                                    <span>PiA</span>
+                                    <strong data-readout="input_a">--</strong>
+                                </div>
+                                <div class="port-readout port-a-out">
+                                    <span>PoA</span>
+                                    <strong data-readout="output_a">--</strong>
+                                </div>
+                                <div class="port-readout port-b-out">
+                                    <span>PoB</span>
+                                    <strong data-readout="output_b">--</strong>
+                                </div>
+                                <div class="port-readout port-b-in">
+                                    <span>PiB</span>
+                                    <strong data-readout="input_b">--</strong>
+                                </div>
+                            </div>
+
+                            <div class="metric-strip">
+                                <div class="metric-item metric-primary">
+                                    <span>Actual gain</span>
+                                    <strong data-readout="gain">--</strong>
+                                </div>
+                                <div class="metric-secondary-row">
+                                    <div class="metric-item">
+                                        <span>Gain setpoint</span>
+                                        <strong data-readout="gain_set">--</strong>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span>Temperature</span>
+                                        <strong data-readout="temperature">--</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+    </div>
+    {% else %}
+    <div id="device-live-board" class="fts-station" aria-label="Optical station panel"><p>Waiting for station data...</p></div>
+    {% endif %}
+    <details class="device-measurements"><summary>All measurements</summary><div id="xml-live"></div></details>
+</section>
