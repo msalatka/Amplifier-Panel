@@ -71,7 +71,7 @@ USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._@-]{1,128}$")
 HOST_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
 MDNS_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 SERIAL_PATTERN = re.compile(r"^/dev/(?:tty(?:ACM|USB|S|O)[0-9]+|serial/by-id/[A-Za-z0-9._:+-]+)$")
-KNOWN_DEVICE_IDS = ("amplifier", "fts-ls")
+KNOWN_DEVICE_IDS = ("local", "remote", "oba", "oba3", "amplifier", "fts-ls")
 
 
 def _enabled_devices(value: str | None) -> tuple[str, ...]:
@@ -79,7 +79,7 @@ def _enabled_devices(value: str | None) -> tuple[str, ...]:
 
     ids = tuple(part.strip().lower() for part in (value or "").split(","))
     if not ids or any(part not in KNOWN_DEVICE_IDS for part in ids) or len(ids) != len(set(ids)):
-        raise ConfigurationError("ENABLED_DEVICES must list unique registered IDs: amplifier,fts-ls.")
+        raise ConfigurationError("ENABLED_DEVICES must list unique registered IDs: local,remote,oba,oba3,amplifier,fts-ls.")
     return ids
 
 CONFIG_KEYS = (
@@ -87,6 +87,10 @@ CONFIG_KEYS = (
     "AMP_PANEL_PORT",
     "AMP_PANEL_DATA_DIR",
     "ENABLED_DEVICES",
+    "XML_STATUS_FILE",
+    "XML_MAPPING_FILE",
+    "XML_POLL_SECONDS",
+    "XML_STALE_SECONDS",
     "SERIAL_PORT",
     "SERIAL_BAUDRATE",
     "GAIN_SET_MIN",
@@ -149,10 +153,14 @@ CONFIG_SECTIONS = {
 }
 
 CONFIG_HELP = {
+    "XML_STATUS_FILE": "Path to status.xml refreshed by the external daemon (read-only).",
+    "XML_MAPPING_FILE": "JSON field mapping; changes apply automatically on the next poll.",
+    "XML_POLL_SECONDS": "XML polling interval in seconds (minimum 0.2).",
+    "XML_STALE_SECONDS": "Mark source stale after this many seconds without a file refresh.",
     "AMP_PANEL_CONFIG_VERSION": "Configuration format version; do not change manually.",
     "AMP_PANEL_PORT": "Web interface TCP port: integer from 1024 to 65535, for example 8000.",
     "AMP_PANEL_DATA_DIR": "Data directory: /var/lib/amp-panel or a path below /mnt, /media or /srv.",
-    "ENABLED_DEVICES": "Comma-separated registered devices: amplifier,fts-ls. Both can run at once.",
+    "ENABLED_DEVICES": "XML views: local,remote,oba,oba3. Legacy profiles: amplifier,fts-ls.",
     "SERIAL_PORT": "Amplifier serial device, for example /dev/ttyUSB0 or /dev/serial/by-id/name.",
     "SERIAL_BAUDRATE": "Amplifier serial speed in baud; normally 9600.",
     "GAIN_SET_MIN": "Minimum safe amplifier gain setpoint; use the device specification.",
@@ -441,7 +449,11 @@ def default_configuration() -> dict[str, str]:
         "AMP_PANEL_CONFIG_VERSION": "2",
         "AMP_PANEL_PORT": "8000",
         "AMP_PANEL_DATA_DIR": str(data_dir),
-        "ENABLED_DEVICES": "amplifier,fts-ls",
+        "ENABLED_DEVICES": "local,remote,oba,oba3",
+        "XML_STATUS_FILE": str(data_dir / "status.xml"),
+        "XML_MAPPING_FILE": "/usr/lib/amp-panel/app/devices/xml_mapping.json",
+        "XML_POLL_SECONDS": "2",
+        "XML_STALE_SECONDS": "60",
         "SERIAL_PORT": _serial_device(),
         "SERIAL_BAUDRATE": "9600",
         "GAIN_SET_MIN": "",
@@ -550,6 +562,14 @@ def validate_configuration(values: dict[str, str]) -> None:
         raise ConfigurationError("The Administrator username is invalid.")
     _safe_int(values.get("AMP_PANEL_PORT"), "Web port", 1024, 65535)
     enabled_devices = _enabled_devices(values.get("ENABLED_DEVICES"))
+    if any(key in enabled_devices for key in ("local", "remote", "oba", "oba3")):
+        for key in ("XML_STATUS_FILE", "XML_MAPPING_FILE"):
+            if not values.get(key, "").strip():
+                raise ConfigurationError(f"{key} must not be empty.")
+        if _safe_float(values.get("XML_POLL_SECONDS"), "XML polling interval") < 0.2:
+            raise ConfigurationError("XML polling interval must be at least 0.2 seconds.")
+        if _safe_float(values.get("XML_STALE_SECONDS"), "XML stale timeout") < 1:
+            raise ConfigurationError("XML stale timeout must be at least 1 second.")
     if "amplifier" in enabled_devices:
         _safe_int(values.get("SERIAL_BAUDRATE"), "Serial baud rate", 1, 10_000_000)
         gain_min = _safe_float(values.get("GAIN_SET_MIN"), "Minimum safe gain")
@@ -627,8 +647,8 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
 
     print("\nAmp Panel configuration\n")
     values["ENABLED_DEVICES"] = _prompt(
-        "Enabled devices (comma-separated: amplifier,fts-ls)",
-        values.get("ENABLED_DEVICES", "amplifier,fts-ls"),
+        "Enabled devices (comma-separated: local,remote,oba,oba3)",
+        values.get("ENABLED_DEVICES", "local,remote,oba,oba3"),
     ).lower()
     if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
         values["SERIAL_BAUDRATE"] = "9600"
@@ -683,6 +703,7 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
 def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     mapping = {
         "enabled_devices": "ENABLED_DEVICES",
+        "xml_status_file": "XML_STATUS_FILE",
         "admin_username": "INITIAL_ADMIN_USERNAME",
         "auth_mode": "AUTH_MODE",
         "port": "AMP_PANEL_PORT",

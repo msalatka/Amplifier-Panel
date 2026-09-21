@@ -1,9 +1,11 @@
 // Profile dispatch, startup and periodic refresh scheduling.
 function updateOverviewCharts() {
+	if (deviceProfile === 'xml') return loadXmlHistory()
 	return deviceProfile === 'fts-ls' ? loadFtsOverview() : updateAmplifierOverviewCharts()
 }
 
 function updateStatisticsTable() {
+	if (deviceProfile === 'xml') return loadXmlStatistics()
 	return deviceProfile === 'fts-ls' ? loadFtsStatistics() : updateAmplifierStatisticsTable()
 }
 

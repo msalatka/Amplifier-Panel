@@ -2,6 +2,7 @@
 
 import math
 import os
+import pathlib
 import re
 
 from app.devices.registry import parse_enabled_devices
@@ -71,6 +72,12 @@ try:
 except ValueError as exc:
     raise RuntimeError(str(exc)) from exc
 SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyACM0")
+XML_STATUS_FILE = os.getenv("XML_STATUS_FILE", "data/status.xml")
+XML_MAPPING_FILE = os.getenv(
+    "XML_MAPPING_FILE", str(pathlib.Path(__file__).parents[1] / "devices" / "xml_mapping.json")
+)
+XML_POLL_SECONDS = max(0.2, _env_float("XML_POLL_SECONDS", 2.0))
+XML_STALE_SECONDS = max(1.0, _env_float("XML_STALE_SECONDS", 60.0))
 SERIAL_BAUDRATE = _env_int("SERIAL_BAUDRATE", 9600)
 GAIN_SET_MIN, GAIN_SET_MAX = (
     _gain_bounds(os.getenv("GAIN_SET_MIN"), os.getenv("GAIN_SET_MAX"))

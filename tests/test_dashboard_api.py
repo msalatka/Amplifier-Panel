@@ -13,7 +13,7 @@ class DashboardApiTests(unittest.TestCase):
             "get_runtime_status",
             return_value={"state": "ready"},
         ):
-            result = devices.latest("amplifier", {})
+            result = devices.latest(devices.config.ENABLED_DEVICES[0], {})
         after = datetime.datetime.now(datetime.timezone.utc)
 
         system_time = datetime.datetime.fromisoformat(result["system_time"])

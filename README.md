@@ -1,11 +1,13 @@
 # Optical equipment control panel
 
-Local web application for monitoring and controlling one connected optical
-device. The selected device profile determines the serial protocol and
-available interface:
+Local web application for monitoring optical devices from a daemon-owned
+`status.xml`. Four XML views are enabled by default: `local` (Local and LocalDI),
+`remote` (Remote and RemoteDI), `oba` and `oba3` (EDFA amplifiers). These views
+never open a serial port and expose no device control commands.
 
-- `amplifier` — optical amplifier with line-oriented telemetry;
-- `fts-ls` — Frequency Transfer System laser station with an authenticated serial console.
+See [XML configuration and field mapping](docs/XML.md) for setup, migration,
+display labels and firmware field changes. Existing legacy `amplifier` and
+`fts-ls` profiles remain available only when explicitly configured.
 
 ## Building the Debian package
 
@@ -37,7 +39,7 @@ cd ..
 sudo apt install "./amp-panel_0.1.0_$(dpkg --print-architecture).deb"
 ```
 
-The installer asks for the device profile, serial connection, initial
+The installer asks for the device views, XML file path, initial
 administrator, and authentication method. Choose either local passwords stored
 on the panel host as salted hashes, or a RADIUS server. Configuration can be
 repeated later:

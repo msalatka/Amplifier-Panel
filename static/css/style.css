@@ -1727,3 +1727,12 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
 @media (max-width: 520px) {
     .fts-module-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* XML devices use their own mapping-driven views. */
+body[data-device-profile="xml"] .profile-amplifier-only,
+body[data-device-profile="xml"] .profile-fts-only { display: none !important; }
+.xml-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+.xml-metric { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid #dce3e8; border-radius: 8px; }
+.xml-metric strong { font-size: 1.4rem; overflow-wrap: anywhere; }
+#xml-live { display: grid; gap: 20px; }
+#xml-live.xml-stale .xml-metrics { opacity: .55; }

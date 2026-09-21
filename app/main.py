@@ -14,8 +14,8 @@ import starlette.requests
 
 from app.api import auth as auth_routes
 from app.api import dashboard as dashboard_routes
-from app.api import diagnostics as service_routes
 from app.api import devices as device_routes
+from app.api import diagnostics as service_routes
 from app.api import fts_ls as fts_ls_routes
 from app.api import history as history_routes
 from app.core import config, state
@@ -23,6 +23,7 @@ from app.devices.registry import DEVICES
 from app.services import database as database_service
 from app.services import snmp as snmp_service
 from app.services import syslog as syslog_service
+from app.services.xml_status import xml_reader_loop
 
 
 async def syslog_heartbeat_loop() -> None:
@@ -64,8 +65,14 @@ async def lifespan(_app: fastapi.FastAPI):
     snmp_service.init_snmp()
     state.stop_event.clear()
     workers = []
+    if any(DEVICES[key].view_profile == "xml" for key in config.ENABLED_DEVICES):
+        thread = threading.Thread(target=xml_reader_loop, name="xml-reader", daemon=True)
+        thread.start()
+        workers.append(thread)
     for device_id in config.ENABLED_DEVICES:
         definition = DEVICES[device_id]
+        if definition.view_profile == "xml":
+            continue
         if definition.worker is None:
             state.update_device_live(
                 device_id,

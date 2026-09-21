@@ -47,7 +47,7 @@ printf 'AUTH_MODE_B64=%s\n' "${encoded_auth_mode}" >>"${answers_file}"
 read_answer local-admin-password LOCAL_ADMIN_PASSWORD
 read_answer port PORT
 read_answer data-dir DATA_DIR
-db_get amp-panel/enabled-devices || RET="amplifier, fts-ls"
+db_get amp-panel/enabled-devices || RET="local, remote, oba, oba3"
 enabled_devices=""
 case "${RET}" in
     *amplifier*|*"Optical amplifier"*) enabled_devices=amplifier ;;
@@ -57,7 +57,15 @@ case "${RET}" in
         if [ -n "${enabled_devices}" ]; then enabled_devices="${enabled_devices},fts-ls"; else enabled_devices=fts-ls; fi
         ;;
 esac
-encoded_devices="$(printf '%s' "${enabled_devices:-amplifier,fts-ls}" | base64 | tr -d '\n')"
+for xml_device in local remote oba oba3; do
+    case ",$(printf '%s' "${RET}" | tr -d ' ')," in
+        *",${xml_device},"*)
+            if [ -n "${enabled_devices}" ]; then enabled_devices="${enabled_devices},${xml_device}"; else enabled_devices="${xml_device}"; fi
+            ;;
+    esac
+done
+read_answer xml-status-file XML_STATUS_FILE
+encoded_devices="$(printf '%s' "${enabled_devices:-local,remote,oba,oba3}" | base64 | tr -d '\n')"
 printf 'ENABLED_DEVICES_B64=%s\n' "${encoded_devices}" >>"${answers_file}"
 if [ "${enabled_devices}" = amplifier ] || [ "${enabled_devices}" = amplifier,fts-ls ]; then
     read_answer serial-port SERIAL_PORT

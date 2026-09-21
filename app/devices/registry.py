@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class DeviceDefinition:
+    """Identify a supported view and its optional dedicated acquisition worker."""
+
     id: str
     label: str
     worker: str | None
@@ -17,6 +19,15 @@ class DeviceDefinition:
 
 
 DEVICES = {
+    **{
+        key: DeviceDefinition(key, label, None, "xml")
+        for key, label in (
+            ("local", "Local station / DI"),
+            ("remote", "Remote station / DI"),
+            ("oba", "EDFA OBA"),
+            ("oba3", "EDFA OBA3"),
+        )
+    },
     "amplifier": DeviceDefinition(
         id="amplifier",
         label="Optical amplifier",
@@ -35,9 +46,10 @@ DEVICES = {
 def parse_enabled_devices(value: str | None) -> tuple[str, ...]:
     """Validate a comma-separated set of device IDs in display order."""
 
-    ids = tuple(part.strip().lower() for part in (
-        "amplifier,fts-ls" if value is None else value
-    ).split(","))
+    ids = tuple(
+        part.strip().lower()
+        for part in ("local,remote,oba,oba3" if value is None else value).split(",")
+    )
     if not ids or any(not part or part not in DEVICES for part in ids):
         raise ValueError(f"ENABLED_DEVICES must contain registered IDs: {', '.join(DEVICES)}")
     if len(ids) != len(set(ids)):

@@ -4,8 +4,8 @@ import datetime
 
 import fastapi
 
-from app.api import security as api_security
 from app.api import history as history_api
+from app.api import security as api_security
 from app.core import config, state
 from app.devices.registry import DEVICES
 from app.services import database as database_service
@@ -15,6 +15,7 @@ viewer = fastapi.Depends(api_security.require_roles("Administrator", "Operator",
 
 
 def require_enabled(device_id: str) -> None:
+    """Reject requests for a device outside the configured inventory."""
     if device_id not in config.ENABLED_DEVICES:
         raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
 
@@ -26,14 +27,16 @@ def list_devices(_current_user: dict = viewer):
     devices = []
     for device_id in config.ENABLED_DEVICES:
         live = state.snapshot_device_live(device_id)
-        devices.append({
-            "id": device_id,
-            "label": DEVICES[device_id].label,
-            "profile": DEVICES[device_id].view_profile,
-            "connected": live["connected"],
-            "error": live["error"],
-            "last_update": live["last_update"],
-        })
+        devices.append(
+            {
+                "id": device_id,
+                "label": DEVICES[device_id].label,
+                "profile": DEVICES[device_id].view_profile,
+                "connected": live["connected"],
+                "error": live["error"],
+                "last_update": live["last_update"],
+            }
+        )
     return {"devices": devices}
 
 
@@ -55,6 +58,24 @@ def latest(device_id: str, _current_user: dict = viewer):
         "fts_ls": live["data"] if device_id == "fts-ls" else None,
         "database": database_service.get_runtime_status(device_id),
     }
+
+
+@router.get("/{device_id}/history")
+def device_history(
+    device_id: str,
+    range: str = "5m",
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = fastapi.Query(default=500, ge=1, le=2000),
+    _current_user: dict = viewer,
+):
+    """Return bounded XML observations for charts and inspection."""
+    require_enabled(device_id)
+    range, start, end = history_api.normalize_history_request(range, start, end)
+    points = database_service.query_device_snapshots(device_id, range, start, end, limit)
+    if points is None:
+        raise fastapi.HTTPException(status_code=503, detail="History database is unavailable")
+    return {"points": points}
 
 
 @router.get("/{device_id}/statistics")

@@ -150,6 +150,7 @@ class AmpPanelCliTests(unittest.TestCase):
             values.update(
                 {
                     "AMP_PANEL_PORT": "8123",
+                    "ENABLED_DEVICES": "amplifier,fts-ls",
                     "RADIUS_SECRET": 'space and "quotes" = # safe',
                 }
             )

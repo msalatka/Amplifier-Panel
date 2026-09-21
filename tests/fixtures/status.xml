@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<status>
+  <!-- General module parameters  -->
+  <module>
+  <!-- System Type -->
+    <!-- oid  .2.5.1.1.3.1 osttDevGenSysName -->
+    <systemName>Optical System for Time Transfer</systemName>
+    <!-- oid  .2.5.1.1.3.2 osttDevGenSysType -->
+    <systemType>OSTT-4</systemType>
+
+    <!-- oid  .2.5.1.1.1.1  osttDevGenObInTypeDefinition -->
+    <type>2</type>
+    <!-- oid  .2.5.1.1.1.2  osttDevGenObInDataUpdate -->
+    <dataUpdate>2022-11-10 22:22:22.1</dataUpdate>
+    <!-- oid  1.1.1.3.0  -->
+    <version>x.xx</version>
+    <!-- oid  1.1.1.4.0  -->
+    <serialNumber>x.xxLxxxL</serialNumber>
+    <!-- oid  1.1.1.5.0  -->
+    <operationalStatus>normal</operationalStatus>
+    <!-- oid  1.1.1.6.0  -->
+    <localization>Krakow</localization>
+    <!-- oid  1.1.1.7.0  -->
+    <gps>
+      <latitude>--------N</latitude>
+      <longitude>-------E</longitude>
+    </gps>
+    <!-- oid  .2.5.1.1.1.8 osttDevGenObInSoftUpdate  -->
+    <systemUpdate>2023-11-10</systemUpdate>
+    <!-- oid  .2.5.1.1.1.9 osttDevGenObInProdDate  -->
+    <prodDate>2023-11-10</prodDate>
+
+    <!-- oid  Network -->
+    <!-- oid  2.5.1.1.2.1 -->
+    <NetIpAddress>127.0.0.1</NetIpAddress>
+    <!-- oid  2.5.1.1.2.2 -->
+    <NetIpMask>127.0.0.1</NetIpMask>
+    <!-- oid  2.5.1.1.2.3 -->
+    <NetIpGate>127.0.0.1</NetIpGate>
+    <!-- oid  2.5.1.1.2.4 -->
+    <NetHostname>TestHost</NetHostname>
+  </module>
+
+  <!-- Specific module parameters  -->
+  <!-- Local Module  -->
+  <params_local>
+    <param id="2.1.1.1">
+      <!-- 10MHz input signal detected  -->
+      <name>10MHzInSigDet</name>
+      <value>0</value>
+    </param>
+    <param id="2.1.1.2">
+      <!-- PPS input signal detected  -->
+      <name>PPSInSigDet</name>
+      <value>0</value>
+    </param>
+    <param id="2.1.1.3">
+      <!-- PPS phase correct  -->
+      <name>PPSPhaseOK</name>
+      <value>0</value>
+    </param>
+    <param id="2.1.1.4">
+      <!-- Return signal  detected  -->
+      <name>RetSigDet</name>
+      <value>0</value>
+    </param>
+    <param id="2.1.1.5">
+      <!-- Received optical power  -->
+      <name>RecOptPow</name>
+      <value>-100.0</value>
+    </param>
+    <param id="2.1.1.6">
+      <!-- Continuous delay compensation  -->
+      <name>ContinuousComp</name>
+      <value>100</value>
+    </param>
+    <param id="2.1.1.7">
+      <!-- Switched delay compensation  -->
+      <name>SwitchedComp</name>
+      <value>100</value>
+    </param>
+    <param id="2.1.1.8">
+      <!-- Inner case temperature  -->
+      <name>InnerTemp</name>
+      <value>28.7</value>
+    </param>
+    <param id="2.1.1.9">
+      <!-- Laser wavelength locked  -->
+      <name>LaserLocked</name>
+      <value>1</value>
+    </param>
+    <param id="2.1.1.10">
+      <!-- Laser temperature control  -->
+      <name>LaserTEC</name>
+      <value>6</value>
+    </param>
+    <param id="2.1.1.11">
+      <!-- Laser turned on  -->
+      <name>LaserTurnedOn</name>
+      <value>1</value>
+    </param>
+    <param id="2.1.1.12">
+      <!-- Wavelength Locker Margin  -->
+      <name>WaveLockMarg</name>
+      <value>100</value>
+    </param>
+  </params_local>
+
+  <!-- LocalDI  Module  -->
+  <params_local_di>
+    <param id="6.1.1.1">
+      <!-- 10MHz input signal detected  -->
+      <name>10MHzInSigDet</name>
+      <value>0</value>
+    </param>
+    <param id="6.1.1.2">
+      <!-- PPS input signal detected  -->
+      <name>PPSInSigDet</name>
+      <value>0</value>
+    </param>
+    <param id="6.1.1.3">
+      <!-- PPS phase correct  -->
+      <name>PPSPhaseOK</name>
+      <value>0</value>
+    </param>
+    <param id="6.1.1.4">
+      <!-- Return signal  detected  -->
+      <name>RetSigDet</name>
+      <value>0</value>
+    </param>
+    <param id="6.1.1.5">
+      <!-- Received optical power  -->
+      <name>RecOptPow</name>
+      <value>-100.0</value>
+    </param>
+    <param id="6.1.1.6">
+      <!-- Continuous delay compensation  -->
+      <name>ContinuousComp</name>
+      <value>100</value>
+    </param>
+    <param id="6.1.1.7">
+      <!-- Switched delay compensation  -->
+      <name>SwitchedComp</name>
+      <value>100</value>
+    </param>
+    <param id="6.1.1.8">
+      <!-- Inner case temperature  -->
+      <name>InnerTemp</name>
+      <value>28.7</value>
+    </param>
+    <param id="6.1.1.9">
+      <!-- Laser1 wavelength locked  -->
+      <name>Laser1Locked</name>
+      <value>1</value>
+    </param>
+    <param id="6.1.1.10">
+      <!-- Laser1 temperature control  -->
+      <name>Laser1TEC</name>
+      <value>6</value>
+    </param>
+    <param id="6.1.1.11">
+      <!-- Laser1 turned on  -->
+      <name>Laser1TurnedOn</name>
+      <value>1</value>
+    </param>
+    <param id="6.1.1.12">
+      <!-- Wavelength Locker Margin 1  -->
+      <name>WaveLockMarg1</name>
+      <value>100</value>
+    </param>
+    <param id="6.1.1.13">
+      <!-- Laser2 wavelength locked  -->
+      <name>Laser2Locked</name>
+      <value>1</value>
+    </param>
+    <param id="6.1.1.14">
+      <!-- Laser2 temperature control  -->
+      <name>Laser2TEC</name>
+      <value>6</value>
+    </param>
+    <param id="6.1.1.15">
+      <!-- Laser2 turned on  -->
+      <name>Laser2TurnedOn</name>
+      <value>1</value>
+    </param>
+    <param id="6.1.1.16">
+      <!-- Wavelength Locker Margin 2 -->
+      <name>WaveLockMarg2</name>
+      <value>100</value>
+    </param>
+  </params_local_di>
+
+  <!-- Remote Module  -->
+  <params_remote>
+    <param id="3.1.1.1">
+      <name>RemSync</name>
+      <value>0</value>
+    </param>
+    <param id="3.1.1.2">
+      <name>PLLConVol</name>
+      <value>2.5</value>
+    </param>
+    <param id="3.1.1.3">
+      <name>PPSSigDet</name>
+      <value>1</value>
+    </param>
+    <param id="3.1.1.4">
+      <name>RecOptPow</name>
+      <value>15</value>
+    </param>
+    <param id="3.1.1.5">
+      <name>InnerTemp</name>
+      <value>-10</value>
+    </param>
+    <param id="3.1.1.6">
+      <name>PPSAdvance</name>
+      <value>0</value>
+    </param>
+    <param id="3.1.1.7">
+      <name>LaserLocked</name>
+      <value>0</value>
+    </param>
+    <param id="3.1.1.8">
+      <name>LaserTEC</name>
+      <value>23</value>
+    </param>
+    <param id="3.1.1.9">
+      <name>LaserTurnedOn</name>
+      <value>1</value>
+    </param>
+    <param id="3.1.1.10">
+      <name>WaveLockMarg</name>
+      <value>23</value>
+    </param>
+  </params_remote>
+
+  <!-- RemoteDI Module  -->
+  <params_remote_di>
+    <param id="7.1.1.1">
+      <name>RemSync</name>
+      <value>0</value>
+    </param>
+    <param id="7.1.1.2">
+      <name>PLLConVol</name>
+      <value>2.5</value>
+    </param>
+    <param id="7.1.1.3">
+      <name>PPSSigDet</name>
+      <value>1</value>
+    </param>
+    <param id="7.1.1.4">
+      <name>RecOptPow1</name>
+      <value>15</value>
+    </param>
+    <param id="7.1.1.5">
+      <name>RecOptPow2</name>
+      <value>15</value>
+    </param>
+    <param id="7.1.1.6">
+      <name>InnerTemp</name>
+      <value>10</value>
+    </param>
+    <param id="7.1.1.7">
+      <name>PPSAdvance</name>
+      <value>0</value>
+    </param>
+    <param id="7.1.1.8">
+      <name>LaserLocked</name>
+      <value>0</value>
+    </param>
+    <param id="7.1.1.9">
+      <name>LaserTEC</name>
+      <value>23</value>
+    </param>
+    <param id="7.1.1.10">
+      <name>LaserTurnedOn</name>
+      <value>1</value>
+    </param>
+    <param id="7.1.1.11">
+      <name>WaveLockMarg</name>
+      <value>23</value>
+    </param>
+  </params_remote_di>
+
+  <!-- EDFA OBA Module  -->
+  <params_oba>
+    <param id="4.1.1.1">
+      <name>Operation mode, constatnt:</name>
+      <value>gain</value> <!-- ConstCurrent / ConstGain  -->
+    </param>
+    <param id="4.1.1.2">
+      <name>SPBA pump current</name>
+      <value>30</value>
+    </param>
+    <param id="4.1.1.3">
+      <name>Temperature</name>
+      <value>35.34</value>
+    </param>
+    <param id="4.1.1.4">
+      <name>Gain</name>
+      <value>90.2</value>
+    </param>
+    <param id="4.1.1.5">
+      <name>Transfer direction</name>
+      <value>westeast</value> <!-- westeast / eastwest  -->
+    </param>
+    <param id="4.1.1.6">
+      <name>Input power EAST port</name>
+      <value>7.6</value>
+    </param>
+    <param id="4.1.1.7">
+      <name>Input power WEST port</name>
+      <value>8.3</value>
+    </param>
+    <param id="4.1.1.8">
+      <name>Output power EAST port</name>
+      <value>12.5</value>
+    </param>
+    <param id="4.1.1.9">
+      <name>Output power WEST port</name>
+      <value>17.2</value>
+    </param>
+  </params_oba>
+
+  <!-- EDFA OBA3 Module  -->
+  <params_oba3>
+    <param id="5.1.1.1">
+      <name>Gain</name>
+      <value>30</value>
+    </param>
+    <param id="5.1.1.2">
+      <name>GainSet</name>
+      <value>30</value>
+    </param>
+    <param id="5.1.1.3">
+      <name>PumpI</name>
+      <value>30</value>
+    </param>
+    <param id="5.1.1.4">
+      <name>Temp</name>
+      <value>23</value>
+    </param>
+    <param id="5.1.1.5">
+      <name>PiAdc</name>
+      <value>-10.0</value>
+    </param>
+    <param id="5.1.1.6">
+      <name>PiBdc</name>
+      <value>-10.0</value>
+    </param>
+    <param id="5.1.1.7">
+      <name>PiAac</name>
+      <value>-10.0</value>
+    </param>
+    <param id="5.1.1.8">
+      <name>PiBac</name>
+      <value>-10.0</value>
+    </param>
+    <param id="5.1.1.9">
+      <name>PoBdc</name>
+      <value>-10.0</value>
+    </param>
+    <param id="5.1.1.10">
+      <name>PoAdc</name>
+      <value>-10.0</value>
+    </param>
+    <param id="5.1.1.11">
+      <name>PoBac</name>
+      <value>-10.0</value>
+    </param>
+    <param id="5.1.1.12">
+      <name>PoAac</name>
+      <value>-10.0</value>
+    </param>
+  </params_oba3>
+
+</status>

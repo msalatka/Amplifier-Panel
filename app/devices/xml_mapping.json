@@ -1,0 +1,624 @@
+{
+  "local": {
+    "label": "Local station / DI",
+    "sections": [
+      {
+        "key": "local",
+        "xml_section": "params_local",
+        "label": "LOCAL",
+        "fields": [
+          {
+            "key": "10MHzInSigDet",
+            "id": "2.1.1.1",
+            "name": "10MHzInSigDet",
+            "label": "10 MHz input detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSInSigDet",
+            "id": "2.1.1.2",
+            "name": "PPSInSigDet",
+            "label": "PPS input detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSPhaseOK",
+            "id": "2.1.1.3",
+            "name": "PPSPhaseOK",
+            "label": "PPS phase correct",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "RetSigDet",
+            "id": "2.1.1.4",
+            "name": "RetSigDet",
+            "label": "Return signal detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "RecOptPow",
+            "id": "2.1.1.5",
+            "name": "RecOptPow",
+            "label": "Received optical power",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "ContinuousComp",
+            "id": "2.1.1.6",
+            "name": "ContinuousComp",
+            "label": "Continuous delay compensation",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "SwitchedComp",
+            "id": "2.1.1.7",
+            "name": "SwitchedComp",
+            "label": "Switched delay compensation",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "InnerTemp",
+            "id": "2.1.1.8",
+            "name": "InnerTemp",
+            "label": "Case temperature",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserLocked",
+            "id": "2.1.1.9",
+            "name": "LaserLocked",
+            "label": "Laser wavelength locked",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserTEC",
+            "id": "2.1.1.10",
+            "name": "LaserTEC",
+            "label": "Laser temperature control",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserTurnedOn",
+            "id": "2.1.1.11",
+            "name": "LaserTurnedOn",
+            "label": "Laser on",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "WaveLockMarg",
+            "id": "2.1.1.12",
+            "name": "WaveLockMarg",
+            "label": "Wavelength locker margin",
+            "type": "number",
+            "unit": ""
+          }
+        ]
+      },
+      {
+        "key": "local_di",
+        "xml_section": "params_local_di",
+        "label": "LOCAL DI",
+        "fields": [
+          {
+            "key": "10MHzInSigDet",
+            "id": "6.1.1.1",
+            "name": "10MHzInSigDet",
+            "label": "10 MHz input detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSInSigDet",
+            "id": "6.1.1.2",
+            "name": "PPSInSigDet",
+            "label": "PPS input detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSPhaseOK",
+            "id": "6.1.1.3",
+            "name": "PPSPhaseOK",
+            "label": "PPS phase correct",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "RetSigDet",
+            "id": "6.1.1.4",
+            "name": "RetSigDet",
+            "label": "Return signal detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "RecOptPow",
+            "id": "6.1.1.5",
+            "name": "RecOptPow",
+            "label": "Received optical power",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "ContinuousComp",
+            "id": "6.1.1.6",
+            "name": "ContinuousComp",
+            "label": "Continuous delay compensation",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "SwitchedComp",
+            "id": "6.1.1.7",
+            "name": "SwitchedComp",
+            "label": "Switched delay compensation",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "InnerTemp",
+            "id": "6.1.1.8",
+            "name": "InnerTemp",
+            "label": "Case temperature",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "Laser1Locked",
+            "id": "6.1.1.9",
+            "name": "Laser1Locked",
+            "label": "Laser1Locked",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "Laser1TEC",
+            "id": "6.1.1.10",
+            "name": "Laser1TEC",
+            "label": "Laser1TEC",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "Laser1TurnedOn",
+            "id": "6.1.1.11",
+            "name": "Laser1TurnedOn",
+            "label": "Laser1TurnedOn",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "WaveLockMarg1",
+            "id": "6.1.1.12",
+            "name": "WaveLockMarg1",
+            "label": "WaveLockMarg1",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "Laser2Locked",
+            "id": "6.1.1.13",
+            "name": "Laser2Locked",
+            "label": "Laser2Locked",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "Laser2TEC",
+            "id": "6.1.1.14",
+            "name": "Laser2TEC",
+            "label": "Laser2TEC",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "Laser2TurnedOn",
+            "id": "6.1.1.15",
+            "name": "Laser2TurnedOn",
+            "label": "Laser2TurnedOn",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "WaveLockMarg2",
+            "id": "6.1.1.16",
+            "name": "WaveLockMarg2",
+            "label": "WaveLockMarg2",
+            "type": "number",
+            "unit": ""
+          }
+        ]
+      }
+    ]
+  },
+  "remote": {
+    "label": "Remote station / DI",
+    "sections": [
+      {
+        "key": "remote",
+        "xml_section": "params_remote",
+        "label": "REMOTE",
+        "fields": [
+          {
+            "key": "RemSync",
+            "id": "3.1.1.1",
+            "name": "RemSync",
+            "label": "Remote synchronization",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PLLConVol",
+            "id": "3.1.1.2",
+            "name": "PLLConVol",
+            "label": "PLL control voltage",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSSigDet",
+            "id": "3.1.1.3",
+            "name": "PPSSigDet",
+            "label": "PPS signal detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "RecOptPow",
+            "id": "3.1.1.4",
+            "name": "RecOptPow",
+            "label": "Received optical power",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "InnerTemp",
+            "id": "3.1.1.5",
+            "name": "InnerTemp",
+            "label": "Case temperature",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSAdvance",
+            "id": "3.1.1.6",
+            "name": "PPSAdvance",
+            "label": "PPS advance",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserLocked",
+            "id": "3.1.1.7",
+            "name": "LaserLocked",
+            "label": "Laser wavelength locked",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserTEC",
+            "id": "3.1.1.8",
+            "name": "LaserTEC",
+            "label": "Laser temperature control",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserTurnedOn",
+            "id": "3.1.1.9",
+            "name": "LaserTurnedOn",
+            "label": "Laser on",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "WaveLockMarg",
+            "id": "3.1.1.10",
+            "name": "WaveLockMarg",
+            "label": "Wavelength locker margin",
+            "type": "number",
+            "unit": ""
+          }
+        ]
+      },
+      {
+        "key": "remote_di",
+        "xml_section": "params_remote_di",
+        "label": "REMOTE DI",
+        "fields": [
+          {
+            "key": "RemSync",
+            "id": "7.1.1.1",
+            "name": "RemSync",
+            "label": "Remote synchronization",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PLLConVol",
+            "id": "7.1.1.2",
+            "name": "PLLConVol",
+            "label": "PLL control voltage",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSSigDet",
+            "id": "7.1.1.3",
+            "name": "PPSSigDet",
+            "label": "PPS signal detected",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "RecOptPow1",
+            "id": "7.1.1.4",
+            "name": "RecOptPow1",
+            "label": "RecOptPow1",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "RecOptPow2",
+            "id": "7.1.1.5",
+            "name": "RecOptPow2",
+            "label": "RecOptPow2",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "InnerTemp",
+            "id": "7.1.1.6",
+            "name": "InnerTemp",
+            "label": "Case temperature",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PPSAdvance",
+            "id": "7.1.1.7",
+            "name": "PPSAdvance",
+            "label": "PPS advance",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserLocked",
+            "id": "7.1.1.8",
+            "name": "LaserLocked",
+            "label": "Laser wavelength locked",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserTEC",
+            "id": "7.1.1.9",
+            "name": "LaserTEC",
+            "label": "Laser temperature control",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "LaserTurnedOn",
+            "id": "7.1.1.10",
+            "name": "LaserTurnedOn",
+            "label": "Laser on",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "WaveLockMarg",
+            "id": "7.1.1.11",
+            "name": "WaveLockMarg",
+            "label": "Wavelength locker margin",
+            "type": "number",
+            "unit": ""
+          }
+        ]
+      }
+    ]
+  },
+  "oba": {
+    "label": "EDFA OBA",
+    "sections": [
+      {
+        "key": "oba",
+        "xml_section": "params_oba",
+        "label": "OBA",
+        "fields": [
+          {
+            "key": "mode",
+            "id": "4.1.1.1",
+            "name": "Operation mode, constatnt:",
+            "label": "Operating mode",
+            "type": "text",
+            "unit": ""
+          },
+          {
+            "key": "pump_current",
+            "id": "4.1.1.2",
+            "name": "SPBA pump current",
+            "label": "SPBA pump current",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "temperature",
+            "id": "4.1.1.3",
+            "name": "Temperature",
+            "label": "Temperature",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "gain",
+            "id": "4.1.1.4",
+            "name": "Gain",
+            "label": "Actual gain",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "direction",
+            "id": "4.1.1.5",
+            "name": "Transfer direction",
+            "label": "Transfer direction",
+            "type": "text",
+            "unit": ""
+          },
+          {
+            "key": "input_east",
+            "id": "4.1.1.6",
+            "name": "Input power EAST port",
+            "label": "Input power EAST port",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "input_west",
+            "id": "4.1.1.7",
+            "name": "Input power WEST port",
+            "label": "Input power WEST port",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "output_east",
+            "id": "4.1.1.8",
+            "name": "Output power EAST port",
+            "label": "Output power EAST port",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "output_west",
+            "id": "4.1.1.9",
+            "name": "Output power WEST port",
+            "label": "Output power WEST port",
+            "type": "number",
+            "unit": ""
+          }
+        ]
+      }
+    ]
+  },
+  "oba3": {
+    "label": "EDFA OBA3",
+    "sections": [
+      {
+        "key": "oba3",
+        "xml_section": "params_oba3",
+        "label": "OBA3",
+        "fields": [
+          {
+            "key": "Gain",
+            "id": "5.1.1.1",
+            "name": "Gain",
+            "label": "Actual gain",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "GainSet",
+            "id": "5.1.1.2",
+            "name": "GainSet",
+            "label": "Gain setpoint",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PumpI",
+            "id": "5.1.1.3",
+            "name": "PumpI",
+            "label": "Pump current",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "Temp",
+            "id": "5.1.1.4",
+            "name": "Temp",
+            "label": "Temperature",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PiAdc",
+            "id": "5.1.1.5",
+            "name": "PiAdc",
+            "label": "PiAdc",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PiBdc",
+            "id": "5.1.1.6",
+            "name": "PiBdc",
+            "label": "PiBdc",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PiAac",
+            "id": "5.1.1.7",
+            "name": "PiAac",
+            "label": "PiAac",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PiBac",
+            "id": "5.1.1.8",
+            "name": "PiBac",
+            "label": "PiBac",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PoBdc",
+            "id": "5.1.1.9",
+            "name": "PoBdc",
+            "label": "PoBdc",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PoAdc",
+            "id": "5.1.1.10",
+            "name": "PoAdc",
+            "label": "PoAdc",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PoBac",
+            "id": "5.1.1.11",
+            "name": "PoBac",
+            "label": "PoBac",
+            "type": "number",
+            "unit": ""
+          },
+          {
+            "key": "PoAac",
+            "id": "5.1.1.12",
+            "name": "PoAac",
+            "label": "PoAac",
+            "type": "number",
+            "unit": ""
+          }
+        ]
+      }
+    ]
+  }
+}

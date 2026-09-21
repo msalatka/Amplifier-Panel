@@ -1,11 +1,11 @@
 Template: amp-panel/enabled-devices
 Type: multiselect
-Choices: Optical amplifier, FTS-LS Laser Station
-Choices-C: amplifier, fts-ls
-Default: amplifier, fts-ls
+Choices: local, remote, oba, oba3, Optical amplifier, FTS-LS Laser Station
+Choices-C: local, remote, oba, oba3, amplifier, fts-ls
+Default: local, remote, oba, oba3
 Description: Devices available in Amp Panel:
- Both devices can run concurrently. The FTS-LS view is available now, but
- acquisition awaits the external station daemon XML interface.
+ XML views cover local/DI and remote/DI stations and EDFA OBA/OBA3.
+ The external daemon must refresh status.xml. Legacy serial profiles remain optional.
 
 Template: amp-panel/admin-username
 Type: string
@@ -75,3 +75,9 @@ Type: note
 Description: Amp Panel was installed but is not configured
  Required settings were not supplied. The services remain disabled. Run
  "sudo amp-panel configure" from a terminal to finish the configuration.
+
+Template: amp-panel/xml-status-file
+Type: string
+Default: /var/lib/amp-panel/status.xml
+Description: Path to status.xml refreshed by the device daemon:
+ The panel only reads this file. It does not modify it.

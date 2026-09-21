@@ -145,6 +145,7 @@ async function updateDashboard() {
 		if (!response.ok) throw new Error('HTTP error ' + response.status)
 		const json = await response.json()
 		const data = json.data || {}
+		if (deviceProfile === 'xml') renderXmlStatus(json)
 		if (deviceProfile === 'fts-ls') renderFtsStatus(json.fts_ls || data.fts_ls)
 
 		setTextIfExists('PiA', formatDbm(data.PiA))
@@ -179,6 +180,7 @@ async function updateDashboard() {
 		}
 	} catch (error) {
 		const statusEl = document.getElementById('status-connection')
+		if (deviceProfile === 'xml') document.getElementById('xml-live')?.classList.add('xml-stale')
 		statusEl.textContent = 'API ERROR'
 		statusEl.className = 'status-error'
 		updateDatabaseStatus({ state: 'error', ready: false, records: '--' })

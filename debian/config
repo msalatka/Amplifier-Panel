@@ -31,13 +31,14 @@ fi
 
 db_input high amp-panel/enabled-devices || true
 db_go
-db_get amp-panel/enabled-devices || RET="amplifier, fts-ls"
+db_get amp-panel/enabled-devices || RET="local, remote, oba, oba3"
 enabled_devices="${RET}"
 
 db_input high amp-panel/admin-username || true
 db_input high amp-panel/auth-mode || true
 db_input high amp-panel/port || true
 db_input high amp-panel/data-dir || true
+db_input high amp-panel/xml-status-file || true
 case "${enabled_devices}" in
     *amplifier*|*"Optical amplifier"*)
         db_input high amp-panel/serial-port || true
