@@ -105,12 +105,14 @@ sprawdzony przy następnym odczycie.
 
 ## Wspólny widok Live wzmacniaczy
 
-Administrator i Operator mogą rozwinąć **All measurements** i przypiąć dowolny
-pomiar przyciskiem **Add to live view**. Wybrane pola są zapisywane globalnie w
-stanie panelu, dlatego kolejność i zawartość widoku są wspólne dla wszystkich
-użytkowników oraz pozostają po restarcie usługi. Kafelki pod `Actual gain` są
-układane maksymalnie po cztery w rzędzie. Viewer widzi przypięte wartości, ale
-nie widzi sekcji **All measurements** ani kontrolek konfiguracji.
+Administrator i Operator mogą rozwinąć **All measurements** i kliknąć cały
+kafelek pomiaru, aby dodać go do Live lub go usunąć. Zielone podświetlenie
+oznacza, że pole jest wybrane. Domyślnie zaznaczone są `Gain` i `Temperature`.
+Wybrane pola są zapisywane globalnie w stanie panelu, dlatego kolejność i
+zawartość widoku są wspólne dla wszystkich użytkowników oraz pozostają po
+restarcie usługi. `Gain` zajmuje główne pole, a pozostałe kafelki są układane pod
+nim maksymalnie po cztery w rzędzie. Viewer widzi przypięte wartości, ale nie
+widzi sekcji **All measurements** ani kontrolek konfiguracji.
 
 W instalacji docelowej warto skopiować mapowanie do
 `/etc/amp-panel/xml_mapping.json` i wskazać je w `XML_MAPPING_FILE`, żeby lokalne

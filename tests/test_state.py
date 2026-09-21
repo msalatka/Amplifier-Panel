@@ -29,11 +29,17 @@ class StateSecurityTests(unittest.TestCase):
 
     def test_amplifier_live_fields_preserve_defaults_and_remove_duplicates(self):
         fields = state.merge_device_live_fields(
-            {"oba3": ["oba3:Temp", "oba3:Temp", "oba3:PumpI"]}
+            {"oba3": ["oba3:Temp", "oba3:Temp", "oba3:PumpI"]},
+            state.DEVICE_LIVE_FIELDS_VERSION,
         )
 
-        self.assertEqual(fields["oba"], ["oba:temperature"])
+        self.assertEqual(fields["oba"], ["oba:gain", "oba:temperature"])
         self.assertEqual(fields["oba3"], ["oba3:Temp", "oba3:PumpI"])
+
+    def test_old_live_field_layout_adds_the_new_default_gain(self):
+        fields = state.merge_device_live_fields({"oba3": ["oba3:Temp"]})
+
+        self.assertEqual(fields["oba3"], ["oba3:Gain", "oba3:Temp"])
 
     def test_fresh_install_uses_configured_admin_without_password(self):
         with mock.patch.object(

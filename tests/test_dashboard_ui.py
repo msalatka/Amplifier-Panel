@@ -54,7 +54,8 @@ class DashboardUiTests(unittest.TestCase):
         template = (ROOT / "templates" / "device-live.html").read_text(encoding="utf-8")
 
         self.assertIn("/live-fields`,", script)
-        self.assertIn("Add to live view", script)
+        self.assertIn("xml-metric-selectable", script)
+        self.assertIn('aria-pressed="${pinned}"', script)
         self.assertIn('id="amp-pinned-metrics"', template)
         self.assertIn('class="device-measurements" data-operator-only', template)
 

@@ -25,9 +25,10 @@ DEFAULT_SERVICE_SETTINGS = {
 }
 
 DEFAULT_DEVICE_LIVE_FIELDS = {
-    "oba": ["oba:temperature"],
-    "oba3": ["oba3:GainSet", "oba3:Temp"],
+    "oba": ["oba:gain", "oba:temperature"],
+    "oba3": ["oba3:Gain", "oba3:Temp"],
 }
+DEVICE_LIVE_FIELDS_VERSION = 2
 
 
 def load_persisted_state() -> dict:
@@ -146,7 +147,9 @@ def merge_service_settings(saved_settings: dict | None) -> dict:
     return settings
 
 
-def merge_device_live_fields(saved_fields: dict | None) -> dict[str, list[str]]:
+def merge_device_live_fields(
+    saved_fields: dict | None, version: int | None = None
+) -> dict[str, list[str]]:
     """Normalize globally selected amplifier fields while preserving defaults."""
     result = copy.deepcopy(DEFAULT_DEVICE_LIVE_FIELDS)
     if not isinstance(saved_fields, dict):
@@ -157,6 +160,10 @@ def merge_device_live_fields(saved_fields: dict | None) -> dict[str, list[str]]:
             result[device_id] = list(
                 dict.fromkeys(field for field in fields if isinstance(field, str) and field)
             )[:64]
+            if version != DEVICE_LIVE_FIELDS_VERSION:
+                gain = DEFAULT_DEVICE_LIVE_FIELDS[device_id][0]
+                if gain not in result[device_id]:
+                    result[device_id].insert(0, gain)
     return result
 
 
@@ -173,6 +180,7 @@ def save_persisted_state() -> None:
         "snmp_settings": snmp_settings,
         "service_settings": service_settings,
         "device_live_fields": device_live_fields,
+        "device_live_fields_version": DEVICE_LIVE_FIELDS_VERSION,
     }
     with persist_lock:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -241,4 +249,7 @@ def snapshot_device_live(device_id: str) -> dict:
 access_users = merge_access_users(persisted_state.get("access_users"))
 snmp_settings = merge_snmp_settings(persisted_state.get("snmp_settings"))
 service_settings = merge_service_settings(persisted_state.get("service_settings"))
-device_live_fields = merge_device_live_fields(persisted_state.get("device_live_fields"))
+device_live_fields = merge_device_live_fields(
+    persisted_state.get("device_live_fields"),
+    persisted_state.get("device_live_fields_version"),
+)

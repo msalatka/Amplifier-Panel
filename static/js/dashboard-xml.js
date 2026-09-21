@@ -50,10 +50,14 @@ function renderXmlStatus(result) {
 			readout.parentElement.hidden = !field && !!sections.length
 		}
 		amplifierLiveFields = Array.isArray(result.live_fields) ? result.live_fields : []
+		const gainField = xmlFields.find((field) => field.role === 'gain')
+		const primaryMetric = document.querySelector('.metric-primary')
+		primaryMetric.hidden =
+			!gainField || !amplifierLiveFields.includes(fieldIdentifier(gainField))
 		const pinnedContainer = document.getElementById('amp-pinned-metrics')
 		const pinnedFields = amplifierLiveFields
 			.map((identifier) => xmlFields.find((field) => fieldIdentifier(field) === identifier))
-			.filter(Boolean)
+			.filter((field) => field && field.role !== 'gain')
 		pinnedContainer.innerHTML = pinnedFields
 			.map(
 				(field) =>
@@ -91,18 +95,17 @@ function renderXmlStatus(result) {
 	document.getElementById('xml-live').innerHTML = sections
 		.map(
 			(section) =>
-				`<article><h3>${escapeHtml(section.label)}</h3><dl class="xml-metrics">${xmlFields
+				`<article><h3>${escapeHtml(section.label)}</h3><div class="xml-metrics">${xmlFields
 					.filter((f) => f.section === section.key)
 					.map((field) => {
 						const identifier = fieldIdentifier(field)
 						const pinned = amplifierLiveFields.includes(identifier)
-						const control =
-							deviceProfile === 'amplifier' && canOperate() && field.role !== 'gain'
-								? `<button type="button" data-live-field="${escapeHtml(identifier)}">${pinned ? 'Remove from live view' : 'Add to live view'}</button>`
-								: ''
-						return `<div class="xml-metric${pinned ? ' is-pinned' : ''}"><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd>${control}</div>`
+						const contents = `<span class="xml-metric-label">${escapeHtml(field.label)}</span><strong>${escapeHtml(measurementText(snapshot, field))}</strong>`
+						return deviceProfile === 'amplifier' && canOperate()
+							? `<button type="button" class="xml-metric xml-metric-selectable${pinned ? ' is-pinned' : ''}" data-live-field="${escapeHtml(identifier)}" aria-pressed="${pinned}">${contents}</button>`
+							: `<div class="xml-metric${pinned ? ' is-pinned' : ''}">${contents}</div>`
 					})
-					.join('')}</dl></article>`,
+					.join('')}</div></article>`,
 		)
 		.join('')
 	const signature = JSON.stringify(xmlFields)
