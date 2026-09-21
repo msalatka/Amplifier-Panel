@@ -1,4 +1,5 @@
 import copy
+import datetime
 import os
 import pathlib
 import tempfile
@@ -74,6 +75,13 @@ class XmlStatusTests(unittest.TestCase):
                 path.write_bytes(self.payload)
                 xml_status.poll_once()
                 publish.assert_called_once()
+                expected_mtime = pathlib.Path(path).stat().st_mtime
+                published_timestamp = publish.call_args.kwargs["timestamp"]
+                self.assertAlmostEqual(
+                    datetime.datetime.fromisoformat(published_timestamp).timestamp(),
+                    expected_mtime,
+                    places=4,
+                )
                 os.utime(path, (time.time() - 3600, time.time() - 3600))
                 xml_status.poll_once()
                 self.assertIn("stale", failure.call_args.args[1])

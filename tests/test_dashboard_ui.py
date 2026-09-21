@@ -23,6 +23,17 @@ class DashboardUiTests(unittest.TestCase):
             script,
         )
 
+    def test_station_view_has_no_xml_implementation_badge(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
+
+        self.assertNotIn("Reported in XML", script)
+        self.assertIn("fts-station-group", script)
+
+    def test_amplifier_single_secondary_value_uses_full_row(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
+
+        self.assertIn("single-readout", script)
+
 
 if __name__ == "__main__":
     unittest.main()

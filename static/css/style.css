@@ -600,6 +600,10 @@ select {
     width: min(100%, 620px);
 }
 
+.metric-secondary-row.single-readout {
+    grid-template-columns: 1fr;
+}
+
 .metric-item:not(.metric-primary) strong {
     font-size: 28px;
 }
@@ -1464,12 +1468,13 @@ select {
 
 .fts-metrics dt { color: #82968d; }
 .fts-metrics dd {
-    min-width: 0;
+    flex: 0 0 auto;
+    min-width: max-content;
     margin: 0;
     color: #e1ebe6;
     font-weight: 700;
     text-align: right;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
 }
 
 .fts-module-grid {

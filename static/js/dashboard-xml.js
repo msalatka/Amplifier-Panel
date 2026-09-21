@@ -22,12 +22,11 @@ function renderXmlStatus(result) {
 	setTextIfExists('device-live-title', snapshot.label || document.body.dataset.deviceLabel)
 	setTextIfExists(
 		'device-source-time',
-		`Source timestamp: ${snapshot.module?.dataUpdate || '--'}`,
+		`${snapshot.module?.systemName || ''}${snapshot.module?.systemType ? ` · ${snapshot.module.systemType}` : ''}`,
 	)
 	setTextIfExists(
 		'device-source-message',
-		result.error ||
-			(result.connected ? 'Connected � read-only monitoring' : 'Waiting for status.xml'),
+		result.error || (result.connected ? '' : 'Waiting for status.xml'),
 	)
 	document.getElementById('device-live-board').classList.toggle('xml-stale', !result.connected)
 	xmlFields = sections.flatMap((section) =>
@@ -47,12 +46,17 @@ function renderXmlStatus(result) {
 			// OBA does not report a gain setpoint; do not manufacture one.
 			readout.parentElement.hidden = !field && !!sections.length
 		}
+		const secondaryRow = document.querySelector('.metric-secondary-row')
+		if (secondaryRow) {
+			const visibleReadouts = [...secondaryRow.children].filter((item) => !item.hidden)
+			secondaryRow.classList.toggle('single-readout', visibleReadouts.length === 1)
+		}
 	} else {
 		document.getElementById('device-live-board').innerHTML =
 			sections
 				.map((section) => {
 					const groups = [...new Set(section.fields.map((field) => field.group))]
-					return `<section class="fts-station-group"><div class="fts-section-heading"><h3>${escapeHtml(section.label)}</h3><span>${section.present ? 'Reported in XML' : 'Not present'}</span></div><div class="fts-station-systems">${groups
+					return `<section class="fts-station-group"><div class="fts-section-heading"><h3>${escapeHtml(section.label)}</h3>${section.present ? '' : '<span>Not present</span>'}</div><div class="fts-station-systems">${groups
 						.map((group) => {
 							const fields = xmlFields.filter(
 								(field) => field.section === section.key && field.group === group,
@@ -188,7 +192,7 @@ async function loadXmlHistory() {
 		setTextIfExists(
 			'xml-history-message',
 			points.length
-				? `${points.length} displayed observations � CSV includes full history`
+				? `${points.length} displayed observations; CSV includes full history`
 				: 'No observations in this range',
 		)
 		lastOverviewChartRefresh = Date.now()

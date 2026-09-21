@@ -6,8 +6,8 @@ Local web application for monitoring optical devices from a daemon-owned
 never open a serial port and expose no device control commands.
 
 See [XML configuration and field mapping](docs/XML.md) for setup, migration,
-display labels and firmware field changes. Existing legacy `amplifier` and
-`fts-ls` profiles remain available only when explicitly configured.
+display labels and firmware field changes. The retired `amplifier` and `fts-ls`
+configuration names are migrated automatically to the four XML devices.
 
 ## Building the Debian package
 

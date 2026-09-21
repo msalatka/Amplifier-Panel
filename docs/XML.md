@@ -39,9 +39,8 @@ aktualizującego ten plik panel po 60 sekundach oznaczy dane jako nieaktualne.
 
 Proces produkujący XML powinien zapisywać kompletny dokument do pliku
 tymczasowego i atomowo zastępować plik docelowy. Konto panelu potrzebuje prawa
-odczytu. Świeżość sprawdzana jest według czasu modyfikacji pliku; `dataUpdate`
-z XML jest wyświetlane oddzielnie. Brak, uszkodzenie lub nieaktualność pliku
-powoduje oznaczenie źródła jako rozłączonego. Ostatnie dane nie udają nowych.
+odczytu. Pole **Last update** pokazuje czas modyfikacji pliku. Brak, uszkodzenie
+lub nieaktualność pliku powoduje oznaczenie źródła jako rozłączonego. Ostatnie dane nie udają nowych.
 Po naprawie pliku odczyt wznowi się automatycznie.
 
 ## Cztery widoki

@@ -42,7 +42,12 @@ def publish_snapshot(
     if observed_at.tzinfo is None:
         observed_at = observed_at.replace(tzinfo=datetime.timezone.utc)
     now = observed_at.astimezone(datetime.timezone.utc).isoformat()
-    stored = database_service.write_device_snapshot(device_id, snapshot, now)
+    previous = state.snapshot_device_live(device_id)
+    stored = (
+        database_service.write_device_snapshot(device_id, snapshot, now)
+        if previous["last_update"] != now
+        else False
+    )
     state.update_device_live(
         device_id,
         connected=True,

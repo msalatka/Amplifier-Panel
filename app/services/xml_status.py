@@ -1,5 +1,6 @@
 """Read status.xml using editable mappings, without any serial or SNMP operations."""
 
+import datetime
 import json
 import math
 import pathlib
@@ -126,6 +127,9 @@ def poll_once() -> None:
         if time.time() - modified > config.XML_STALE_SECONDS:
             raise ValueError("XML file is stale: producer has not refreshed it")
         snapshots = parse_status(payload, mapping)
+        modified_at = datetime.datetime.fromtimestamp(
+            modified, datetime.timezone.utc
+        ).isoformat()
     except (OSError, ValueError, ET.ParseError, KeyError, TypeError, AttributeError) as exc:
         for key in enabled:
             runtime.report_failure(key, f"XML: {exc}")
@@ -136,7 +140,7 @@ def poll_once() -> None:
             state.update_device_live(key, data=snapshot)
             runtime.report_failure(key, "No matching section in status.xml")
         else:
-            runtime.publish_snapshot(key, snapshot)
+            runtime.publish_snapshot(key, snapshot, timestamp=modified_at)
             if snapshot["issues"]:
                 state.update_device_live(key, error="; ".join(snapshot["issues"]))
 
