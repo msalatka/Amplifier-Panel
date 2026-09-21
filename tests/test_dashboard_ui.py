@@ -58,6 +58,13 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn('id="amp-pinned-metrics"', template)
         self.assertIn('class="device-measurements" data-operator-only', template)
 
+    def test_each_incomplete_amplifier_metric_row_is_centered(self):
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
+
+        self.assertIn("flex-wrap: wrap;", stylesheet)
+        self.assertIn("justify-content: center;", stylesheet)
+        self.assertIn("calc((100% - 72px) / 4)", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()
