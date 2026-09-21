@@ -56,6 +56,32 @@ class XmlStatusTests(unittest.TestCase):
         self.assertIsNone(result["values"]["local"]["LaserLocked"])
         self.assertIn("Invalid value: local.LaserLocked", result["issues"])
 
+    def test_new_local_fields_are_discovered_without_mapping_changes(self):
+        payload = self.payload.replace(
+            b"</params_local>",
+            b"<param id=\"2.1.1.99\"><name>NewDiagnostic</name>"
+            b"<value>12.5</value></param></params_local>",
+            1,
+        )
+        result = xml_status.parse_status(payload, self.mapping)["local"]
+        section = result["sections"][0]
+        automatic = next(field for field in section["fields"] if field.get("automatic"))
+
+        self.assertEqual(automatic["label"], "NewDiagnostic")
+        self.assertEqual(automatic["group"], "NewDiagnostic")
+        self.assertEqual(result["values"]["local"]["auto:2.1.1.99"], 12.5)
+
+    def test_unmapped_remote_fields_still_require_explicit_configuration(self):
+        payload = self.payload.replace(
+            b"</params_remote>",
+            b"<param id=\"3.1.1.99\"><name>NewRemoteField</name>"
+            b"<value>1</value></param></params_remote>",
+            1,
+        )
+        result = xml_status.parse_status(payload, self.mapping)["remote"]
+
+        self.assertNotIn("auto:3.1.1.99", result["values"]["remote"])
+
     def test_missing_sections_do_not_invent_zero_values(self):
         result = xml_status.parse_status(b"<status><params_oba3/></status>", self.mapping)
         self.assertFalse(result["local"]["present"])

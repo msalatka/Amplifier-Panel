@@ -90,6 +90,13 @@ nic nie trzeba zmieniać. Gdy zmieni identyfikator, popraw `id` w mapowaniu.
 Jeżeli chcesz dopasowywać po nazwie, usuń `id` i wpisz nową wartość `name`.
 Nowe pole można dodać przez kolejny obiekt w `fields`, bez zmian w JS lub HTML.
 
+W sekcjach `params_local` i `params_local_di` nieznane pola są dodatkowo
+wykrywane automatycznie. Każdy nowy `<param>` otrzymuje własny bloczek opisany
+wartością `<name>`, a stabilnym kluczem historii jest jego `id`. Automatyczne
+pola są układane maksymalnie po cztery w rzędzie. Dodanie pola do mapowania jest
+nadal potrzebne, jeśli ma ono otrzymać własną etykietę, jednostkę, grupę lub typ
+logiczny.
+
 Mapowanie jest wczytywane przy każdym odczycie; poprawne zmiany pojawią się
 automatycznie. Nieprawidłowy JSON zgłosi błąd źródła i zostanie ponownie
 sprawdzony przy następnym odczycie.

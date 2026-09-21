@@ -43,6 +43,11 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("field.type === 'boolean'", script)
         self.assertIn("value ? 'true' : 'false'", script)
 
+    def test_station_layout_has_at_most_four_blocks_per_row(self):
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
+
+        self.assertIn("grid-template-columns: repeat(4, minmax(0, 1fr));", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()

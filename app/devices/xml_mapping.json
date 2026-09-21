@@ -18,6 +18,7 @@
         "key": "local",
         "xml_section": "params_local",
         "label": "LOCAL",
+        "discover_unmapped": true,
         "fields": [
           {
             "key": "10MHzInSigDet",
@@ -145,6 +146,7 @@
         "key": "local_di",
         "xml_section": "params_local_di",
         "label": "LOCAL DI",
+        "discover_unmapped": true,
         "fields": [
           {
             "key": "10MHzInSigDet",

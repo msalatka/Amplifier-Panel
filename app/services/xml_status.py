@@ -13,6 +13,44 @@ from app.devices import runtime
 MAX_XML_BYTES = 1_000_000
 
 
+def _automatic_field(param: ET.Element, used_keys: set[str]) -> tuple[dict, float | str] | None:
+    """Describe one previously unknown XML parameter without changing the mapping."""
+    identifier = (param.get("id") or "").strip()
+    name = (param.findtext("name") or "").strip()
+    raw = (param.findtext("value") or "").strip()
+    if not raw or not (identifier or name):
+        return None
+
+    selector = identifier or name
+    key = f"auto:{selector}"
+    if key in used_keys:
+        return None
+
+    try:
+        value: float | str = float(raw)
+        if not math.isfinite(value):
+            return None
+        field_type = "number"
+    except ValueError:
+        value = raw
+        field_type = "text"
+
+    label = name or identifier
+    used_keys.add(key)
+    return (
+        {
+            "key": key,
+            "label": label,
+            "unit": "",
+            "group": label,
+            "role": "",
+            "type": field_type,
+            "automatic": True,
+        },
+        value,
+    )
+
+
 def load_mapping() -> dict:
     """Load display labels and stable field selectors on every poll."""
     mapping = json.loads(pathlib.Path(config.XML_MAPPING_FILE).read_text(encoding="utf-8"))
@@ -112,6 +150,24 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                         ),
                     }
                 )
+            if node is not None and section.get("discover_unmapped", False):
+                mapped_ids = {field.get("id") for field in section["fields"] if field.get("id")}
+                mapped_names = {
+                    field.get("name") for field in section["fields"] if field.get("name")
+                }
+                used_keys = set(section_values)
+                for param in node.findall("param"):
+                    identifier = (param.get("id") or "").strip()
+                    name = (param.findtext("name") or "").strip()
+                    if identifier in mapped_ids or name in mapped_names:
+                        continue
+                    automatic = _automatic_field(param, used_keys)
+                    if automatic is None:
+                        issues.append(f"Invalid automatic field: {section['key']}.{name or identifier}")
+                        continue
+                    descriptor, value = automatic
+                    fields.append(descriptor)
+                    section_values[descriptor["key"]] = value
             values[section["key"]] = section_values
             sections.append(
                 {
