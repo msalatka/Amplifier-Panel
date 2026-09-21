@@ -82,6 +82,24 @@ class XmlStatusTests(unittest.TestCase):
 
         self.assertNotIn("auto:3.1.1.99", result["values"]["remote"])
 
+    def test_new_amplifier_fields_are_ready_for_live_view_and_history(self):
+        payload = self.payload.replace(
+            b"</params_oba3>",
+            b"<param id=\"5.1.1.99\"><name>NewAmplifierValue</name>"
+            b"<value>42.5</value></param></params_oba3>",
+            1,
+        )
+        result = xml_status.parse_status(payload, self.mapping)["oba3"]
+        automatic = next(
+            field
+            for field in result["sections"][0]["fields"]
+            if field["key"] == "auto:5.1.1.99"
+        )
+
+        self.assertEqual(automatic["label"], "NewAmplifierValue")
+        self.assertEqual(automatic["type"], "number")
+        self.assertEqual(result["values"]["oba3"]["auto:5.1.1.99"], 42.5)
+
     def test_missing_sections_do_not_invent_zero_values(self):
         result = xml_status.parse_status(b"<status><params_oba3/></status>", self.mapping)
         self.assertFalse(result["local"]["present"])

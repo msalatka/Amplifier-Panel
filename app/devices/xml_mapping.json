@@ -549,6 +549,7 @@
         "key": "oba",
         "xml_section": "params_oba",
         "label": "OBA",
+        "discover_unmapped": true,
         "fields": [
           {
             "key": "mode",
@@ -651,6 +652,7 @@
         "key": "oba3",
         "xml_section": "params_oba3",
         "label": "OBA3",
+        "discover_unmapped": true,
         "fields": [
           {
             "key": "Gain",
