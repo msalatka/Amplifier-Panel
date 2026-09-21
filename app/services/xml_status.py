@@ -76,7 +76,20 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                     try:
                         if raw is None or not raw.strip():
                             raise ValueError("Empty value")
-                        value = raw if field.get("type") == "text" else float(raw)
+                        field_type = (
+                            "boolean"
+                            if field["key"] in definition.get("boolean_fields", [])
+                            else field.get("type", "number")
+                        )
+                        if field_type == "text":
+                            value = raw
+                        elif field_type == "boolean":
+                            numeric = float(raw)
+                            if numeric not in (0, 1):
+                                raise ValueError("Boolean value must be 0 or 1")
+                            value = bool(numeric)
+                        else:
+                            value = float(raw)
                         if isinstance(value, float) and not math.isfinite(value):
                             raise ValueError("Non-finite value")
                     except ValueError:
@@ -92,7 +105,11 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                         "unit": field.get("unit", ""),
                         "group": field.get("group", "Measurements"),
                         "role": field.get("role", ""),
-                        "type": field.get("type", "number"),
+                        "type": (
+                            "boolean"
+                            if field["key"] in definition.get("boolean_fields", [])
+                            else field.get("type", "number")
+                        ),
                     }
                 )
             values[section["key"]] = section_values

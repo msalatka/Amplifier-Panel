@@ -13,7 +13,9 @@ function fieldValue(snapshot, field) {
 
 function measurementText(snapshot, field) {
 	const value = fieldValue(snapshot, field)
-	return value === null ? '--' : `${value}${field.unit ? ' ' + field.unit : ''}`
+	if (value === null) return '--'
+	if (field.type === 'boolean') return value ? 'true' : 'false'
+	return `${value}${field.unit ? ' ' + field.unit : ''}`
 }
 
 function renderXmlStatus(result) {
@@ -70,7 +72,7 @@ function renderXmlStatus(result) {
 								!flags.length ||
 								flags.some((v) => v === null)
 									? 'unknown'
-									: flags.every((v) => v === 1)
+									: flags.every((v) => v === true || v === 1)
 										? 'up'
 										: 'down'
 							return `<article class="fts-module"><div class="fts-module-title"><span class="fts-led ${status}"></span><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`).join('')}</dl></article>`
@@ -97,7 +99,9 @@ function renderXmlStatus(result) {
 		xmlCharts.clear()
 		xmlGroups = [
 			...new Set(
-				xmlFields.filter((f) => f.type !== 'text').map((f) => `${f.section} / ${f.group}`),
+				xmlFields
+					.filter((f) => f.type === 'number')
+					.map((f) => `${f.section} / ${f.group}`),
 			),
 		]
 		document.getElementById('xml-charts').innerHTML = xmlGroups
@@ -163,7 +167,7 @@ async function loadXmlHistory() {
 		const colors = ['#66d9ac', '#75b9ff', '#e7bc6d', '#cf92eb', '#ef8596', '#a5cb65']
 		xmlGroups.forEach((group, index) => {
 			const fields = xmlFields.filter(
-				(f) => `${f.section} / ${f.group}` === group && f.type !== 'text',
+				(f) => `${f.section} / ${f.group}` === group && f.type === 'number',
 			)
 			const datasets = fields.map((field, i) => ({
 				label: field.label + (field.unit ? ` [${field.unit}]` : ''),

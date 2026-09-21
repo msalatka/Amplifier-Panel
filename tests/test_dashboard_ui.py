@@ -34,6 +34,12 @@ class DashboardUiTests(unittest.TestCase):
 
         self.assertIn("single-readout", script)
 
+    def test_boolean_measurements_are_rendered_as_true_or_false(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
+
+        self.assertIn("field.type === 'boolean'", script)
+        self.assertIn("value ? 'true' : 'false'", script)
+
 
 if __name__ == "__main__":
     unittest.main()

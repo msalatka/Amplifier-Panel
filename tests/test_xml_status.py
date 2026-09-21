@@ -40,6 +40,22 @@ class XmlStatusTests(unittest.TestCase):
         self.assertEqual(result["values"]["oba3"]["Gain"], 30)
         self.assertEqual(result["sections"][0]["fields"][0]["label"], "Actual gain")
 
+    def test_boolean_fields_are_exposed_as_booleans(self):
+        result = xml_status.parse_status(self.payload, self.mapping)
+        self.assertIs(result["local"]["values"]["local"]["10MHzInSigDet"], False)
+        self.assertIs(result["local"]["values"]["local"]["LaserLocked"], True)
+        self.assertIs(result["remote"]["values"]["remote"]["PPSSigDet"], True)
+
+    def test_boolean_fields_reject_values_other_than_zero_or_one(self):
+        payload = self.payload.replace(
+            b"<name>LaserLocked</name>\n      <value>1</value>",
+            b"<name>LaserLocked</name>\n      <value>2</value>",
+            1,
+        )
+        result = xml_status.parse_status(payload, self.mapping)["local"]
+        self.assertIsNone(result["values"]["local"]["LaserLocked"])
+        self.assertIn("Invalid value: local.LaserLocked", result["issues"])
+
     def test_missing_sections_do_not_invent_zero_values(self):
         result = xml_status.parse_status(b"<status><params_oba3/></status>", self.mapping)
         self.assertFalse(result["local"]["present"])

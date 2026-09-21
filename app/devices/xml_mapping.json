@@ -1,6 +1,18 @@
 {
   "local": {
     "label": "Local station / DI",
+    "boolean_fields": [
+      "10MHzInSigDet",
+      "PPSInSigDet",
+      "PPSPhaseOK",
+      "RetSigDet",
+      "LaserLocked",
+      "LaserTurnedOn",
+      "Laser1Locked",
+      "Laser1TurnedOn",
+      "Laser2Locked",
+      "Laser2TurnedOn"
+    ],
     "sections": [
       {
         "key": "local",
@@ -300,6 +312,7 @@
   },
   "remote": {
     "label": "Remote station / DI",
+    "boolean_fields": ["RemSync", "PPSSigDet", "LaserLocked", "LaserTurnedOn"],
     "sections": [
       {
         "key": "remote",
