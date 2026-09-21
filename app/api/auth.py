@@ -82,7 +82,9 @@ def login(
     with state.state_lock:
         if not authenticated:
             state.login_failures.setdefault(client_ip, []).append(now)
-            api_security.audit_event(request, "login_failed", username, f"{config.AUTH_MODE}_reject")
+            api_security.audit_event(
+                request, "login_failed", username, f"{config.AUTH_MODE}_reject"
+            )
             raise fastapi.HTTPException(status_code=401, detail="Invalid username or password")
         state.login_failures.pop(client_ip, None)
         session_now = datetime.datetime.now(datetime.timezone.utc)

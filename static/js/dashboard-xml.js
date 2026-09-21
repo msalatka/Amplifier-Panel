@@ -1,33 +1,35 @@
-// XML selectors and display metadata come from the editable server mapping.
-let xmlChart = null
+// Device presentation is driven by stable field keys and editable UI roles.
 let xmlFields = []
 let xmlHistoryBusy = false
-let xmlOptionsSignature = ''
+let xmlStatisticsBusy = false
+let xmlDashboardBusy = false
+let xmlLayoutSignature = ''
+const xmlCharts = new Map()
+let xmlGroups = []
+
+function fieldValue(snapshot, field) {
+	return snapshot.values?.[field.section]?.[field.key] ?? null
+}
+
+function measurementText(snapshot, field) {
+	const value = fieldValue(snapshot, field)
+	return value === null ? '--' : `${value}${field.unit ? ' ' + field.unit : ''}`
+}
 
 function renderXmlStatus(result) {
 	const snapshot = result.data || {}
-	const container = document.getElementById('xml-live')
-	container.classList.toggle('xml-stale', !result.connected)
 	const sections = snapshot.sections || []
-	const module = snapshot.module || {}
-	container.innerHTML =
-		`<div class="data-panel"><h2>${escapeHtml(snapshot.label || selectedDeviceId)}</h2>
-		<p>${escapeHtml(module.systemName || '')} · ${escapeHtml(module.systemType || '')}</p>
-		<p>Source timestamp: ${escapeHtml(module.dataUpdate || '--')} · Last successful read: ${escapeHtml(result.last_update || '--')}</p>
-		<p role="status">${escapeHtml(result.error || (result.connected ? 'Reading status.xml' : 'Waiting for status.xml'))}</p>
-		${!result.connected && result.last_update ? '<p>Last known values — source unavailable or stale.</p>' : ''}</div>` +
-		sections
-			.map(
-				(section) => `<article class="data-panel"><h2>${escapeHtml(section.label)}</h2>
-		${!section.present ? '<p>Section not present in XML</p>' : ''}
-		<div class="xml-metrics">${section.fields
-			.map(
-				(field) => `<div class="xml-metric"><span>${escapeHtml(field.label)}</span>
-		<strong>${escapeHtml(snapshot.values?.[section.key]?.[field.key] ?? '--')} ${escapeHtml(field.unit)}</strong></div>`,
-			)
-			.join('')}</div></article>`,
-			)
-			.join('')
+	setTextIfExists('device-live-title', snapshot.label || document.body.dataset.deviceLabel)
+	setTextIfExists(
+		'device-source-time',
+		`Source timestamp: ${snapshot.module?.dataUpdate || '--'}`,
+	)
+	setTextIfExists(
+		'device-source-message',
+		result.error ||
+			(result.connected ? 'Connected � read-only monitoring' : 'Waiting for status.xml'),
+	)
+	document.getElementById('device-live-board').classList.toggle('xml-stale', !result.connected)
 	xmlFields = sections.flatMap((section) =>
 		section.fields.map((field) => ({
 			...field,
@@ -36,13 +38,99 @@ function renderXmlStatus(result) {
 			title: `${section.label} / ${field.label}`,
 		})),
 	)
-	const select = document.getElementById('xml-history-field')
+	if (deviceProfile === 'amplifier') {
+		for (const readout of document.querySelectorAll('[data-readout]')) {
+			const field = xmlFields.find((item) => item.role === readout.dataset.readout)
+			readout.textContent = field ? measurementText(snapshot, field) : '--'
+			const label = readout.parentElement.querySelector('span')
+			if (field && label) label.textContent = field.label
+			// OBA does not report a gain setpoint; do not manufacture one.
+			readout.parentElement.hidden = !field && !!sections.length
+		}
+	} else {
+		document.getElementById('device-live-board').innerHTML =
+			sections
+				.map((section) => {
+					const groups = [...new Set(section.fields.map((field) => field.group))]
+					return `<section class="fts-station-group"><div class="fts-section-heading"><h3>${escapeHtml(section.label)}</h3><span>${section.present ? 'Reported in XML' : 'Not present'}</span></div><div class="fts-station-systems">${groups
+						.map((group) => {
+							const fields = xmlFields.filter(
+								(field) => field.section === section.key && field.group === group,
+							)
+							const flags = fields
+								.filter((field) => ['on', 'locked'].includes(field.role))
+								.map((field) => fieldValue(snapshot, field))
+							const status =
+								!result.connected ||
+								!section.present ||
+								!flags.length ||
+								flags.some((v) => v === null)
+									? 'unknown'
+									: flags.every((v) => v === 1)
+										? 'up'
+										: 'down'
+							return `<article class="fts-module"><div class="fts-module-title"><span class="fts-led ${status}"></span><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`).join('')}</dl></article>`
+						})
+						.join('')}</div></section>`
+				})
+				.join('') || '<p>Waiting for station data...</p>'
+	}
+	document.getElementById('xml-live').innerHTML = sections
+		.map(
+			(section) =>
+				`<article><h3>${escapeHtml(section.label)}</h3><dl class="xml-metrics">${xmlFields
+					.filter((f) => f.section === section.key)
+					.map(
+						(field) =>
+							`<div class="xml-metric"><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`,
+					)
+					.join('')}</dl></article>`,
+		)
+		.join('')
 	const signature = JSON.stringify(xmlFields)
-	if (signature !== xmlOptionsSignature) {
-		const previous = select.value
-		select.replaceChildren(...xmlFields.map((field) => new Option(field.title, field.path)))
-		if (xmlFields.some((field) => field.path === previous)) select.value = previous
-		xmlOptionsSignature = signature
+	if (signature !== xmlLayoutSignature) {
+		for (const chart of xmlCharts.values()) chart.destroy()
+		xmlCharts.clear()
+		xmlGroups = [
+			...new Set(
+				xmlFields.filter((f) => f.type !== 'text').map((f) => `${f.section} / ${f.group}`),
+			),
+		]
+		document.getElementById('xml-charts').innerHTML = xmlGroups
+			.map(
+				(group, index) =>
+					`<article class="chart-card"><div class="chart-card-header"><h3>${escapeHtml(group)}</h3><button class="chart-expand-button" type="button" aria-label="Expand chart"></button></div><div class="chart-container"><canvas id="xml-chart-${index}"></canvas></div></article>`,
+			)
+			.join('')
+		setupChartExpansion()
+		xmlLayoutSignature = signature
+		lastOverviewChartRefresh = 0
+	}
+}
+
+async function updateDashboard() {
+	if (!currentUser || xmlDashboardBusy) return
+	xmlDashboardBusy = true
+	try {
+		const response = await fetch(`/api/devices/${encodeURIComponent(selectedDeviceId)}/latest`)
+		handleAuthResponse(response)
+		if (!response.ok) throw new Error(`HTTP error ${response.status}`)
+		const result = await response.json()
+		renderXmlStatus(result)
+		setTextIfExists('status-last-update', formatTime(result.last_update))
+		setTextIfExists('status-system-time', formatTime(result.system_time))
+		updateDatabaseStatus(result.database)
+		const status = document.getElementById('status-connection')
+		status.textContent = result.connected ? 'CONNECTED' : 'DISCONNECTED'
+		status.className = result.connected ? 'status-ok' : 'status-error'
+	} catch (error) {
+		setTextIfExists('device-source-message', error.message)
+		const status = document.getElementById('status-connection')
+		status.textContent = 'API ERROR'
+		status.className = 'status-error'
+		document.getElementById('device-live-board').classList.add('xml-stale')
+	} finally {
+		xmlDashboardBusy = false
 	}
 }
 
@@ -51,43 +139,58 @@ async function loadXmlHistory() {
 	xmlHistoryBusy = true
 	try {
 		const range = document.getElementById('xml-history-range').value
+		document.getElementById('xml-export').href =
+			`/api/devices/${encodeURIComponent(selectedDeviceId)}/history/export.csv?range=${encodeURIComponent(range)}`
 		const response = await fetch(
 			`/api/devices/${encodeURIComponent(selectedDeviceId)}/history?range=${encodeURIComponent(range)}`,
 		)
 		handleAuthResponse(response)
 		if (!response.ok) throw new Error(`History unavailable (${response.status})`)
 		const result = await response.json()
-		const field = xmlFields.find(
-			(item) => item.path === document.getElementById('xml-history-field').value,
-		)
+		if (range !== document.getElementById('xml-history-range').value) return
 		const points = result.points || []
-		const values = points.map((point) => {
-			const value = point.snapshot?.values?.[field?.section]?.[field?.key]
-			return typeof value === 'number' ? value : null
+		const times = points.map((p) => new Date(p.time).getTime())
+		const now = Date.now()
+		const bounds = {
+			min: times.length ? Math.min(...times) : now - 300000,
+			max: times.length ? Math.max(...times) : now,
+		}
+		if (bounds.max === bounds.min) bounds.min -= 1000
+		const colors = ['#66d9ac', '#75b9ff', '#e7bc6d', '#cf92eb', '#ef8596', '#a5cb65']
+		xmlGroups.forEach((group, index) => {
+			const fields = xmlFields.filter(
+				(f) => `${f.section} / ${f.group}` === group && f.type !== 'text',
+			)
+			const datasets = fields.map((field, i) => ({
+				label: field.label + (field.unit ? ` [${field.unit}]` : ''),
+				data: points.map((p) => {
+					const v = fieldValue(p.snapshot, field)
+					return typeof v === 'number' ? v : null
+				}),
+				borderColor: colors[i % colors.length],
+				pointRadius: 0,
+				spanGaps: false,
+			}))
+			const id = `xml-chart-${index}`
+			xmlCharts.set(
+				id,
+				createOrUpdateChart(
+					xmlCharts.get(id) || null,
+					id,
+					points,
+					points.map((p) => formatDateTime(p.time)),
+					datasets,
+					'Value',
+					bounds,
+				),
+			)
 		})
 		setTextIfExists(
 			'xml-history-message',
-			values.some((value) => value !== null)
-				? `${points.length} observations (bounded history)`
-				: 'No numeric observations for this field and range.',
+			points.length
+				? `${points.length} displayed observations � CSV includes full history`
+				: 'No observations in this range',
 		)
-		if (xmlChart) xmlChart.destroy()
-		xmlChart = new Chart(document.getElementById('xml-history-chart'), {
-			type: 'line',
-			data: {
-				labels: points.map((point) => new Date(point.time).toLocaleString()),
-				datasets: [
-					{
-						label: field?.title || 'Value',
-						data: values,
-						borderColor: '#167a8a',
-						pointRadius: 0,
-						spanGaps: false,
-					},
-				],
-			},
-			options: { responsive: true, maintainAspectRatio: false, animation: false },
-		})
 		lastOverviewChartRefresh = Date.now()
 	} catch (error) {
 		setTextIfExists('xml-history-message', error.message)
@@ -97,27 +200,36 @@ async function loadXmlHistory() {
 }
 
 async function loadXmlStatistics() {
-	if (!currentUser) return
+	if (!currentUser || xmlStatisticsBusy) return
+	xmlStatisticsBusy = true
 	try {
+		const range = document.getElementById('xml-statistics-range').value
 		const response = await fetch(
-			`/api/devices/${encodeURIComponent(selectedDeviceId)}/statistics?range=1h`,
+			`/api/devices/${encodeURIComponent(selectedDeviceId)}/statistics?range=${encodeURIComponent(range)}`,
 		)
 		handleAuthResponse(response)
 		if (!response.ok) throw new Error(`Statistics unavailable (${response.status})`)
 		const result = await response.json()
+		if (range !== document.getElementById('xml-statistics-range').value) return
 		const rows = Object.entries(result.statistics || {}).filter(([key]) =>
 			key.startsWith('values.'),
 		)
 		document.getElementById('xml-statistics').innerHTML = rows.length
-			? `<div class="table-wrap"><table><thead><tr><th>Measurement</th><th>Count</th><th>Min</th><th>Max</th><th>Average</th></tr></thead><tbody>${rows.map(([key, stats]) => `<tr><td>${escapeHtml(xmlFields.find((field) => field.path === key)?.title || key)}</td>${['count', 'min', 'max', 'average'].map((name) => `<td>${escapeHtml(formatPlainNumber(stats[name]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+			? `<div class="table-wrap"><table class="plain-table"><thead><tr><th>Measurement</th><th>Count</th><th>Min</th><th>Max</th><th>Average</th><th>Standard deviation</th></tr></thead><tbody>${rows.map(([key, stats]) => `<tr><td>${escapeHtml(xmlFields.find((f) => f.path === key)?.title || key)}</td>${['count', 'min', 'max', 'average', 'standard_deviation'].map((name) => `<td>${escapeHtml(formatPlainNumber(stats[name], name === 'count' ? 0 : 2))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
 			: '<p>No stored observations.</p>'
 		lastStatisticsRefresh = Date.now()
 	} catch (error) {
 		setTextIfExists('xml-statistics', error.message)
+	} finally {
+		xmlStatisticsBusy = false
 	}
 }
 
-if (deviceProfile === 'xml') {
-	document.getElementById('xml-history-field').addEventListener('change', loadXmlHistory)
-	document.getElementById('xml-history-range').addEventListener('change', loadXmlHistory)
-}
+document.getElementById('xml-history-range').addEventListener('change', () => {
+	lastOverviewChartRefresh = 0
+	loadXmlHistory()
+})
+document.getElementById('xml-statistics-range').addEventListener('change', () => {
+	lastStatisticsRefresh = 0
+	loadXmlStatistics()
+})

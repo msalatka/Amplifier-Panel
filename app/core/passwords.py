@@ -30,8 +30,10 @@ def password_is_usable(password_hash: object, password_salt: object) -> bool:
         base64.b64decode(password_salt.encode("ascii"), validate=True)
         if password_hash.startswith(f"{PASSWORD_SCHEME}$"):
             scheme, iterations, digest = password_hash.split("$", 2)
-            return scheme == PASSWORD_SCHEME and int(iterations) >= LEGACY_PASSWORD_ITERATIONS and bool(
-                base64.b64decode(digest.encode("ascii"), validate=True)
+            return (
+                scheme == PASSWORD_SCHEME
+                and int(iterations) >= LEGACY_PASSWORD_ITERATIONS
+                and bool(base64.b64decode(digest.encode("ascii"), validate=True))
             )
         return bool(base64.b64decode(password_hash.encode("ascii"), validate=True))
     except (ValueError, TypeError):
@@ -41,9 +43,11 @@ def password_is_usable(password_hash: object, password_salt: object) -> bool:
 def verify_password(password: str, password_hash: object, password_salt: object) -> bool:
     """Verify a password, including records made by the previous local-login release."""
 
-    if not password_is_usable(password_hash, password_salt) or not isinstance(
-        password_hash, str
-    ) or not isinstance(password_salt, str):
+    if (
+        not password_is_usable(password_hash, password_salt)
+        or not isinstance(password_hash, str)
+        or not isinstance(password_salt, str)
+    ):
         return False
     try:
         salt_bytes = base64.b64decode(password_salt.encode("ascii"), validate=True)

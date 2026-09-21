@@ -5,12 +5,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class DashboardUiTests(unittest.TestCase):
-    def test_active_warnings_use_the_current_endpoint(self):
-        script = (ROOT / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
-
-        self.assertIn("fetch('/api/warnings/active')", script)
-        self.assertNotIn("/api/errors", script)
-
     def test_chart_library_is_served_locally(self):
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
         chart_library = ROOT / "static" / "vendor" / "chart.js" / "chart.umd.min.js"
@@ -21,9 +15,9 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("Chart.js v4.5.1", chart_library.read_text(encoding="utf-8")[:200])
 
     def test_system_time_comes_from_latest_api_response(self):
-        script = (ROOT / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
 
-        self.assertIn("formatTime(json.system_time)", script)
+        self.assertIn("formatTime(result.system_time)", script)
         self.assertNotIn(
             "setTextIfExists('status-system-time', new Date().toLocaleTimeString())",
             script,

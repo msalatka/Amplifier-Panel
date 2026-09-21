@@ -20,7 +20,7 @@ Depends:
  systemd
 Recommends: systemd-timesyncd
 Description: control and monitoring panel for optical transfer equipment
- Amp Panel acquires and controls an optical amplifier over serial and provides
- a read-only FTS-LS Laser Station view pending its daemon XML interface. It
+ Amp Panel monitors Local/Remote optical stations and OBA/OBA3 amplifiers
+ using a read-only status.xml interface. It
  stores measurements in SQLite, exposes a local web interface and SNMP
  endpoint, and integrates with RADIUS, syslog, NTP and NetworkManager.

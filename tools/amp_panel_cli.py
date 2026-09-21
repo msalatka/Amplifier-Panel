@@ -70,17 +70,23 @@ KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._@-]{1,128}$")
 HOST_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
 MDNS_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
-SERIAL_PATTERN = re.compile(r"^/dev/(?:tty(?:ACM|USB|S|O)[0-9]+|serial/by-id/[A-Za-z0-9._:+-]+)$")
-KNOWN_DEVICE_IDS = ("local", "remote", "oba", "oba3", "amplifier", "fts-ls")
+KNOWN_DEVICE_IDS = ("local", "remote", "oba", "oba3")
 
 
 def _enabled_devices(value: str | None) -> tuple[str, ...]:
     """Validate the configured device set without importing runtime dependencies."""
 
-    ids = tuple(part.strip().lower() for part in (value or "").split(","))
-    if not ids or any(part not in KNOWN_DEVICE_IDS for part in ids) or len(ids) != len(set(ids)):
-        raise ConfigurationError("ENABLED_DEVICES must list unique registered IDs: local,remote,oba,oba3,amplifier,fts-ls.")
-    return ids
+    aliases = {"amplifier": ("oba", "oba3"), "fts-ls": ("local", "remote")}
+    ids = []
+    for part in (value or "").split(","):
+        key = part.strip().lower()
+        for item in aliases.get(key, (key,)):
+            if item not in KNOWN_DEVICE_IDS:
+                raise ConfigurationError("ENABLED_DEVICES must list: local,remote,oba,oba3.")
+            if item not in ids:
+                ids.append(item)
+    return tuple(ids)
+
 
 CONFIG_KEYS = (
     "AMP_PANEL_CONFIG_VERSION",
@@ -91,10 +97,6 @@ CONFIG_KEYS = (
     "XML_MAPPING_FILE",
     "XML_POLL_SECONDS",
     "XML_STALE_SECONDS",
-    "SERIAL_PORT",
-    "SERIAL_BAUDRATE",
-    "GAIN_SET_MIN",
-    "GAIN_SET_MAX",
     "DEVICE_NAME",
     "MDNS_HOSTNAME",
     "INITIAL_ADMIN_USERNAME",
@@ -160,11 +162,7 @@ CONFIG_HELP = {
     "AMP_PANEL_CONFIG_VERSION": "Configuration format version; do not change manually.",
     "AMP_PANEL_PORT": "Web interface TCP port: integer from 1024 to 65535, for example 8000.",
     "AMP_PANEL_DATA_DIR": "Data directory: /var/lib/amp-panel or a path below /mnt, /media or /srv.",
-    "ENABLED_DEVICES": "XML views: local,remote,oba,oba3. Legacy profiles: amplifier,fts-ls.",
-    "SERIAL_PORT": "Amplifier serial device, for example /dev/ttyUSB0 or /dev/serial/by-id/name.",
-    "SERIAL_BAUDRATE": "Amplifier serial speed in baud; normally 9600.",
-    "GAIN_SET_MIN": "Minimum safe amplifier gain setpoint; use the device specification.",
-    "GAIN_SET_MAX": "Maximum safe amplifier gain setpoint; must exceed GAIN_SET_MIN.",
+    "ENABLED_DEVICES": "XML devices: local,remote,oba,oba3.",
     "DEVICE_NAME": "Device name used in logs and as the default RADIUS identifier.",
     "MDNS_HOSTNAME": "mDNS hostname without .local: lowercase letters, digits and hyphens, for example amp-panel.",
     "INITIAL_ADMIN_USERNAME": "Administrator name: letters, digits, dot, underscore, @ or hyphen.",
@@ -325,10 +323,6 @@ def write_env_file(path: pathlib.Path, values: dict[str, str]) -> None:
     ]
     for key in CONFIG_KEYS:
         if key in values:
-            if "amplifier" not in [part.strip() for part in values.get("ENABLED_DEVICES", "").split(",")] and key in {
-                "SERIAL_PORT", "SERIAL_BAUDRATE", "GAIN_SET_MIN", "GAIN_SET_MAX"
-            }:
-                continue
             section = CONFIG_SECTIONS.get(key)
             if section:
                 lines.extend(("", f"# --- {section} ---"))
@@ -428,18 +422,6 @@ def _mdns_hostname() -> str:
     return (value or "amp-panel")[:63].rstrip("-")
 
 
-def _serial_device() -> str:
-    for path in (
-        pathlib.Path("/dev/ttyACM0"),
-        pathlib.Path("/dev/ttyUSB0"),
-        pathlib.Path("/dev/ttyS1"),
-        pathlib.Path("/dev/ttyO1"),
-    ):
-        if path.exists():
-            return str(path)
-    return "/dev/ttyACM0"
-
-
 def default_configuration() -> dict[str, str]:
     """Build installation defaults from detected hardware and standard paths."""
 
@@ -454,10 +436,6 @@ def default_configuration() -> dict[str, str]:
         "XML_MAPPING_FILE": "/usr/lib/amp-panel/app/devices/xml_mapping.json",
         "XML_POLL_SECONDS": "2",
         "XML_STALE_SECONDS": "60",
-        "SERIAL_PORT": _serial_device(),
-        "SERIAL_BAUDRATE": "9600",
-        "GAIN_SET_MIN": "",
-        "GAIN_SET_MAX": "",
         "DEVICE_NAME": device_name,
         "MDNS_HOSTNAME": _mdns_hostname(),
         "INITIAL_ADMIN_USERNAME": "admin",
@@ -546,6 +524,11 @@ def _normalized_data_dir(value: str, source: pathlib.Path | None = None) -> path
 def merge_configuration(source_values: dict[str, str]) -> dict[str, str]:
     """Overlay recognized existing values onto current configuration defaults."""
 
+    source_values = dict(source_values)
+    if "ENABLED_DEVICES" in source_values:
+        source_values["ENABLED_DEVICES"] = ",".join(
+            _enabled_devices(source_values["ENABLED_DEVICES"])
+        )
     translated = default_configuration()
     for key in CONFIG_KEYS:
         if key in source_values:
@@ -570,17 +553,6 @@ def validate_configuration(values: dict[str, str]) -> None:
             raise ConfigurationError("XML polling interval must be at least 0.2 seconds.")
         if _safe_float(values.get("XML_STALE_SECONDS"), "XML stale timeout") < 1:
             raise ConfigurationError("XML stale timeout must be at least 1 second.")
-    if "amplifier" in enabled_devices:
-        _safe_int(values.get("SERIAL_BAUDRATE"), "Serial baud rate", 1, 10_000_000)
-        gain_min = _safe_float(values.get("GAIN_SET_MIN"), "Minimum safe gain")
-        gain_max = _safe_float(values.get("GAIN_SET_MAX"), "Maximum safe gain")
-        if gain_min >= gain_max:
-            raise ConfigurationError("Minimum safe gain must be lower than maximum safe gain.")
-        serial_port = values.get("SERIAL_PORT", "")
-        if serial_port != "/dev/null" and not SERIAL_PATTERN.fullmatch(serial_port):
-            raise ConfigurationError(
-                "Serial device must be a supported /dev/tty* device or /dev/serial/by-id entry."
-            )
     data_dir = _normalized_data_dir(values.get("AMP_PANEL_DATA_DIR", ""))
     database_file = pathlib.Path(values.get("DATABASE_FILE", ""))
     state_file = pathlib.Path(values.get("PERSISTED_STATE_FILE", ""))
@@ -636,9 +608,9 @@ def _set_local_admin_password(values: dict[str, str], password: str) -> None:
         raise ConfigurationError("Local administrator password must contain 8 to 256 characters.")
     salt = secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 600_000)
-    values["INITIAL_ADMIN_PASSWORD_HASH"] = (
-        "pbkdf2_sha256$600000$" + base64.b64encode(digest).decode("ascii")
-    )
+    values["INITIAL_ADMIN_PASSWORD_HASH"] = "pbkdf2_sha256$600000$" + base64.b64encode(
+        digest
+    ).decode("ascii")
     values["INITIAL_ADMIN_PASSWORD_SALT"] = base64.b64encode(salt).decode("ascii")
 
 
@@ -650,8 +622,6 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
         "Enabled devices (comma-separated: local,remote,oba,oba3)",
         values.get("ENABLED_DEVICES", "local,remote,oba,oba3"),
     ).lower()
-    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
-        values["SERIAL_BAUDRATE"] = "9600"
     values["INITIAL_ADMIN_USERNAME"] = _prompt(
         "Administrator username",
         values["INITIAL_ADMIN_USERNAME"],
@@ -666,8 +636,6 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
             raise ConfigurationError("Local administrator passwords do not match.")
         _set_local_admin_password(values, password)
     values["AMP_PANEL_PORT"] = _prompt("Web interface port", values["AMP_PANEL_PORT"])
-    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
-        values["SERIAL_PORT"] = _prompt("Serial device", values["SERIAL_PORT"])
     values["AMP_PANEL_DATA_DIR"] = _prompt(
         "Measurement data directory",
         values["AMP_PANEL_DATA_DIR"],
@@ -676,15 +644,6 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
-    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
-        values["GAIN_SET_MIN"] = _prompt(
-            "Minimum safe gain from the device specification",
-            values["GAIN_SET_MIN"],
-        )
-        values["GAIN_SET_MAX"] = _prompt(
-            "Maximum safe gain from the device specification",
-            values["GAIN_SET_MAX"],
-        )
     if values["AUTH_MODE"] == "radius":
         values["RADIUS_SERVER"] = _prompt("RADIUS server", values["RADIUS_SERVER"])
         values["RADIUS_PORT"] = _prompt("RADIUS UDP port", values["RADIUS_PORT"])
@@ -708,9 +667,6 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
         "auth_mode": "AUTH_MODE",
         "port": "AMP_PANEL_PORT",
         "data_dir": "AMP_PANEL_DATA_DIR",
-        "serial_port": "SERIAL_PORT",
-        "gain_min": "GAIN_SET_MIN",
-        "gain_max": "GAIN_SET_MAX",
         "radius_server": "RADIUS_SERVER",
         "radius_port": "RADIUS_PORT",
         "radius_secret": "RADIUS_SECRET",
@@ -736,7 +692,9 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
         try:
             local_password = base64.b64decode(encoded_password, validate=True).decode("utf-8")
         except (ValueError, UnicodeDecodeError) as exc:
-            raise ConfigurationError("Invalid encoded installer answer: local_admin_password") from exc
+            raise ConfigurationError(
+                "Invalid encoded installer answer: local_admin_password"
+            ) from exc
     if local_password:
         _set_local_admin_password(values, local_password)
     data_dir = _normalized_data_dir(values["AMP_PANEL_DATA_DIR"])
@@ -1007,12 +965,6 @@ def configure_command(args: argparse.Namespace) -> int:
             values["AMP_PANEL_DATA_DIR"] = str(data_dir)
             values["DATABASE_FILE"] = str(data_dir / "measurements.db")
             values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
-        if args.serial_port and "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
-            values["SERIAL_PORT"] = args.serial_port
-        if args.gain_min is not None:
-            values["GAIN_SET_MIN"] = str(args.gain_min)
-        if args.gain_max is not None:
-            values["GAIN_SET_MAX"] = str(args.gain_max)
         if args.radius_server:
             values["RADIUS_SERVER"] = args.radius_server
         if args.radius_port:
@@ -1022,7 +974,9 @@ def configure_command(args: argparse.Namespace) -> int:
         if args.mdns_hostname:
             values["MDNS_HOSTNAME"] = args.mdns_hostname.lower()
         if not args.non_interactive:
-            values = interactive_configuration(values) if args.prompt else edit_configuration(values)
+            values = (
+                interactive_configuration(values) if args.prompt else edit_configuration(values)
+            )
         _configuration_progress("Validating settings...")
         validate_configuration(values)
         _configuration_progress("Preparing the measurement data directory...")
@@ -1136,14 +1090,6 @@ def doctor_command(_args: argparse.Namespace) -> int:
         failures += 0 if valid else 1
     else:
         print("[OK] SQLite database will be created on the first measurement.")
-    if "amplifier" in _enabled_devices(values["ENABLED_DEVICES"]):
-        serial_port = pathlib.Path(values["SERIAL_PORT"])
-        if serial_port.exists():
-            print(f"[OK] serial device: {serial_port}")
-        else:
-            print(f"[WARN] serial device is not currently connected: {serial_port}")
-    if "fts-ls" in _enabled_devices(values["ENABLED_DEVICES"]):
-        print("[WARN] FTS-LS acquisition awaits the station daemon XML interface.")
     for service in (CURRENT_SERVICE, NETWORK_AGENT_SERVICE):
         if _service_exists(service):
             result = _run(["systemctl", "is-active", service], capture=True)
@@ -1268,9 +1214,6 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--port", type=int)
     configure.add_argument("--data-dir")
     configure.add_argument("--enabled-devices", help="comma-separated registered device IDs")
-    configure.add_argument("--serial-port")
-    configure.add_argument("--gain-min")
-    configure.add_argument("--gain-max")
     configure.add_argument("--radius-server")
     configure.add_argument("--radius-port", type=int)
     configure.add_argument("--radius-secret")

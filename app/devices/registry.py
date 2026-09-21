@@ -14,44 +14,30 @@ class DeviceDefinition:
 
     id: str
     label: str
-    worker: str | None
     view_profile: str
 
 
 DEVICES = {
-    **{
-        key: DeviceDefinition(key, label, None, "xml")
-        for key, label in (
-            ("local", "Local station / DI"),
-            ("remote", "Remote station / DI"),
-            ("oba", "EDFA OBA"),
-            ("oba3", "EDFA OBA3"),
-        )
-    },
-    "amplifier": DeviceDefinition(
-        id="amplifier",
-        label="Optical amplifier",
-        worker="app.services.serial:serial_reader_loop",
-        view_profile="amplifier",
-    ),
-    "fts-ls": DeviceDefinition(
-        id="fts-ls",
-        label="FTS-LS laser station",
-        worker=None,  # The station daemon's XML contract has not been supplied yet.
-        view_profile="fts-ls",
-    ),
+    key: DeviceDefinition(key, label, family)
+    for key, label, family in (
+        ("local", "Local station / DI", "station"),
+        ("remote", "Remote station / DI", "station"),
+        ("oba", "EDFA OBA", "amplifier"),
+        ("oba3", "EDFA OBA3", "amplifier"),
+    )
 }
 
 
 def parse_enabled_devices(value: str | None) -> tuple[str, ...]:
-    """Validate a comma-separated set of device IDs in display order."""
-
-    ids = tuple(
-        part.strip().lower()
-        for part in ("local,remote,oba,oba3" if value is None else value).split(",")
-    )
-    if not ids or any(not part or part not in DEVICES for part in ids):
-        raise ValueError(f"ENABLED_DEVICES must contain registered IDs: {', '.join(DEVICES)}")
-    if len(ids) != len(set(ids)):
-        raise ValueError("ENABLED_DEVICES must not contain duplicate device IDs")
-    return ids
+    """Read current device IDs and migrate the two retired profile names."""
+    parts = (value if value is not None else "local,remote,oba,oba3").split(",")
+    result = []
+    migration = {"amplifier": ("oba", "oba3"), "fts-ls": ("local", "remote")}
+    for part in parts:
+        key = part.strip().lower()
+        for device in migration.get(key, (key,)):
+            if device not in DEVICES:
+                raise ValueError(f"ENABLED_DEVICES must contain: {', '.join(DEVICES)}")
+            if device not in result:
+                result.append(device)
+    return tuple(result)

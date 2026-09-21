@@ -27,36 +27,6 @@ class StateSecurityTests(unittest.TestCase):
         settings = state.merge_service_settings({"database_max_records": 0})
         self.assertEqual(settings["database_max_records"], 0)
 
-    def test_temperature_thresholds_are_added_to_existing_settings(self):
-        settings = state.merge_dashboard_settings(
-            {
-                "warn_limits": {
-                    "PiA": {"min": -20.0, "max": 5.0},
-                },
-            }
-        )
-
-        self.assertEqual(settings["warn_limits"]["PiA"], {"min": -20.0, "max": 5.0})
-        self.assertEqual(
-            settings["warn_limits"]["temperature"],
-            {"min": None, "max": None},
-        )
-
-    def test_unsafe_persisted_dashboard_settings_fall_back_to_defaults(self):
-        settings = state.merge_dashboard_settings(
-            {
-                "gain_tolerance": -1,
-                "warn_limits": {
-                    "temperature": {"min": 100.0, "max": 10.0},
-                },
-            }
-        )
-        self.assertEqual(settings, state.DEFAULT_DASHBOARD_SETTINGS)
-
-    def test_unsafe_persisted_gain_set_is_not_restored_to_device(self):
-        self.assertEqual(state.merge_last_known_gain_set(float("nan")), 15.0)
-        self.assertEqual(state.merge_last_known_gain_set(1000), 15.0)
-
     def test_fresh_install_uses_configured_admin_without_password(self):
         with mock.patch.object(
             config,
@@ -106,7 +76,9 @@ class StateSecurityTests(unittest.TestCase):
 
     def test_local_password_hash_verifies_without_storing_clear_text(self):
         password_hash, password_salt = passwords.hash_password("correct-horse-battery")
-        self.assertTrue(passwords.verify_password("correct-horse-battery", password_hash, password_salt))
+        self.assertTrue(
+            passwords.verify_password("correct-horse-battery", password_hash, password_salt)
+        )
         self.assertFalse(passwords.verify_password("wrong-password", password_hash, password_salt))
         self.assertNotIn("correct-horse-battery", password_hash)
 

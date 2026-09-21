@@ -9,7 +9,7 @@ ConditionPathExists=/etc/amp-panel/amp-panel.env
 Type=simple
 User=amp-panel
 Group=amp-panel
-SupplementaryGroups=dialout adm
+SupplementaryGroups=adm
 EnvironmentFile=/etc/amp-panel/amp-panel.env
 Environment=PYTHONPATH=/usr/lib/amp-panel/vendor:/usr/lib/amp-panel
 Environment=PYTHONDONTWRITEBYTECODE=1

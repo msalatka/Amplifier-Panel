@@ -13,7 +13,9 @@
             "name": "10MHzInSigDet",
             "label": "10 MHz input detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PPSInSigDet",
@@ -21,7 +23,9 @@
             "name": "PPSInSigDet",
             "label": "PPS input detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PPSPhaseOK",
@@ -29,7 +33,9 @@
             "name": "PPSPhaseOK",
             "label": "PPS phase correct",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "RetSigDet",
@@ -37,7 +43,9 @@
             "name": "RetSigDet",
             "label": "Return signal detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "RecOptPow",
@@ -45,7 +53,9 @@
             "name": "RecOptPow",
             "label": "Received optical power",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "ContinuousComp",
@@ -53,7 +63,9 @@
             "name": "ContinuousComp",
             "label": "Continuous delay compensation",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Compensation",
+            "role": ""
           },
           {
             "key": "SwitchedComp",
@@ -61,7 +73,9 @@
             "name": "SwitchedComp",
             "label": "Switched delay compensation",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Compensation",
+            "role": ""
           },
           {
             "key": "InnerTemp",
@@ -69,7 +83,9 @@
             "name": "InnerTemp",
             "label": "Case temperature",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "LaserLocked",
@@ -77,7 +93,9 @@
             "name": "LaserLocked",
             "label": "Laser wavelength locked",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": "locked"
           },
           {
             "key": "LaserTEC",
@@ -85,7 +103,9 @@
             "name": "LaserTEC",
             "label": "Laser temperature control",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": ""
           },
           {
             "key": "LaserTurnedOn",
@@ -93,7 +113,9 @@
             "name": "LaserTurnedOn",
             "label": "Laser on",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": "on"
           },
           {
             "key": "WaveLockMarg",
@@ -101,7 +123,9 @@
             "name": "WaveLockMarg",
             "label": "Wavelength locker margin",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": ""
           }
         ]
       },
@@ -116,7 +140,9 @@
             "name": "10MHzInSigDet",
             "label": "10 MHz input detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PPSInSigDet",
@@ -124,7 +150,9 @@
             "name": "PPSInSigDet",
             "label": "PPS input detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PPSPhaseOK",
@@ -132,7 +160,9 @@
             "name": "PPSPhaseOK",
             "label": "PPS phase correct",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "RetSigDet",
@@ -140,7 +170,9 @@
             "name": "RetSigDet",
             "label": "Return signal detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "RecOptPow",
@@ -148,7 +180,9 @@
             "name": "RecOptPow",
             "label": "Received optical power",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "ContinuousComp",
@@ -156,7 +190,9 @@
             "name": "ContinuousComp",
             "label": "Continuous delay compensation",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Compensation",
+            "role": ""
           },
           {
             "key": "SwitchedComp",
@@ -164,7 +200,9 @@
             "name": "SwitchedComp",
             "label": "Switched delay compensation",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Compensation",
+            "role": ""
           },
           {
             "key": "InnerTemp",
@@ -172,7 +210,9 @@
             "name": "InnerTemp",
             "label": "Case temperature",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "Laser1Locked",
@@ -180,7 +220,9 @@
             "name": "Laser1Locked",
             "label": "Laser1Locked",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 1",
+            "role": "locked"
           },
           {
             "key": "Laser1TEC",
@@ -188,7 +230,9 @@
             "name": "Laser1TEC",
             "label": "Laser1TEC",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 1",
+            "role": ""
           },
           {
             "key": "Laser1TurnedOn",
@@ -196,7 +240,9 @@
             "name": "Laser1TurnedOn",
             "label": "Laser1TurnedOn",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 1",
+            "role": "on"
           },
           {
             "key": "WaveLockMarg1",
@@ -204,7 +250,9 @@
             "name": "WaveLockMarg1",
             "label": "WaveLockMarg1",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 1",
+            "role": ""
           },
           {
             "key": "Laser2Locked",
@@ -212,7 +260,9 @@
             "name": "Laser2Locked",
             "label": "Laser2Locked",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 2",
+            "role": "locked"
           },
           {
             "key": "Laser2TEC",
@@ -220,7 +270,9 @@
             "name": "Laser2TEC",
             "label": "Laser2TEC",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 2",
+            "role": ""
           },
           {
             "key": "Laser2TurnedOn",
@@ -228,7 +280,9 @@
             "name": "Laser2TurnedOn",
             "label": "Laser2TurnedOn",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 2",
+            "role": "on"
           },
           {
             "key": "WaveLockMarg2",
@@ -236,7 +290,9 @@
             "name": "WaveLockMarg2",
             "label": "WaveLockMarg2",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser 2",
+            "role": ""
           }
         ]
       }
@@ -256,7 +312,9 @@
             "name": "RemSync",
             "label": "Remote synchronization",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PLLConVol",
@@ -264,7 +322,9 @@
             "name": "PLLConVol",
             "label": "PLL control voltage",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PPSSigDet",
@@ -272,7 +332,9 @@
             "name": "PPSSigDet",
             "label": "PPS signal detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "RecOptPow",
@@ -280,7 +342,9 @@
             "name": "RecOptPow",
             "label": "Received optical power",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "InnerTemp",
@@ -288,7 +352,9 @@
             "name": "InnerTemp",
             "label": "Case temperature",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "PPSAdvance",
@@ -296,7 +362,9 @@
             "name": "PPSAdvance",
             "label": "PPS advance",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "LaserLocked",
@@ -304,7 +372,9 @@
             "name": "LaserLocked",
             "label": "Laser wavelength locked",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": "locked"
           },
           {
             "key": "LaserTEC",
@@ -312,7 +382,9 @@
             "name": "LaserTEC",
             "label": "Laser temperature control",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": ""
           },
           {
             "key": "LaserTurnedOn",
@@ -320,7 +392,9 @@
             "name": "LaserTurnedOn",
             "label": "Laser on",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": "on"
           },
           {
             "key": "WaveLockMarg",
@@ -328,7 +402,9 @@
             "name": "WaveLockMarg",
             "label": "Wavelength locker margin",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": ""
           }
         ]
       },
@@ -343,7 +419,9 @@
             "name": "RemSync",
             "label": "Remote synchronization",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PLLConVol",
@@ -351,7 +429,9 @@
             "name": "PLLConVol",
             "label": "PLL control voltage",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "PPSSigDet",
@@ -359,7 +439,9 @@
             "name": "PPSSigDet",
             "label": "PPS signal detected",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "RecOptPow1",
@@ -367,7 +449,9 @@
             "name": "RecOptPow1",
             "label": "RecOptPow1",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "RecOptPow2",
@@ -375,7 +459,9 @@
             "name": "RecOptPow2",
             "label": "RecOptPow2",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "InnerTemp",
@@ -383,7 +469,9 @@
             "name": "InnerTemp",
             "label": "Case temperature",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Receiver",
+            "role": ""
           },
           {
             "key": "PPSAdvance",
@@ -391,7 +479,9 @@
             "name": "PPSAdvance",
             "label": "PPS advance",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Synchronization",
+            "role": ""
           },
           {
             "key": "LaserLocked",
@@ -399,7 +489,9 @@
             "name": "LaserLocked",
             "label": "Laser wavelength locked",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": "locked"
           },
           {
             "key": "LaserTEC",
@@ -407,7 +499,9 @@
             "name": "LaserTEC",
             "label": "Laser temperature control",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": ""
           },
           {
             "key": "LaserTurnedOn",
@@ -415,7 +509,9 @@
             "name": "LaserTurnedOn",
             "label": "Laser on",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": "on"
           },
           {
             "key": "WaveLockMarg",
@@ -423,7 +519,9 @@
             "name": "WaveLockMarg",
             "label": "Wavelength locker margin",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "group": "Laser",
+            "role": ""
           }
         ]
       }
@@ -443,7 +541,9 @@
             "name": "Operation mode, constatnt:",
             "label": "Operating mode",
             "type": "text",
-            "unit": ""
+            "unit": "",
+            "role": "mode",
+            "group": "Amplifier"
           },
           {
             "key": "pump_current",
@@ -451,7 +551,9 @@
             "name": "SPBA pump current",
             "label": "SPBA pump current",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "pump",
+            "group": "Amplifier"
           },
           {
             "key": "temperature",
@@ -459,7 +561,9 @@
             "name": "Temperature",
             "label": "Temperature",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "temperature",
+            "group": "Temperature"
           },
           {
             "key": "gain",
@@ -467,7 +571,9 @@
             "name": "Gain",
             "label": "Actual gain",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "gain",
+            "group": "Amplifier"
           },
           {
             "key": "direction",
@@ -475,7 +581,9 @@
             "name": "Transfer direction",
             "label": "Transfer direction",
             "type": "text",
-            "unit": ""
+            "unit": "",
+            "role": "direction",
+            "group": "Amplifier"
           },
           {
             "key": "input_east",
@@ -483,7 +591,9 @@
             "name": "Input power EAST port",
             "label": "Input power EAST port",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "input_b",
+            "group": "Optical power"
           },
           {
             "key": "input_west",
@@ -491,7 +601,9 @@
             "name": "Input power WEST port",
             "label": "Input power WEST port",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "input_a",
+            "group": "Optical power"
           },
           {
             "key": "output_east",
@@ -499,7 +611,9 @@
             "name": "Output power EAST port",
             "label": "Output power EAST port",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "output_a",
+            "group": "Optical power"
           },
           {
             "key": "output_west",
@@ -507,7 +621,9 @@
             "name": "Output power WEST port",
             "label": "Output power WEST port",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "output_b",
+            "group": "Optical power"
           }
         ]
       }
@@ -527,7 +643,9 @@
             "name": "Gain",
             "label": "Actual gain",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "gain",
+            "group": "Amplifier"
           },
           {
             "key": "GainSet",
@@ -535,7 +653,9 @@
             "name": "GainSet",
             "label": "Gain setpoint",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "gain_set",
+            "group": "Amplifier"
           },
           {
             "key": "PumpI",
@@ -543,7 +663,9 @@
             "name": "PumpI",
             "label": "Pump current",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "pump",
+            "group": "Amplifier"
           },
           {
             "key": "Temp",
@@ -551,7 +673,9 @@
             "name": "Temp",
             "label": "Temperature",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "temperature",
+            "group": "Temperature"
           },
           {
             "key": "PiAdc",
@@ -559,7 +683,9 @@
             "name": "PiAdc",
             "label": "PiAdc",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "input_a",
+            "group": "Optical power"
           },
           {
             "key": "PiBdc",
@@ -567,7 +693,9 @@
             "name": "PiBdc",
             "label": "PiBdc",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "input_b",
+            "group": "Optical power"
           },
           {
             "key": "PiAac",
@@ -575,7 +703,9 @@
             "name": "PiAac",
             "label": "PiAac",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "",
+            "group": "Optical power"
           },
           {
             "key": "PiBac",
@@ -583,7 +713,9 @@
             "name": "PiBac",
             "label": "PiBac",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "",
+            "group": "Optical power"
           },
           {
             "key": "PoBdc",
@@ -591,7 +723,9 @@
             "name": "PoBdc",
             "label": "PoBdc",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "output_a",
+            "group": "Optical power"
           },
           {
             "key": "PoAdc",
@@ -599,7 +733,9 @@
             "name": "PoAdc",
             "label": "PoAdc",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "output_b",
+            "group": "Optical power"
           },
           {
             "key": "PoBac",
@@ -607,7 +743,9 @@
             "name": "PoBac",
             "label": "PoBac",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "",
+            "group": "Optical power"
           },
           {
             "key": "PoAac",
@@ -615,7 +753,9 @@
             "name": "PoAac",
             "label": "PoAac",
             "type": "number",
-            "unit": ""
+            "unit": "",
+            "role": "",
+            "group": "Optical power"
           }
         ]
       }

@@ -1,6 +1,9 @@
 """Inventory and live data for independently running devices."""
 
+import csv
 import datetime
+import io
+import threading
 
 import fastapi
 
@@ -9,9 +12,49 @@ from app.api import security as api_security
 from app.core import config, state
 from app.devices.registry import DEVICES
 from app.services import database as database_service
+from app.services.device_statistics import scalar_fields
 
 router = fastapi.APIRouter(prefix="/api/devices")
 viewer = fastapi.Depends(api_security.require_roles("Administrator", "Operator", "Viewer"))
+CSV_EXPORT_LOCK = threading.Lock()
+
+
+@router.get("/{device_id}/history/export.csv")
+def export_device_history(device_id: str, range: str = "5m", _current_user: dict = viewer):
+    """Stream complete per-device history without the chart downsampling limit."""
+    require_enabled(device_id)
+    range, _, _ = history_api.normalize_history_request(range, None, None)
+    if not CSV_EXPORT_LOCK.acquire(blocking=False):
+        raise fastapi.HTTPException(status_code=429, detail="Another CSV export is in progress")
+    points = database_service.stream_device_snapshots(device_id, range)
+    if points is None:
+        CSV_EXPORT_LOCK.release()
+        raise fastapi.HTTPException(status_code=503, detail="History database is unavailable")
+
+    def rows():
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=";")
+        try:
+            writer.writerow(["time", "field", "value"])
+            for point in points:
+                for key, value in scalar_fields(point["snapshot"].get("values", {})).items():
+                    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
+                        value = "'" + value
+                    writer.writerow([point["time"], key, value])
+                if output.tell() >= 65536:
+                    yield output.getvalue()
+                    output.seek(0)
+                    output.truncate(0)
+            yield output.getvalue()
+        finally:
+            points.close()
+            CSV_EXPORT_LOCK.release()
+
+    return fastapi.responses.StreamingResponse(
+        rows(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{device_id}-history.csv"'},
+    )
 
 
 def require_enabled(device_id: str) -> None:
@@ -53,9 +96,7 @@ def latest(device_id: str, _current_user: dict = viewer):
         "error": live["error"],
         "last_update": live["last_update"],
         "system_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "last_known_gain_set": state.last_known_gain_set if device_id == "amplifier" else None,
         "data": live["data"],
-        "fts_ls": live["data"] if device_id == "fts-ls" else None,
         "database": database_service.get_runtime_status(device_id),
     }
 
@@ -90,11 +131,7 @@ def statistics(
 
     require_enabled(device_id)
     range, start, end = history_api.normalize_history_request(range, start, end)
-    result = (
-        database_service.query_statistics(range, start, end)
-        if device_id == "amplifier"
-        else database_service.query_device_statistics(device_id, range, start, end)
-    )
+    result = database_service.query_device_statistics(device_id, range, start, end)
     if result is None:
         raise fastapi.HTTPException(status_code=503, detail="History database is unavailable")
     return {"device_id": device_id, "range": range, "start": start, "end": end, **result}

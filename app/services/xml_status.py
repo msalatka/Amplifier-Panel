@@ -8,7 +8,6 @@ import xml.etree.ElementTree as ET
 
 from app.core import config, state
 from app.devices import runtime
-from app.devices.registry import DEVICES
 
 MAX_XML_BYTES = 1_000_000
 
@@ -90,6 +89,9 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                         "key": field["key"],
                         "label": field.get("label", field["key"]),
                         "unit": field.get("unit", ""),
+                        "group": field.get("group", "Measurements"),
+                        "role": field.get("role", ""),
+                        "type": field.get("type", "number"),
                     }
                 )
             values[section["key"]] = section_values
@@ -114,7 +116,7 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
 
 def poll_once() -> None:
     """Read one bounded snapshot and isolate missing sections by device."""
-    enabled = [key for key in config.ENABLED_DEVICES if DEVICES[key].view_profile == "xml"]
+    enabled = config.ENABLED_DEVICES
     try:
         mapping = load_mapping()
         path = pathlib.Path(config.XML_STATUS_FILE)

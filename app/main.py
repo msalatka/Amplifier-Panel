@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 import hashlib
-import importlib
 import pathlib
 import threading
 
@@ -13,11 +12,8 @@ import fastapi.templating
 import starlette.requests
 
 from app.api import auth as auth_routes
-from app.api import dashboard as dashboard_routes
 from app.api import devices as device_routes
 from app.api import diagnostics as service_routes
-from app.api import fts_ls as fts_ls_routes
-from app.api import history as history_routes
 from app.core import config, state
 from app.devices.registry import DEVICES
 from app.services import database as database_service
@@ -64,27 +60,8 @@ async def lifespan(_app: fastapi.FastAPI):
     state.save_persisted_state()
     snmp_service.init_snmp()
     state.stop_event.clear()
-    workers = []
-    if any(DEVICES[key].view_profile == "xml" for key in config.ENABLED_DEVICES):
-        thread = threading.Thread(target=xml_reader_loop, name="xml-reader", daemon=True)
-        thread.start()
-        workers.append(thread)
-    for device_id in config.ENABLED_DEVICES:
-        definition = DEVICES[device_id]
-        if definition.view_profile == "xml":
-            continue
-        if definition.worker is None:
-            state.update_device_live(
-                device_id,
-                connected=False,
-                error="Waiting for the station daemon XML interface.",
-            )
-            continue
-        module_name, function_name = definition.worker.split(":", 1)
-        worker = getattr(importlib.import_module(module_name), function_name)
-        thread = threading.Thread(target=worker, name=f"{device_id}-reader", daemon=True)
-        thread.start()
-        workers.append(thread)
+    worker = threading.Thread(target=xml_reader_loop, name="xml-reader", daemon=True)
+    worker.start()
     syslog_service.send_lifecycle("started")
     service_routes.heartbeat_settings_changed.clear()
     heartbeat_task = asyncio.create_task(syslog_heartbeat_loop())
@@ -96,8 +73,7 @@ async def lifespan(_app: fastapi.FastAPI):
         await heartbeat_task
     syslog_service.send_lifecycle("stopped", reason="graceful_shutdown")
     state.stop_event.set()
-    for worker in workers:
-        worker.join(timeout=2)
+    worker.join(timeout=2)
     snmp_service.close_snmp()
     database_service.close_database()
 
@@ -105,11 +81,8 @@ async def lifespan(_app: fastapi.FastAPI):
 app = fastapi.FastAPI(lifespan=lifespan)
 app.mount("/static", fastapi.staticfiles.StaticFiles(directory="static"), name="static")
 app.include_router(auth_routes.router)
-app.include_router(dashboard_routes.router)
-app.include_router(history_routes.router)
 app.include_router(service_routes.router)
 app.include_router(device_routes.router)
-app.include_router(fts_ls_routes.router)
 
 templates = fastapi.templating.Jinja2Templates(directory="templates")
 
@@ -145,6 +118,7 @@ def home(request: starlette.requests.Request, device: str | None = None):
             "static_asset_version": STATIC_ASSET_VERSION,
             "device_profile": DEVICES[selected].view_profile,
             "selected_device": selected,
+            "device_label": DEVICES[selected].label,
             "devices": [DEVICES[device_id] for device_id in config.ENABLED_DEVICES],
         },
     )

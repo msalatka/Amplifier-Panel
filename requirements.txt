@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-pyserial
 jinja2
 pysnmp
 pyrad>=2.5.4

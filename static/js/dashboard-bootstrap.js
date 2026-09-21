@@ -1,19 +1,12 @@
-// Profile dispatch, startup and periodic refresh scheduling.
 function updateOverviewCharts() {
-	if (deviceProfile === 'xml') return loadXmlHistory()
-	return deviceProfile === 'fts-ls' ? loadFtsOverview() : updateAmplifierOverviewCharts()
+	return loadXmlHistory()
 }
-
 function updateStatisticsTable() {
-	if (deviceProfile === 'xml') return loadXmlStatistics()
-	return deviceProfile === 'fts-ls' ? loadFtsStatistics() : updateAmplifierStatisticsTable()
+	return loadXmlStatistics()
 }
-
 async function startDataRefresh() {
-	if (selectedDeviceId === 'amplifier') await loadSettings()
 	await refreshDeviceList()
 	await updateDashboard()
-	if (selectedDeviceId === 'amplifier') await updateWarningsTable()
 	await updateStatisticsTable()
 
 	if (isAdministrator()) {
@@ -39,13 +32,8 @@ async function refreshDeviceList() {
 	}
 }
 
-setupSettingsButtons()
-setupWarningFilters()
-setupRangeButtons()
 setupAccessControl()
 setupAuth()
-setupChartExpansion()
-setupFtsControls()
 
 checkAuth().then((isAuthenticated) => {
 	if (isAuthenticated) {
@@ -55,7 +43,6 @@ checkAuth().then((isAuthenticated) => {
 
 setInterval(updateDashboard, 1000)
 setInterval(refreshDeviceList, 3000)
-setInterval(() => { if (selectedDeviceId === 'amplifier') updateWarningsTable() }, 3000)
 setInterval(() => {
 	if (!currentUser) return
 
@@ -63,8 +50,9 @@ setInterval(() => {
 	if (
 		overviewTab &&
 		overviewTab.classList.contains('active') &&
-		!overviewRequestController &&
-		Date.now() - lastOverviewChartRefresh >= historyRefreshInterval(overviewRange)
+		!xmlHistoryBusy &&
+		Date.now() - lastOverviewChartRefresh >=
+			historyRefreshInterval(document.getElementById('xml-history-range').value)
 	) {
 		updateOverviewCharts()
 	}
@@ -80,8 +68,9 @@ setInterval(() => {
 	if (
 		statisticsTab &&
 		statisticsTab.classList.contains('active') &&
-		!statisticsRequestController &&
-		Date.now() - lastStatisticsRefresh >= historyRefreshInterval(statisticsRange)
+		!xmlStatisticsBusy &&
+		Date.now() - lastStatisticsRefresh >=
+			historyRefreshInterval(document.getElementById('xml-statistics-range').value)
 	) {
 		updateStatisticsTable()
 	}

@@ -358,33 +358,23 @@ function updateDatabaseLimitPreview() {
 async function loadServiceDiagnostics() {
 	if (!isAdministrator() || !document.getElementById('service-database-state')) return
 	try {
-		const response = await fetch(`/api/service-diagnostics?device=${encodeURIComponent(deviceProfile)}`)
+		const response = await fetch(
+			`/api/service-diagnostics?device=${encodeURIComponent(selectedDeviceId)}`,
+		)
 		handleAuthResponse(response)
 		const data = await response.json()
 		if (!response.ok) throw new Error(data.detail || 'Could not read service diagnostics')
-		const serial = data.serial || {}
+		const acquisition = data.acquisition || {}
 		const database = data.database || {}
 		const syslog = data.syslog || {}
 		latestServiceDatabase = database
-		setTextIfExists('service-serial-state', serial.connected ? 'CONNECTED' : 'DISCONNECTED')
-		setTextIfExists('service-serial-port', serial.port || '--')
-		setTextIfExists('service-serial-baudrate', String(serial.baudrate ?? '--'))
-		setTextIfExists('service-serial-error', serial.error || 'None')
-		const serialPortInput = document.getElementById('service-serial-port-input')
-		if (serialPortInput && !serviceSettingsDirty) {
-			const ports = Array.from(
-				new Set([serial.port, ...(serial.available_ports || [])].filter(Boolean)),
-			)
-			serialPortInput.replaceChildren(
-				...ports.map((port) => {
-					const option = document.createElement('option')
-					option.value = port
-					option.textContent = port
-					return option
-				}),
-			)
-			serialPortInput.value = serial.port || ports[0] || ''
-		}
+		setTextIfExists(
+			'service-source-state',
+			acquisition.connected ? 'CONNECTED' : 'DISCONNECTED',
+		)
+		setTextIfExists('service-source-file', acquisition.file || '--')
+		setTextIfExists('service-source-interval', `${acquisition.poll_seconds ?? '--'} s`)
+		setTextIfExists('service-source-error', acquisition.error || 'None')
 		setTextIfExists('service-database-state', String(database.state || '--').toUpperCase())
 		setTextIfExists('service-database-records', String(database.records ?? 0))
 		setTextIfExists(
@@ -479,8 +469,7 @@ serviceSettingsForm?.addEventListener('submit', async (event) => {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				device_id: deviceProfile,
-				serial_port: document.getElementById('service-serial-port-input')?.value || null,
+				device_id: selectedDeviceId,
 				syslog_heartbeat_seconds: heartbeatEnabled
 					? Number(document.getElementById('service-heartbeat-input').value)
 					: 0,

@@ -19,12 +19,10 @@ def publish_snapshot(
     snapshot: dict,
     timestamp: str | None = None,
 ) -> bool:
-    """Publish a validated non-amplifier observation to live state and SQLite."""
+    """Publish a validated device observation to live state and SQLite."""
 
     if device_id not in config.ENABLED_DEVICES or device_id not in DEVICES:
         raise ValueError(f"Device is not enabled: {device_id}")
-    if device_id == "amplifier":
-        raise ValueError("The amplifier uses its optimized numeric measurement writer")
     if not isinstance(snapshot, dict):
         raise ValueError("Device snapshot must be a mapping")
     try:
@@ -34,9 +32,11 @@ def publish_snapshot(
     if len(payload) > 1_000_000:
         raise ValueError("Device snapshot exceeds the 1 MB safety limit")
     try:
-        observed_at = datetime.datetime.fromisoformat(
-            timestamp.replace("Z", "+00:00")
-        ) if timestamp else datetime.datetime.now(datetime.timezone.utc)
+        observed_at = (
+            datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            if timestamp
+            else datetime.datetime.now(datetime.timezone.utc)
+        )
     except ValueError as exc:
         raise ValueError("Invalid device observation timestamp") from exc
     if observed_at.tzinfo is None:
@@ -50,9 +50,6 @@ def publish_snapshot(
         last_update=now,
         data=copy.deepcopy(snapshot),
     )
-    if device_id == "fts-ls":
-        with state.state_lock:
-            state.fts_ls_status = copy.deepcopy(snapshot)
     return stored
 
 

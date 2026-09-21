@@ -36,28 +36,6 @@ def _env_float(name: str, default: float) -> float:
     return parsed if math.isfinite(parsed) else default
 
 
-def _gain_bounds(
-    minimum_value: str | None,
-    maximum_value: str | None,
-) -> tuple[float, float]:
-    if minimum_value is None and maximum_value is None:
-        # Allows isolated unit tests and direct developer imports. Production
-        # configuration should set both variables explicitly.
-        return -100.0, 100.0
-    if not minimum_value or not maximum_value:
-        raise RuntimeError("GAIN_SET_MIN and GAIN_SET_MAX must both be configured.")
-    try:
-        minimum = float(minimum_value)
-        maximum = float(maximum_value)
-    except ValueError as exc:
-        raise RuntimeError("Gain setpoint limits must be numbers.") from exc
-    if not (math.isfinite(minimum) and math.isfinite(maximum) and minimum < maximum):
-        raise RuntimeError(
-            "Gain setpoint limits must be finite and GAIN_SET_MIN must be lower than GAIN_SET_MAX."
-        )
-    return minimum, maximum
-
-
 def _initial_admin_username(value: str | None) -> str:
     username = "admin" if value is None else value.strip()
     if not re.fullmatch(r"[A-Za-z0-9._@-]{1,128}", username):
@@ -71,20 +49,12 @@ try:
     ENABLED_DEVICES = parse_enabled_devices(os.getenv("ENABLED_DEVICES"))
 except ValueError as exc:
     raise RuntimeError(str(exc)) from exc
-SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyACM0")
 XML_STATUS_FILE = os.getenv("XML_STATUS_FILE", "data/status.xml")
 XML_MAPPING_FILE = os.getenv(
     "XML_MAPPING_FILE", str(pathlib.Path(__file__).parents[1] / "devices" / "xml_mapping.json")
 )
 XML_POLL_SECONDS = max(0.2, _env_float("XML_POLL_SECONDS", 2.0))
 XML_STALE_SECONDS = max(1.0, _env_float("XML_STALE_SECONDS", 60.0))
-SERIAL_BAUDRATE = _env_int("SERIAL_BAUDRATE", 9600)
-GAIN_SET_MIN, GAIN_SET_MAX = (
-    _gain_bounds(os.getenv("GAIN_SET_MIN"), os.getenv("GAIN_SET_MAX"))
-    if "amplifier" in ENABLED_DEVICES
-    else (-100.0, 100.0)
-)
-
 DEVICE_NAME = os.getenv("DEVICE_NAME", "unconfigured-device")
 INITIAL_ADMIN_USERNAME = _initial_admin_username(os.getenv("INITIAL_ADMIN_USERNAME"))
 INITIAL_ADMIN_PASSWORD_HASH = os.getenv("INITIAL_ADMIN_PASSWORD_HASH", "")

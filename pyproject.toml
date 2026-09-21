@@ -27,7 +27,6 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "D100", "D101", "D102", "D103"]
 "tests/test_network.py" = ["E701"]
-"tests/test_serial_service.py" = ["E402"]
 "app/services/snmp.py" = ["F403", "F405"]
 
 [tool.ruff.format]
@@ -40,12 +39,7 @@ python_version = "3.11"
 files = [
     "app/core/config.py",
     "app/core/device_schema.py",
-    "app/core/validation.py",
-    "app/core/fts_types.py",
-    "app/protocols/amplifier.py",
-    "app/protocols/fts_ls.py",
     "app/services/database_schema.py",
-    "app/services/database_statistics.py",
 ]
 check_untyped_defs = true
 no_implicit_optional = true
@@ -54,5 +48,5 @@ warn_unused_ignores = true
 exclude = "^(packaging/vendor|tests)/"
 
 [[tool.mypy.overrides]]
-module = ["serial", "pysnmp.*", "pyrad.*"]
+module = ["pysnmp.*", "pyrad.*"]
 ignore_missing_imports = true

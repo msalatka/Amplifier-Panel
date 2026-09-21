@@ -17,18 +17,6 @@ class ConfigParsingTests(unittest.TestCase):
             with self.subTest(value=value), mock.patch.dict(os.environ, {"TEST_FLOAT": value}):
                 self.assertEqual(config._env_float("TEST_FLOAT", 3.5), 3.5)
 
-    def test_gain_bounds_fail_closed_when_configured_values_are_invalid(self):
-        self.assertEqual(config._gain_bounds("0", "30"), (0.0, 30.0))
-        for minimum, maximum in (
-            ("", "30"),
-            ("0", ""),
-            ("30", "0"),
-            ("nan", "30"),
-            ("0", "inf"),
-        ):
-            with self.subTest(minimum=minimum, maximum=maximum), self.assertRaises(RuntimeError):
-                config._gain_bounds(minimum, maximum)
-
     def test_initial_admin_username_is_validated(self):
         self.assertEqual(
             config._initial_admin_username("radius-admin@example.com"),

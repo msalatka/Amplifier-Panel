@@ -49,14 +49,6 @@ read_answer port PORT
 read_answer data-dir DATA_DIR
 db_get amp-panel/enabled-devices || RET="local, remote, oba, oba3"
 enabled_devices=""
-case "${RET}" in
-    *amplifier*|*"Optical amplifier"*) enabled_devices=amplifier ;;
-esac
-case "${RET}" in
-    *fts-ls*|*"FTS-LS Laser Station"*)
-        if [ -n "${enabled_devices}" ]; then enabled_devices="${enabled_devices},fts-ls"; else enabled_devices=fts-ls; fi
-        ;;
-esac
 for xml_device in local remote oba oba3; do
     case ",$(printf '%s' "${RET}" | tr -d ' ')," in
         *",${xml_device},"*)
@@ -67,11 +59,6 @@ done
 read_answer xml-status-file XML_STATUS_FILE
 encoded_devices="$(printf '%s' "${enabled_devices:-local,remote,oba,oba3}" | base64 | tr -d '\n')"
 printf 'ENABLED_DEVICES_B64=%s\n' "${encoded_devices}" >>"${answers_file}"
-if [ "${enabled_devices}" = amplifier ] || [ "${enabled_devices}" = amplifier,fts-ls ]; then
-    read_answer serial-port SERIAL_PORT
-fi
-read_answer gain-min GAIN_MIN
-read_answer gain-max GAIN_MAX
 read_answer radius-server RADIUS_SERVER
 read_answer radius-port RADIUS_PORT
 read_answer radius-secret RADIUS_SECRET

@@ -7,17 +7,6 @@ if [ -f /etc/amp-panel/amp-panel.env ]; then
     exit 0
 fi
 
-db_get amp-panel/serial-port || RET=""
-if [ -z "${RET}" ]; then
-    if [ -e /dev/ttyACM0 ]; then
-        db_set amp-panel/serial-port /dev/ttyACM0
-    elif [ -e /dev/ttyUSB0 ]; then
-        db_set amp-panel/serial-port /dev/ttyUSB0
-    else
-        db_set amp-panel/serial-port /dev/ttyACM0
-    fi
-fi
-
 db_get amp-panel/mdns-hostname || RET=""
 if [ -z "${RET}" ]; then
     mdns_hostname="$(
@@ -39,13 +28,6 @@ db_input high amp-panel/auth-mode || true
 db_input high amp-panel/port || true
 db_input high amp-panel/data-dir || true
 db_input high amp-panel/xml-status-file || true
-case "${enabled_devices}" in
-    *amplifier*|*"Optical amplifier"*)
-        db_input high amp-panel/serial-port || true
-        db_input high amp-panel/gain-min || true
-        db_input high amp-panel/gain-max || true
-        ;;
-esac
 db_get amp-panel/auth-mode || RET="radius"
 case "${RET}" in
     local|"Local passwords on this device")

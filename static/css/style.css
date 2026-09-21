@@ -1294,10 +1294,7 @@ select {
 .notification.warning { border-left-color: #d7b66f; }
 .notification.error { border-left-color: #ff8585; }
 
-body[data-device-profile="amplifier"] .profile-fts-only,
-body[data-device-profile="fts-ls"] .profile-amplifier-only {
-    display: none !important;
-}
+
 
 .action-buttons select {
     padding: 7px 10px;
@@ -1728,11 +1725,21 @@ body[data-device-profile="fts-ls"] .profile-amplifier-only {
     .fts-module-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* XML devices use their own mapping-driven views. */
-body[data-device-profile="xml"] .profile-amplifier-only,
-body[data-device-profile="xml"] .profile-fts-only { display: none !important; }
-.xml-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
-.xml-metric { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid #dce3e8; border-radius: 8px; }
-.xml-metric strong { font-size: 1.4rem; overflow-wrap: anywhere; }
-#xml-live { display: grid; gap: 20px; }
-#xml-live.xml-stale .xml-metrics { opacity: .55; }
+
+/* XML data reuses the original amplifier and station presentation. */
+.device-heading { display:flex; justify-content:space-between; gap:24px; margin-bottom:24px; }
+.device-heading p { color:#9cb6a9; overflow-wrap:anywhere; }
+.device-heading h2 { margin:6px 0; }
+.device-measurements { margin-top:24px; padding:18px; border:1px solid #294438; border-radius:10px; }
+.device-measurements summary { cursor:pointer; }
+.xml-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }
+.xml-metric { padding:14px; border:1px solid #294438; border-radius:8px; }
+.xml-metric dt { color:#9cb6a9; }
+.xml-metric dd { margin:8px 0 0; font-weight:700; }
+.xml-stale { opacity:.5; }
+#xml-charts .chart-container { position:relative; height:300px; min-height:0; }
+#xml-charts .chart-card.expanded .chart-container { height:calc(100% - 48px); }
+#xml-charts canvas { height:100% !important; }
+.range-toolbar select { background:#12251c; color:#dfe8e3; padding:8px; border:1px solid #3d5149; border-radius:6px; }
+#xml-export { color:#80d9ae; }
+@media(max-width:700px) { .device-heading { flex-direction:column; gap:8px; } }

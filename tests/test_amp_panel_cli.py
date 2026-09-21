@@ -150,7 +150,7 @@ class AmpPanelCliTests(unittest.TestCase):
             values.update(
                 {
                     "AMP_PANEL_PORT": "8123",
-                    "ENABLED_DEVICES": "amplifier,fts-ls",
+                    "ENABLED_DEVICES": "local,remote,oba,oba3",
                     "RADIUS_SECRET": 'space and "quotes" = # safe',
                 }
             )
@@ -160,8 +160,12 @@ class AmpPanelCliTests(unittest.TestCase):
             self.assertEqual(amp_panel_cli.read_env_file(path), values)
             content = path.read_text(encoding="utf-8")
             self.assertIn("# --- Browser authentication ---", content)
-            self.assertIn("# RADIUS shared secret; required when AUTH_MODE=radius. Keep it private.", content)
-            self.assertIn("# Web interface TCP port: integer from 1024 to 65535, for example 8000.", content)
+            self.assertIn(
+                "# RADIUS shared secret; required when AUTH_MODE=radius. Keep it private.", content
+            )
+            self.assertIn(
+                "# Web interface TCP port: integer from 1024 to 65535, for example 8000.", content
+            )
 
     def test_each_configuration_key_has_a_help_comment(self):
         self.assertEqual(set(amp_panel_cli.CONFIG_KEYS), set(amp_panel_cli.CONFIG_HELP))
@@ -184,7 +188,9 @@ class AmpPanelCliTests(unittest.TestCase):
                     side_effect=write_unknown_key,
                 ),
             ):
-                with self.assertRaisesRegex(amp_panel_cli.ConfigurationError, "Unknown configuration key"):
+                with self.assertRaisesRegex(
+                    amp_panel_cli.ConfigurationError, "Unknown configuration key"
+                ):
                     amp_panel_cli.edit_configuration(values)
 
     def test_encoded_installer_answers_preserve_special_characters(self):
@@ -203,10 +209,10 @@ class AmpPanelCliTests(unittest.TestCase):
 
         self.assertEqual(values["RADIUS_SECRET"], secret)
 
-    def test_fts_ls_installer_answers_do_not_write_serial_configuration(self):
+    def test_xml_installer_answers_do_not_write_serial_configuration(self):
         values = amp_panel_cli.default_configuration()
         answers = {
-            "enabled_devices_b64": base64.b64encode(b"fts-ls").decode(),
+            "enabled_devices_b64": base64.b64encode(b"local,remote").decode(),
         }
         with mock.patch.object(
             amp_panel_cli,
@@ -215,7 +221,7 @@ class AmpPanelCliTests(unittest.TestCase):
         ):
             amp_panel_cli._apply_answers(values, answers)
 
-        self.assertEqual(values["ENABLED_DEVICES"], "fts-ls")
+        self.assertEqual(values["ENABLED_DEVICES"], "local,remote")
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "amp-panel.env"
             amp_panel_cli.write_env_file(path, values)
