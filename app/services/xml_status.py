@@ -157,7 +157,19 @@ def poll_once() -> None:
             state.update_device_live(key, data=snapshot)
             runtime.report_failure(key, "No matching section in status.xml")
         else:
-            runtime.publish_snapshot(key, snapshot, timestamp=modified_at)
+            previous = state.snapshot_device_live(key)
+            if previous.get("data", {}).get("values") != snapshot["values"]:
+                runtime.publish_snapshot(key, snapshot, timestamp=modified_at)
+            else:
+                # A fresh, valid XML file confirms that this section is still
+                # available, but unchanged measurements are not new history.
+                state.update_device_live(
+                    key,
+                    connected=True,
+                    error=None,
+                    last_update=modified_at,
+                    data=snapshot,
+                )
             if snapshot["issues"]:
                 state.update_device_live(key, error="; ".join(snapshot["issues"]))
 

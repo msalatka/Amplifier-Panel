@@ -25,7 +25,7 @@ async function refreshDeviceList() {
 			const status = [...document.querySelectorAll('[data-device-status]')].find(
 				(element) => element.dataset.deviceStatus === device.id,
 			)
-			if (status) status.textContent = device.connected ? 'Connected' : 'Disconnected'
+			if (status) status.textContent = device.connected ? 'Data current' : 'No current data'
 		}
 	} catch (error) {
 		console.error('Could not refresh device list:', error)

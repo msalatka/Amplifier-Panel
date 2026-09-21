@@ -25,8 +25,11 @@ class DashboardUiTests(unittest.TestCase):
 
     def test_station_view_has_no_xml_implementation_badge(self):
         script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
+        live_template = (ROOT / "templates" / "device-live.html").read_text(encoding="utf-8")
 
         self.assertNotIn("Reported in XML", script)
+        self.assertNotIn("device-source-time", live_template)
+        self.assertNotIn("systemName", script)
         self.assertIn("fts-station-group", script)
 
     def test_amplifier_single_secondary_value_uses_full_row(self):

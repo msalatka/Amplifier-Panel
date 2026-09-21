@@ -55,9 +55,11 @@ Po naprawie pliku odczyt wznowi się automatycznie.
 Widok wybiera się w rozwijanym menu **Amp Panel**. Każdy ma dane bieżące,
 wykres wybranego pola oraz statystyki z ostatniej godziny. Brak sekcji DI jest
 wyświetlany jako brak sekcji; nie oznacza awarii obecnego wariantu podstawowego.
-Obecność sekcji w pliku oznacza tylko dostępność danych, nie potwierdza
-fizycznego podłączenia modułu. Brak pola lub błędna wartość daje `--` i komunikat,
-a nie sztuczne zero. Historia rejestruje obserwację przy każdym poprawnym odczycie.
+Obecność sekcji w świeżym pliku oznacza dostępność aktualnego źródła danych, nie
+potwierdza fizycznego podłączenia modułu. Dlatego interfejs pokazuje **Data current**
+zamiast **Connected**. Brak pola lub błędna wartość daje `--` i komunikat, a nie
+sztuczne zero. Historia rejestruje nowy snapshot tylko dla urządzenia, którego
+wartości się zmieniły; zmiana OBA3 nie tworzy kopii historii Local, Remote ani OBA.
 
 ## Zmiana nazw bez modyfikowania kodu strony
 

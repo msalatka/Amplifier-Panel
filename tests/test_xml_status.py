@@ -105,6 +105,38 @@ class XmlStatusTests(unittest.TestCase):
                 xml_status.poll_once()
                 self.assertEqual(publish.call_count, 1)
 
+    def test_poll_stores_history_only_for_devices_whose_values_changed(self):
+        snapshots = xml_status.parse_status(self.payload, self.mapping)
+        previous = {
+            key: {"last_update": "earlier", "data": snapshot}
+            for key, snapshot in snapshots.items()
+        }
+        changed_payload = self.payload.replace(
+            b"<name>Gain</name>\n      <value>30</value>",
+            b"<name>Gain</name>\n      <value>31</value>",
+            1,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "status.xml"
+            path.write_bytes(changed_payload)
+            with (
+                mock.patch.object(config, "XML_STATUS_FILE", str(path)),
+                mock.patch.object(config, "ENABLED_DEVICES", tuple(snapshots)),
+                mock.patch.object(
+                    xml_status.state,
+                    "snapshot_device_live",
+                    side_effect=lambda key: previous[key],
+                ),
+                mock.patch.object(xml_status.state, "update_device_live") as update,
+                mock.patch.object(xml_status.runtime, "publish_snapshot") as publish,
+            ):
+                xml_status.poll_once()
+
+        publish.assert_called_once()
+        self.assertEqual(publish.call_args.args[0], "oba3")
+        self.assertEqual(update.call_count, 3)
+
     def test_history_rejects_disabled_device(self):
         with mock.patch.object(config, "ENABLED_DEVICES", ("oba3",)):
             with self.assertRaises(Exception) as caught:

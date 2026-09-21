@@ -1,5 +1,11 @@
 <section class="tab-panel active" data-tab="standard-view">
-    <div class="device-heading"><div><span class="fts-eyebrow">Optical equipment</span><h2 id="device-live-title">{{ device_label }}</h2><p id="device-source-time"></p></div><p id="device-source-message" role="status">Waiting for status.xml</p></div>
+    <div class="device-heading">
+        <div>
+            <span class="fts-eyebrow">Optical equipment</span>
+            <h2 id="device-live-title">{{ device_label }}</h2>
+        </div>
+        <p id="device-source-message" role="status">Waiting for status.xml</p>
+    </div>
     {% if device_profile == 'amplifier' %}
     <div id="device-live-board" class="standard-grid">
                         <div class="amp-board">

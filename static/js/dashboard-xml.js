@@ -23,10 +23,6 @@ function renderXmlStatus(result) {
 	const sections = snapshot.sections || []
 	setTextIfExists('device-live-title', snapshot.label || document.body.dataset.deviceLabel)
 	setTextIfExists(
-		'device-source-time',
-		`${snapshot.module?.systemName || ''}${snapshot.module?.systemType ? ` · ${snapshot.module.systemType}` : ''}`,
-	)
-	setTextIfExists(
 		'device-source-message',
 		result.error || (result.connected ? '' : 'Waiting for status.xml'),
 	)
@@ -129,7 +125,7 @@ async function updateDashboard() {
 		setTextIfExists('status-system-time', formatTime(result.system_time))
 		updateDatabaseStatus(result.database)
 		const status = document.getElementById('status-connection')
-		status.textContent = result.connected ? 'CONNECTED' : 'DISCONNECTED'
+		status.textContent = result.connected ? 'DATA CURRENT' : 'NO CURRENT DATA'
 		status.className = result.connected ? 'status-ok' : 'status-error'
 	} catch (error) {
 		setTextIfExists('device-source-message', error.message)
