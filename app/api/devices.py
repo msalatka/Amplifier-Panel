@@ -6,6 +6,8 @@ import io
 import threading
 
 import fastapi
+import pydantic
+import starlette.requests
 
 from app.api import history as history_api
 from app.api import security as api_security
@@ -17,6 +19,12 @@ from app.services.device_statistics import scalar_fields
 router = fastapi.APIRouter(prefix="/api/devices")
 viewer = fastapi.Depends(api_security.require_roles("Administrator", "Operator", "Viewer"))
 CSV_EXPORT_LOCK = threading.Lock()
+
+
+class LiveFieldsUpdate(pydantic.BaseModel):
+    """Ordered measurement identifiers shown below amplifier gain."""
+
+    fields: list[str] = pydantic.Field(max_length=64)
 
 
 @router.get("/{device_id}/history/export.csv")
@@ -98,7 +106,55 @@ def latest(device_id: str, _current_user: dict = viewer):
         "system_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "data": live["data"],
         "database": database_service.get_runtime_status(device_id),
+        "live_fields": state.device_live_fields.get(device_id, []),
     }
+
+
+def _available_field_ids(device_id: str) -> set[str]:
+    live = state.snapshot_device_live(device_id)
+    return {
+        f"{section['key']}:{field['key']}"
+        for section in live["data"].get("sections", [])
+        for field in section.get("fields", [])
+    }
+
+
+@router.put("/{device_id}/live-fields")
+def update_live_fields(
+    device_id: str,
+    body: LiveFieldsUpdate,
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(
+        api_security.require_roles("Administrator", "Operator")
+    ),
+):
+    """Persist the shared amplifier live-view layout."""
+    require_enabled(device_id)
+    if DEVICES[device_id].view_profile != "amplifier":
+        raise fastapi.HTTPException(status_code=409, detail="Only amplifier fields can be pinned")
+    fields = list(dict.fromkeys(body.fields))
+    available = _available_field_ids(device_id)
+    unknown = [field for field in fields if field not in available]
+    if unknown:
+        raise fastapi.HTTPException(status_code=422, detail=f"Unknown fields: {', '.join(unknown)}")
+
+    with state.state_lock:
+        before = list(state.device_live_fields.get(device_id, []))
+        state.device_live_fields[device_id] = fields
+    try:
+        state.save_persisted_state()
+    except OSError as exc:
+        with state.state_lock:
+            state.device_live_fields[device_id] = before
+        raise fastapi.HTTPException(status_code=500, detail="Could not save live view") from exc
+
+    api_security.audit_event(
+        request,
+        "device_live_fields_updated",
+        current_user["username"],
+        f"device={device_id}; fields={','.join(fields)}",
+    )
+    return {"device_id": device_id, "live_fields": fields}
 
 
 @router.get("/{device_id}/history")

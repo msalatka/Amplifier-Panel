@@ -32,10 +32,11 @@ class DashboardUiTests(unittest.TestCase):
         self.assertNotIn("systemName", script)
         self.assertIn("fts-station-group", script)
 
-    def test_amplifier_single_secondary_value_uses_full_row(self):
+    def test_amplifier_pinned_fields_use_shared_live_row(self):
         script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
 
-        self.assertIn("single-readout", script)
+        self.assertIn("amp-pinned-metrics", script)
+        self.assertIn("result.live_fields", script)
 
     def test_boolean_measurements_are_rendered_as_true_or_false(self):
         script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
@@ -47,6 +48,15 @@ class DashboardUiTests(unittest.TestCase):
         stylesheet = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
 
         self.assertIn("grid-template-columns: repeat(4, minmax(0, 1fr));", stylesheet)
+
+    def test_amplifier_live_fields_are_shared_and_hidden_from_viewers(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
+        template = (ROOT / "templates" / "device-live.html").read_text(encoding="utf-8")
+
+        self.assertIn("/live-fields`,", script)
+        self.assertIn("Add to live view", script)
+        self.assertIn('id="amp-pinned-metrics"', template)
+        self.assertIn('class="device-measurements" data-operator-only', template)
 
 
 if __name__ == "__main__":

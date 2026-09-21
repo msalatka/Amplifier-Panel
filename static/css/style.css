@@ -595,13 +595,9 @@ select {
 
 .metric-secondary-row {
     display: grid;
-    grid-template-columns: minmax(170px, 1fr) minmax(170px, 1fr);
-    gap: 72px;
-    width: min(100%, 620px);
-}
-
-.metric-secondary-row.single-readout {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 24px;
+    width: 100%;
 }
 
 .metric-item:not(.metric-primary) strong {
@@ -1619,6 +1615,7 @@ select {
 
 @media (max-width: 1250px) {
     .fts-station-systems { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .metric-secondary-row { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
 }
 
 @media (max-width: 1100px) {
@@ -1739,6 +1736,8 @@ select {
 .device-measurements summary { cursor:pointer; }
 .xml-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }
 .xml-metric { padding:14px; border:1px solid #294438; border-radius:8px; }
+.xml-metric button { margin-top:10px; width:100%; }
+.xml-metric.is-pinned { border-color:#4eb782; background:rgb(78 183 130 / 8%); }
 .xml-metric dt { color:#9cb6a9; }
 .xml-metric dd { margin:8px 0 0; font-weight:700; }
 .xml-stale { opacity:.5; }

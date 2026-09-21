@@ -21,6 +21,53 @@ class DashboardApiTests(unittest.TestCase):
         self.assertLessEqual(before, system_time)
         self.assertLessEqual(system_time, after)
 
+    def test_operator_can_persist_shared_amplifier_live_fields(self):
+        device_id = "oba3"
+        previous = list(devices.state.device_live_fields[device_id])
+        live = {
+            "data": {
+                "sections": [
+                    {"key": "oba3", "fields": [{"key": "Temp"}, {"key": "PumpI"}]}
+                ]
+            }
+        }
+        try:
+            with (
+                mock.patch.object(devices.config, "ENABLED_DEVICES", (device_id,)),
+                mock.patch.object(devices.state, "snapshot_device_live", return_value=live),
+                mock.patch.object(devices.state, "save_persisted_state") as save,
+                mock.patch.object(devices.api_security, "audit_event") as audit,
+            ):
+                result = devices.update_live_fields(
+                    device_id,
+                    devices.LiveFieldsUpdate(fields=["oba3:Temp", "oba3:PumpI"]),
+                    mock.Mock(),
+                    {"username": "operator", "role": "Operator"},
+                )
+            self.assertEqual(result["live_fields"], ["oba3:Temp", "oba3:PumpI"])
+            save.assert_called_once()
+            audit.assert_called_once()
+        finally:
+            devices.state.device_live_fields[device_id] = previous
+
+    def test_unknown_live_field_is_rejected(self):
+        with (
+            mock.patch.object(devices.config, "ENABLED_DEVICES", ("oba3",)),
+            mock.patch.object(
+                devices.state,
+                "snapshot_device_live",
+                return_value={"data": {"sections": []}},
+            ),
+            self.assertRaises(Exception) as caught,
+        ):
+            devices.update_live_fields(
+                "oba3",
+                devices.LiveFieldsUpdate(fields=["oba3:Unknown"]),
+                mock.Mock(),
+                {"username": "operator", "role": "Operator"},
+            )
+        self.assertEqual(caught.exception.status_code, 422)
+
 
 if __name__ == "__main__":
     unittest.main()

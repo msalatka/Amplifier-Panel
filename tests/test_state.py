@@ -27,6 +27,14 @@ class StateSecurityTests(unittest.TestCase):
         settings = state.merge_service_settings({"database_max_records": 0})
         self.assertEqual(settings["database_max_records"], 0)
 
+    def test_amplifier_live_fields_preserve_defaults_and_remove_duplicates(self):
+        fields = state.merge_device_live_fields(
+            {"oba3": ["oba3:Temp", "oba3:Temp", "oba3:PumpI"]}
+        )
+
+        self.assertEqual(fields["oba"], ["oba:temperature"])
+        self.assertEqual(fields["oba3"], ["oba3:Temp", "oba3:PumpI"])
+
     def test_fresh_install_uses_configured_admin_without_password(self):
         with mock.patch.object(
             config,

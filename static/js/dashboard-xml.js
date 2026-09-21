@@ -6,9 +6,14 @@ let xmlDashboardBusy = false
 let xmlLayoutSignature = ''
 const xmlCharts = new Map()
 let xmlGroups = []
+let amplifierLiveFields = []
 
 function fieldValue(snapshot, field) {
 	return snapshot.values?.[field.section]?.[field.key] ?? null
+}
+
+function fieldIdentifier(field) {
+	return `${field.section}:${field.key}`
 }
 
 function measurementText(snapshot, field) {
@@ -44,11 +49,17 @@ function renderXmlStatus(result) {
 			// OBA does not report a gain setpoint; do not manufacture one.
 			readout.parentElement.hidden = !field && !!sections.length
 		}
-		const secondaryRow = document.querySelector('.metric-secondary-row')
-		if (secondaryRow) {
-			const visibleReadouts = [...secondaryRow.children].filter((item) => !item.hidden)
-			secondaryRow.classList.toggle('single-readout', visibleReadouts.length === 1)
-		}
+		amplifierLiveFields = Array.isArray(result.live_fields) ? result.live_fields : []
+		const pinnedContainer = document.getElementById('amp-pinned-metrics')
+		const pinnedFields = amplifierLiveFields
+			.map((identifier) => xmlFields.find((field) => fieldIdentifier(field) === identifier))
+			.filter(Boolean)
+		pinnedContainer.innerHTML = pinnedFields
+			.map(
+				(field) =>
+					`<div class="metric-item"><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(measurementText(snapshot, field))}</strong></div>`,
+			)
+			.join('')
 	} else {
 		document.getElementById('device-live-board').innerHTML =
 			sections
@@ -82,10 +93,15 @@ function renderXmlStatus(result) {
 			(section) =>
 				`<article><h3>${escapeHtml(section.label)}</h3><dl class="xml-metrics">${xmlFields
 					.filter((f) => f.section === section.key)
-					.map(
-						(field) =>
-							`<div class="xml-metric"><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`,
-					)
+					.map((field) => {
+						const identifier = fieldIdentifier(field)
+						const pinned = amplifierLiveFields.includes(identifier)
+						const control =
+							deviceProfile === 'amplifier' && canOperate() && field.role !== 'gain'
+								? `<button type="button" data-live-field="${escapeHtml(identifier)}">${pinned ? 'Remove from live view' : 'Add to live view'}</button>`
+								: ''
+						return `<div class="xml-metric${pinned ? ' is-pinned' : ''}"><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd>${control}</div>`
+					})
 					.join('')}</dl></article>`,
 		)
 		.join('')
@@ -109,6 +125,32 @@ function renderXmlStatus(result) {
 		setupChartExpansion()
 		xmlLayoutSignature = signature
 		lastOverviewChartRefresh = 0
+	}
+}
+
+async function toggleAmplifierLiveField(identifier) {
+	if (!canOperate() || deviceProfile !== 'amplifier') return
+	const fields = amplifierLiveFields.includes(identifier)
+		? amplifierLiveFields.filter((field) => field !== identifier)
+		: [...amplifierLiveFields, identifier]
+	try {
+		const response = await fetch(
+			`/api/devices/${encodeURIComponent(selectedDeviceId)}/live-fields`,
+			{
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ fields }),
+			},
+		)
+		handleAuthResponse(response)
+		const result = await response.json()
+		if (!response.ok)
+			throw new Error(apiErrorMessage(result.detail, 'Could not save live view'))
+		amplifierLiveFields = result.live_fields
+		showNotification('Live view updated for all users.')
+		await updateDashboard()
+	} catch (error) {
+		showNotification(error.message || 'Could not save live view.', 'error')
 	}
 }
 
@@ -236,4 +278,9 @@ document.getElementById('xml-history-range').addEventListener('change', () => {
 document.getElementById('xml-statistics-range').addEventListener('change', () => {
 	lastStatisticsRefresh = 0
 	loadXmlStatistics()
+})
+
+document.getElementById('xml-live').addEventListener('click', (event) => {
+	const button = event.target.closest('[data-live-field]')
+	if (button) toggleAmplifierLiveField(button.dataset.liveField)
 })

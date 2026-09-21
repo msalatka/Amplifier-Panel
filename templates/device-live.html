@@ -49,16 +49,7 @@
                                     <span>Actual gain</span>
                                     <strong data-readout="gain">--</strong>
                                 </div>
-                                <div class="metric-secondary-row">
-                                    <div class="metric-item">
-                                        <span>Gain setpoint</span>
-                                        <strong data-readout="gain_set">--</strong>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span>Temperature</span>
-                                        <strong data-readout="temperature">--</strong>
-                                    </div>
-                                </div>
+                                <div id="amp-pinned-metrics" class="metric-secondary-row"></div>
                             </div>
 
                         </div>
@@ -66,5 +57,5 @@
     {% else %}
     <div id="device-live-board" class="fts-station" aria-label="Optical station panel"><p>Waiting for station data...</p></div>
     {% endif %}
-    <details class="device-measurements"><summary>All measurements</summary><div id="xml-live"></div></details>
+    <details class="device-measurements" data-operator-only><summary>All measurements</summary><div id="xml-live"></div></details>
 </section>

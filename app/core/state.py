@@ -24,6 +24,11 @@ DEFAULT_SERVICE_SETTINGS = {
     "database_max_records": config.DATABASE_MAX_RECORDS,
 }
 
+DEFAULT_DEVICE_LIVE_FIELDS = {
+    "oba": ["oba:temperature"],
+    "oba3": ["oba3:GainSet", "oba3:Temp"],
+}
+
 
 def load_persisted_state() -> dict:
     """Load persisted JSON state, returning defaults after any read failure."""
@@ -141,6 +146,20 @@ def merge_service_settings(saved_settings: dict | None) -> dict:
     return settings
 
 
+def merge_device_live_fields(saved_fields: dict | None) -> dict[str, list[str]]:
+    """Normalize globally selected amplifier fields while preserving defaults."""
+    result = copy.deepcopy(DEFAULT_DEVICE_LIVE_FIELDS)
+    if not isinstance(saved_fields, dict):
+        return result
+    for device_id in result:
+        fields = saved_fields.get(device_id)
+        if isinstance(fields, list):
+            result[device_id] = list(
+                dict.fromkeys(field for field in fields if isinstance(field, str) and field)
+            )[:64]
+    return result
+
+
 persisted_state = load_persisted_state()
 
 
@@ -153,6 +172,7 @@ def save_persisted_state() -> None:
         "access_users": access_users,
         "snmp_settings": snmp_settings,
         "service_settings": service_settings,
+        "device_live_fields": device_live_fields,
     }
     with persist_lock:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -221,3 +241,4 @@ def snapshot_device_live(device_id: str) -> dict:
 access_users = merge_access_users(persisted_state.get("access_users"))
 snmp_settings = merge_snmp_settings(persisted_state.get("snmp_settings"))
 service_settings = merge_service_settings(persisted_state.get("service_settings"))
+device_live_fields = merge_device_live_fields(persisted_state.get("device_live_fields"))

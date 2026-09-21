@@ -82,7 +82,9 @@ Edytuj `app/devices/xml_mapping.json`. Przykładowe pole:
 - `key`: stały klucz aplikacji i historii. Nie zmieniaj go przy zmianie nazwy XML.
 - `type`: `number` dla pomiarów, `text` dla tekstów (np. trybu pracy).
 - `unit`: wyświetlana jednostka. Wpisz ją dopiero po potwierdzeniu w dokumentacji
-  urządzenia; nie przelicza wartości.
+  urządzenia; nie przelicza wartości. Jest automatycznie dopisywana za wartością
+  zarówno w pełnej liście pomiarów, jak i w przypiętym kafelku Live, np.
+  `"unit": "dB"`.
 - `xml_section`: nazwa sekcji XML; również można ją zmienić w mapowaniu.
 
 Jeżeli producent zmieni tylko `<name>Gain</name>`, a pozostawi `id="5.1.1.1"`,
@@ -100,6 +102,15 @@ logiczny.
 Mapowanie jest wczytywane przy każdym odczycie; poprawne zmiany pojawią się
 automatycznie. Nieprawidłowy JSON zgłosi błąd źródła i zostanie ponownie
 sprawdzony przy następnym odczycie.
+
+## Wspólny widok Live wzmacniaczy
+
+Administrator i Operator mogą rozwinąć **All measurements** i przypiąć dowolny
+pomiar przyciskiem **Add to live view**. Wybrane pola są zapisywane globalnie w
+stanie panelu, dlatego kolejność i zawartość widoku są wspólne dla wszystkich
+użytkowników oraz pozostają po restarcie usługi. Kafelki pod `Actual gain` są
+układane maksymalnie po cztery w rzędzie. Viewer widzi przypięte wartości, ale
+nie widzi sekcji **All measurements** ani kontrolek konfiguracji.
 
 W instalacji docelowej warto skopiować mapowanie do
 `/etc/amp-panel/xml_mapping.json` i wskazać je w `XML_MAPPING_FILE`, żeby lokalne
