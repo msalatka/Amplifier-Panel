@@ -17,6 +17,23 @@ function fieldIdentifier(field) {
 	return `${field.section}:${field.key}`
 }
 
+function variableDataAttributes(field) {
+	return `data-variable-section="${escapeHtml(field.section)}" data-variable-key="${escapeHtml(field.key)}" data-variable-automatic="${field.automatic ? 'true' : 'false'}"`
+}
+
+function setVariableTarget(element, field) {
+	if (!element) return
+	if (!field) {
+		delete element.dataset.variableSection
+		delete element.dataset.variableKey
+		delete element.dataset.variableAutomatic
+		return
+	}
+	element.dataset.variableSection = field.section
+	element.dataset.variableKey = field.key
+	element.dataset.variableAutomatic = String(Boolean(field.automatic))
+}
+
 function measurementText(snapshot, field) {
 	const value = fieldValue(snapshot, field)
 	if (value === null) return '--'
@@ -76,6 +93,7 @@ function renderXmlStatus(result) {
 		for (const readout of document.querySelectorAll('[data-readout]')) {
 			const field = xmlFields.find((item) => item.role === readout.dataset.readout)
 			readout.textContent = field ? measurementText(snapshot, field) : '--'
+			setVariableTarget(readout.parentElement, field)
 			const label = readout.parentElement.querySelector('span')
 			if (field && label) label.textContent = field.label
 			// OBA does not report a gain setpoint; do not manufacture one.
@@ -84,6 +102,7 @@ function renderXmlStatus(result) {
 		amplifierLiveFields = Array.isArray(result.live_fields) ? result.live_fields : []
 		const gainField = xmlFields.find((field) => field.role === 'gain')
 		const primaryMetric = document.querySelector('.metric-primary')
+		setVariableTarget(primaryMetric, gainField)
 		primaryMetric.hidden =
 			!gainField || !amplifierLiveFields.includes(fieldIdentifier(gainField))
 		const pinnedContainer = document.getElementById('amp-pinned-metrics')
@@ -93,7 +112,7 @@ function renderXmlStatus(result) {
 		pinnedContainer.innerHTML = pinnedFields
 			.map(
 				(field) =>
-					`<div class="metric-item"><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(measurementText(snapshot, field))}</strong></div>`,
+					`<div class="metric-item" ${variableDataAttributes(field)}><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(measurementText(snapshot, field))}</strong></div>`,
 			)
 			.join('')
 	} else {
@@ -118,7 +137,7 @@ function renderXmlStatus(result) {
 									: flags.every((v) => v === true || v === 1)
 										? 'up'
 										: 'down'
-							return `<article class="fts-module"><div class="fts-module-title"><span class="fts-led ${status}"></span><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`).join('')}</dl></article>`
+							return `<article class="fts-module"><div class="fts-module-title"><span class="fts-led ${status}"></span><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div ${variableDataAttributes(field)}><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`).join('')}</dl></article>`
 						})
 						.join('')}</div></section>`
 				})
@@ -134,8 +153,8 @@ function renderXmlStatus(result) {
 						const pinned = amplifierLiveFields.includes(identifier)
 						const contents = `<span class="xml-metric-label">${escapeHtml(field.label)}</span><strong>${escapeHtml(measurementText(snapshot, field))}</strong>`
 						return deviceProfile === 'amplifier' && canOperate()
-							? `<button type="button" class="xml-metric xml-metric-selectable${pinned ? ' is-pinned' : ''}" data-live-field="${escapeHtml(identifier)}" aria-pressed="${pinned}">${contents}</button>`
-							: `<div class="xml-metric${pinned ? ' is-pinned' : ''}">${contents}</div>`
+							? `<button type="button" class="xml-metric xml-metric-selectable${pinned ? ' is-pinned' : ''}" data-live-field="${escapeHtml(identifier)}" ${variableDataAttributes(field)} aria-pressed="${pinned}">${contents}</button>`
+							: `<div class="xml-metric${pinned ? ' is-pinned' : ''}" ${variableDataAttributes(field)}>${contents}</div>`
 					})
 					.join('')}</div></article>`,
 		)
@@ -346,6 +365,43 @@ document.getElementById('xml-statistics-range').addEventListener('change', () =>
 	lastStatisticsRefresh = 0
 	loadXmlStatistics()
 })
+
+const variableContextMenu = document.getElementById('variable-context-menu')
+let contextVariable = null
+
+function closeVariableContextMenu() {
+	variableContextMenu.hidden = true
+	contextVariable = null
+}
+
+document.addEventListener('contextmenu', (event) => {
+	if (!isAdministrator()) return
+	const target = event.target.closest('[data-variable-key]')
+	if (!target) return
+	event.preventDefault()
+	contextVariable = {
+		section: target.dataset.variableSection,
+		key: target.dataset.variableKey,
+		automatic: target.dataset.variableAutomatic === 'true',
+	}
+	variableContextMenu.hidden = false
+	const left = Math.min(event.clientX, window.innerWidth - variableContextMenu.offsetWidth - 8)
+	const top = Math.min(event.clientY, window.innerHeight - variableContextMenu.offsetHeight - 8)
+	variableContextMenu.style.left = `${Math.max(8, left)}px`
+	variableContextMenu.style.top = `${Math.max(8, top)}px`
+})
+
+variableContextMenu.querySelector('button').addEventListener('click', () => {
+	const variable = contextVariable
+	closeVariableContextMenu()
+	if (variable) window.openXmlVariableEditor(variable)
+})
+
+document.addEventListener('click', (event) => {
+	if (!event.target.closest('#variable-context-menu')) closeVariableContextMenu()
+})
+
+window.addEventListener('blur', closeVariableContextMenu)
 
 document.getElementById('xml-live').addEventListener('click', (event) => {
 	const button = event.target.closest('[data-live-field]')

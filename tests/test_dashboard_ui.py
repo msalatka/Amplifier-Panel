@@ -109,6 +109,20 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn(".monitors-header select", stylesheet)
         self.assertNotIn("#xml-export { color:", stylesheet)
 
+    def test_administrator_can_open_a_live_variable_in_the_mapping_editor(self):
+        live_script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(
+            encoding="utf-8"
+        )
+        mapping_script = (ROOT / "static" / "js" / "dashboard-mapping.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("data-variable-key", live_script)
+        self.assertIn("contextmenu", live_script)
+        self.assertIn("isAdministrator()", live_script)
+        self.assertIn("openXmlVariableEditor", mapping_script)
+        self.assertIn("setSelectionRange", mapping_script)
+
 
 if __name__ == "__main__":
     unittest.main()

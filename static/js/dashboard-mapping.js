@@ -1,5 +1,65 @@
 // Administrator editor for the complete XML-to-dashboard mapping.
 let xmlMappingSavedContent = null
+let pendingXmlVariable = null
+
+function locateXmlVariable(variable) {
+	const content = document.getElementById('xml-mapping-content')
+	let mapping
+	try {
+		mapping = JSON.parse(content.value)
+	} catch {
+		showNotification(
+			'The mapping JSON must be valid before a variable can be located.',
+			'error',
+		)
+		return
+	}
+	const field = mapping[selectedDeviceId]?.sections
+		?.find((section) => section.key === variable.section)
+		?.fields?.find((item) => item.key === variable.key)
+	if (!field) {
+		showNotification(
+			'This automatically discovered variable is not defined in the mapping JSON.',
+			'error',
+		)
+		return
+	}
+
+	const deviceMarker = `${JSON.stringify(selectedDeviceId)}: {`
+	const sectionMarker = `"key": ${JSON.stringify(variable.section)}`
+	const fieldMarker = `"key": ${JSON.stringify(variable.key)}`
+	const deviceStart = content.value.indexOf(deviceMarker)
+	const sectionStart = content.value.indexOf(sectionMarker, deviceStart)
+	const fieldsStart = content.value.indexOf('"fields": [', sectionStart)
+	const fieldStart = content.value.indexOf(fieldMarker, fieldsStart)
+	if (fieldStart < 0) {
+		showNotification('Could not locate this variable in the mapping text.', 'error')
+		return
+	}
+	content.focus()
+	content.setSelectionRange(fieldStart, fieldStart + fieldMarker.length)
+	const line = content.value.slice(0, fieldStart).split('\n').length - 1
+	const lineHeight = Number.parseFloat(getComputedStyle(content).lineHeight) || 20
+	content.scrollTop = Math.max(0, line * lineHeight - content.clientHeight / 3)
+	showNotification(`Editing ${field.label || variable.key}.`)
+}
+
+window.openXmlVariableEditor = (variable) => {
+	if (variable.automatic) {
+		showNotification(
+			'This automatically discovered variable is not defined in the mapping JSON.',
+			'error',
+		)
+		return
+	}
+	pendingXmlVariable = variable
+	if (!setActiveTab('variable-blocks')) return
+	history.pushState(
+		null,
+		'',
+		`${window.location.pathname}${window.location.search}#variable-blocks`,
+	)
+}
 
 function hasUnsavedXmlMappingChanges() {
 	const content = document.getElementById('xml-mapping-content')
@@ -38,6 +98,11 @@ async function loadXmlMapping() {
 		content.value = result.content
 		xmlMappingSavedContent = result.content
 		message.textContent = ''
+		if (pendingXmlVariable) {
+			const variable = pendingXmlVariable
+			pendingXmlVariable = null
+			locateXmlVariable(variable)
+		}
 	} catch (error) {
 		message.classList.add('error')
 		message.textContent = error.message
