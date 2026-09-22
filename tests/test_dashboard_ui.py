@@ -73,10 +73,10 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("/chart-layout`,", script)
         self.assertIn("Hidden</option>", script)
         self.assertIn("xmlChartLayout[fieldIdentifier(field)] === chart", script)
-        self.assertIn('<dialog id="xml-chart-settings"', template)
-        self.assertIn('id="xml-open-chart-layout"', template)
+        self.assertIn('<details id="xml-chart-settings"', template)
         self.assertIn("data-operator-only", template)
-        self.assertIn("showModal()", script)
+        self.assertNotIn("showModal()", script)
+        self.assertIn("addEventListener('toggle'", script)
 
 
 if __name__ == "__main__":

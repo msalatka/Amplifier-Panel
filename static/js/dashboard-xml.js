@@ -207,7 +207,7 @@ async function saveChartLayout() {
 			throw new Error(apiErrorMessage(result.detail, 'Could not save chart layout'))
 		xmlChartLayout = result.chart_layout
 		xmlLayoutSignature = ''
-		document.getElementById('xml-chart-settings').close()
+		document.getElementById('xml-chart-settings').open = false
 		showNotification('Chart layout updated for all users.')
 		await updateDashboard()
 		await loadXmlHistory()
@@ -216,14 +216,9 @@ async function saveChartLayout() {
 	}
 }
 
-function openChartSettings() {
-	if (!canOperate()) return
-	renderChartSettings()
-	document.getElementById('xml-chart-settings').showModal()
-}
-
 function closeChartSettings() {
-	document.getElementById('xml-chart-settings').close()
+	renderChartSettings()
+	document.getElementById('xml-chart-settings').open = false
 }
 
 async function updateDashboard() {
@@ -358,6 +353,7 @@ document.getElementById('xml-live').addEventListener('click', (event) => {
 })
 
 document.getElementById('xml-save-chart-layout').addEventListener('click', saveChartLayout)
-document.getElementById('xml-open-chart-layout').addEventListener('click', openChartSettings)
 document.getElementById('xml-cancel-chart-layout').addEventListener('click', closeChartSettings)
-document.getElementById('xml-close-chart-layout').addEventListener('click', closeChartSettings)
+document.getElementById('xml-chart-settings').addEventListener('toggle', (event) => {
+	if (event.target.open) renderChartSettings()
+})

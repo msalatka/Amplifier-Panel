@@ -814,20 +814,17 @@ select {
     gap: 20px;
 }
 
-.chart-settings-open { margin:0 0 18px; }
-.chart-settings-dialog { width:min(780px,calc(100vw - 32px)); max-height:min(760px,calc(100vh - 32px)); padding:0; color:#edf3ef; background:#101a16; border:1px solid #355347; border-radius:12px; box-shadow:0 24px 80px rgb(0 0 0 / 55%); }
-.chart-settings-dialog::backdrop { background:rgb(3 8 6 / 72%); backdrop-filter:blur(3px); }
-.chart-settings-panel { display:grid; grid-template-rows:auto minmax(0,1fr) auto; max-height:inherit; }
-.chart-settings-header { display:flex; justify-content:space-between; gap:24px; padding:20px 22px; border-bottom:1px solid #294438; }
-.chart-settings-header span { color:#66d9ac; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
-.chart-settings-header h2 { margin:4px 0; }
-.chart-settings-header p { margin:0; color:#9cb6a9; }
-.chart-settings-close { align-self:start; min-width:40px; font-size:24px; line-height:1; }
-.chart-field-settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 18px; padding:18px 22px; overflow:auto; }
+.chart-settings { margin:0 0 18px; padding:0 14px; border:1px solid #294438; border-radius:8px; }
+.chart-settings summary { margin:0 -14px; padding:10px 14px; color:#dfe8e3; font-weight:700; cursor:pointer; list-style-position:inside; }
+.chart-settings[open] summary { border-bottom:1px solid #294438; }
+.chart-settings > p { margin:14px 0 0; color:#9cb6a9; }
+.chart-field-settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 18px; margin:14px 0; }
 .chart-field-settings label { display:grid; grid-template-columns:minmax(0,1fr) 120px; gap:10px; align-items:center; padding:9px 10px; background:#14221c; border:1px solid #263e34; border-radius:7px; }
 .chart-field-settings label span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.chart-field-settings select { width:100%; }
-.chart-settings-actions { display:flex; justify-content:flex-end; gap:10px; padding:16px 22px; border-top:1px solid #294438; }
+.chart-field-settings select { width:100%; padding:8px; color:#edf3ef; background:#121b18; border:1px solid #3d5149; border-radius:6px; }
+.chart-settings-actions { display:flex; justify-content:flex-end; gap:10px; padding:0 0 14px; }
+.chart-settings-actions button { padding:8px 14px; color:#dfe8e3; background:transparent; border:1px solid #3d5149; border-radius:6px; cursor:pointer; }
+.chart-settings-actions button:hover { color:#fff; border-color:#57c08a; }
 
 .charts-filter-hint {
     display: flex;
