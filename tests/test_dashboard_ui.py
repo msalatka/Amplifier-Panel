@@ -96,9 +96,18 @@ class DashboardUiTests(unittest.TestCase):
 
         self.assertIn('id="save-network-button" class="button-primary"', template)
         self.assertIn('id="refresh-network-button" class="button-secondary"', template)
+        self.assertIn('id="download-syslog-button" class="button-primary"', template)
         self.assertIn(">Refresh</button>", template)
         self.assertIn("button.button-primary", stylesheet)
         self.assertIn("button.button-secondary", stylesheet)
+
+    def test_statistics_range_and_csv_export_use_shared_colours(self):
+        template = (ROOT / "templates" / "device-history.html").read_text(encoding="utf-8")
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="xml-export" class="button button-primary"', template)
+        self.assertIn(".monitors-header select", stylesheet)
+        self.assertNotIn("#xml-export { color:", stylesheet)
 
 
 if __name__ == "__main__":

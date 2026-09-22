@@ -770,6 +770,20 @@ button.button-secondary:disabled {
     margin-bottom: 20px;
 }
 
+.monitors-header label {
+    color: #a9b9b2;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.monitors-header select {
+    padding: 8px;
+    color: #dfe8e3;
+    background: #12251c;
+    border: 1px solid #3d5149;
+    border-radius: 6px;
+}
+
 .range-toolbar {
     display: flex;
     align-items: flex-start;
@@ -1861,5 +1875,4 @@ button.button-secondary:disabled {
 #xml-charts .chart-card.expanded .chart-container { height:calc(100% - 48px); }
 #xml-charts canvas { height:100% !important; }
 .range-toolbar select { background:#12251c; color:#dfe8e3; padding:8px; border:1px solid #3d5149; border-radius:6px; }
-#xml-export { color:#80d9ae; }
 @media(max-width:700px) { .device-heading { flex-direction:column; gap:8px; } }
