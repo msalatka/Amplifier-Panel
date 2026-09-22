@@ -93,7 +93,7 @@ class DashboardUiTests(unittest.TestCase):
 
         self.assertIn('id="save-network-button" class="button-primary"', template)
         self.assertIn('id="refresh-network-button" class="button-secondary"', template)
-        self.assertIn(">Status</button>", template)
+        self.assertIn(">Refresh</button>", template)
         self.assertIn("button.button-primary", stylesheet)
         self.assertIn("button.button-secondary", stylesheet)
 
