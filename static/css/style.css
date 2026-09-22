@@ -669,9 +669,9 @@ select {
 .settings-header button,
 .settings-actions button {
     padding: 8px 14px;
-    background: rgb(0, 106, 60);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: transparent;
+    color: #dfe8e3;
+    border: 1px solid #3d5149;
     border-radius: 6px;
     cursor: pointer;
 }
@@ -679,7 +679,51 @@ select {
 .range-buttons button:hover,
 .settings-header button:hover,
 .settings-actions button:hover {
+    background: #18241f;
+    border-color: #57c08a;
+    color: #ffffff;
+}
+
+button.button-primary,
+a.button-primary {
+    padding: 8px 14px;
+    background: rgb(0, 106, 60);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+button.button-primary:hover,
+a.button-primary:hover {
     background: #087a49;
+    border-color: rgba(255, 255, 255, 0.24);
+    color: #ffffff;
+}
+
+button.button-secondary,
+a.button-secondary {
+    padding: 8px 14px;
+    background: transparent;
+    color: #dfe8e3;
+    border: 1px solid #3d5149;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+button.button-secondary:hover,
+a.button-secondary:hover {
+    background: #18241f;
+    border-color: #57c08a;
+    color: #ffffff;
+}
+
+button.button-primary:disabled,
+button.button-secondary:disabled {
+    opacity: 0.5;
+    cursor: default;
 }
 
 .data-panel {
@@ -825,6 +869,8 @@ select {
 .chart-settings-actions { display:flex; justify-content:flex-end; gap:10px; padding:0 0 14px; }
 .chart-settings-actions button { padding:8px 14px; color:#dfe8e3; background:transparent; border:1px solid #3d5149; border-radius:6px; cursor:pointer; }
 .chart-settings-actions button:hover { color:#fff; border-color:#57c08a; }
+.chart-settings-actions button.button-primary { color:#fff; background:rgb(0, 106, 60); border-color:rgba(255,255,255,.16); }
+.chart-settings-actions button.button-primary:hover { background:#087a49; border-color:rgba(255,255,255,.24); }
 
 .charts-filter-hint {
     display: flex;
@@ -976,6 +1022,54 @@ select {
 .network-message.error { color: #ff8585; }
 .network-form > button { justify-self: start; }
 @media (max-width: 760px) { .network-status-grid, .network-form, .network-static-fields { grid-template-columns: 1fr; } }
+
+.mapping-editor-form {
+    display: grid;
+    gap: 12px;
+}
+
+.mapping-file-location {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 16px;
+    padding: 11px 12px;
+    color: #a9b9b2;
+    background: #121b18;
+    border: 1px solid #20352d;
+    border-radius: 6px;
+}
+
+.mapping-file-location code {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #edf3ef;
+    text-align: right;
+}
+
+.mapping-editor-label {
+    color: #a9b9b2;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#xml-mapping-content {
+    width: 100%;
+    min-height: 58vh;
+    resize: vertical;
+    padding: 14px;
+    color: #dfe8e3;
+    background: #0d1512;
+    border: 1px solid #3d5149;
+    border-radius: 6px;
+    font: 13px/1.5 Consolas, "Courier New", monospace;
+    tab-size: 2;
+}
+
+#xml-mapping-content:focus {
+    outline: 2px solid rgba(87, 192, 138, 0.24);
+    border-color: #57c08a;
+}
 
 .control-save-header {
     margin-bottom: 2px;

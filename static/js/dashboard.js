@@ -103,8 +103,8 @@ async function loadAccessUsers() {
                     ${passwordCell}
                     <td>
                         <div class="action-buttons">
-                            <button data-access-save type="button">Save</button>
-                            <button data-access-delete type="button">Delete</button>
+							<button class="button-primary" data-access-save type="button">Save</button>
+							<button class="button-secondary" data-access-delete type="button">Delete</button>
                         </div>
                     </td>
                 </tr>

@@ -10,7 +10,7 @@ W konfiguracji procesu (w instalacji Debian: `sudo amp-panel configure`) ustaw:
 ```ini
 ENABLED_DEVICES=local,remote,oba,oba3
 XML_STATUS_FILE=/var/lib/amp-panel/status.xml
-XML_MAPPING_FILE=/usr/lib/amp-panel/app/devices/xml_mapping.json
+XML_MAPPING_FILE=/var/lib/amp-panel/xml_mapping.json
 XML_POLL_SECONDS=2
 XML_STALE_SECONDS=60
 ```
@@ -63,7 +63,11 @@ wartości się zmieniły; zmiana OBA3 nie tworzy kopii historii Local, Remote an
 
 ## Zmiana nazw bez modyfikowania kodu strony
 
-Edytuj `app/devices/xml_mapping.json`. Przykładowe pole:
+Administrator może edytować cały plik w zakładce **Administration → Variable Blocks**.
+Zakładka pokazuje też rzeczywistą lokalizację pliku. Zapis jest walidowany i
+atomowy, więc proces odczytu zobaczy kompletną starą albo kompletną nową wersję.
+W projekcie plikiem źródłowym jest `app/devices/xml_mapping.json`, a instalator
+tworzy edytowalną kopię w katalogu danych. Przykładowe pole:
 
 ```json
 {
@@ -123,6 +127,7 @@ do tego samego numeru są wyświetlane jako osobne serie na wspólnym wykresie.
 Konfiguracja jest wspólna dla użytkowników i pozostaje po restarcie. Viewer widzi
 gotowe wykresy, ale nie widzi edytora ich układu.
 
-W instalacji docelowej warto skopiować mapowanie do
-`/etc/amp-panel/xml_mapping.json` i wskazać je w `XML_MAPPING_FILE`, żeby lokalne
-zmiany nazw przetrwały aktualizację pakietu. Plik musi być czytelny dla `amp-panel`.
+W instalacji docelowej domyślna kopia znajduje się w
+`/var/lib/amp-panel/xml_mapping.json`, dzięki czemu lokalne zmiany przetrwają
+aktualizację pakietu. Jeżeli `XML_MAPPING_FILE` wskazuje inne miejsce, plik i jego
+katalog muszą być zapisywalne dla użytkownika `amp-panel`, aby zapis ze strony działał.

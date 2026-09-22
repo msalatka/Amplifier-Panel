@@ -1,11 +1,57 @@
 import datetime
+import json
+import pathlib
+import tempfile
 import unittest
 from unittest import mock
 
-from app.api import devices
+from app.api import devices, diagnostics
+from app.services import xml_status
 
 
 class DashboardApiTests(unittest.TestCase):
+    def test_administrator_can_atomically_update_xml_mapping(self):
+        mapping = xml_status.load_mapping()
+        mapping["oba"]["label"] = "Edited amplifier"
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "xml_mapping.json"
+            path.write_text("{}", encoding="utf-8")
+            with (
+                mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
+                mock.patch.object(diagnostics.api_security, "audit_event") as audit,
+            ):
+                result = diagnostics.update_xml_mapping(
+                    diagnostics.XmlMappingUpdateRequest(
+                        content=json.dumps(mapping, ensure_ascii=False)
+                    ),
+                    mock.Mock(),
+                    {"username": "admin", "role": "Administrator"},
+                )
+
+            self.assertEqual(
+                json.loads(path.read_text(encoding="utf-8"))["oba"]["label"], "Edited amplifier"
+            )
+            self.assertEqual(result["path"], str(path.resolve()))
+            audit.assert_called_once()
+
+    def test_invalid_xml_mapping_is_not_written(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "xml_mapping.json"
+            original = '{"unchanged": true}\n'
+            path.write_text(original, encoding="utf-8")
+            with (
+                mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
+                self.assertRaises(Exception) as caught,
+            ):
+                diagnostics.update_xml_mapping(
+                    diagnostics.XmlMappingUpdateRequest(content='{"local": {}}'),
+                    mock.Mock(),
+                    {"username": "admin", "role": "Administrator"},
+                )
+
+            self.assertEqual(caught.exception.status_code, 400)
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
+
     def test_latest_includes_current_host_system_time(self):
         before = datetime.datetime.now(datetime.timezone.utc)
         with mock.patch.object(
@@ -25,11 +71,7 @@ class DashboardApiTests(unittest.TestCase):
         device_id = "oba3"
         previous = list(devices.state.device_live_fields[device_id])
         live = {
-            "data": {
-                "sections": [
-                    {"key": "oba3", "fields": [{"key": "Temp"}, {"key": "PumpI"}]}
-                ]
-            }
+            "data": {"sections": [{"key": "oba3", "fields": [{"key": "Temp"}, {"key": "PumpI"}]}]}
         }
         try:
             with (
@@ -71,10 +113,19 @@ class DashboardApiTests(unittest.TestCase):
     def test_operator_can_put_two_series_on_the_same_chart(self):
         device_id = "oba3"
         previous = devices.state.device_chart_layouts.get(device_id)
-        live = {"data": {"sections": [{"key": "oba3", "fields": [
-            {"key": "Temp", "type": "number"},
-            {"key": "PumpI", "type": "number"},
-        ]}]}}
+        live = {
+            "data": {
+                "sections": [
+                    {
+                        "key": "oba3",
+                        "fields": [
+                            {"key": "Temp", "type": "number"},
+                            {"key": "PumpI", "type": "number"},
+                        ],
+                    }
+                ]
+            }
+        }
         try:
             with (
                 mock.patch.object(devices.config, "ENABLED_DEVICES", (device_id,)),

@@ -9,6 +9,45 @@ from tools import amp_panel_cli
 
 
 class AmpPanelCliTests(unittest.TestCase):
+    def test_default_mapping_is_writable_runtime_data(self):
+        values = amp_panel_cli.default_configuration()
+
+        self.assertEqual(
+            pathlib.Path(values["XML_MAPPING_FILE"]),
+            pathlib.Path(values["AMP_PANEL_DATA_DIR"]) / "xml_mapping.json",
+        )
+
+    def test_prepare_data_directory_copies_packaged_mapping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            data_dir = root / "data"
+            packaged_mapping = root / "packaged.json"
+            packaged_mapping.write_text('{"mapping": true}\n', encoding="utf-8")
+            values = amp_panel_cli.default_configuration()
+            values.update(
+                {
+                    "AMP_PANEL_DATA_DIR": str(data_dir),
+                    "DATABASE_FILE": str(data_dir / "measurements.db"),
+                    "PERSISTED_STATE_FILE": str(data_dir / "persisted_state.json"),
+                    "XML_MAPPING_FILE": str(data_dir / "xml_mapping.json"),
+                }
+            )
+            with (
+                mock.patch.object(amp_panel_cli, "_normalized_data_dir", return_value=data_dir),
+                mock.patch.object(
+                    amp_panel_cli,
+                    "PACKAGED_XML_MAPPING_FILE",
+                    packaged_mapping,
+                ),
+                mock.patch.object(amp_panel_cli, "_lookup_identity", return_value=(None, None)),
+            ):
+                amp_panel_cli.prepare_data_directory(values)
+
+            self.assertEqual(
+                (data_dir / "xml_mapping.json").read_text(encoding="utf-8"),
+                '{"mapping": true}\n',
+            )
+
     def test_run_reports_a_timed_out_configuration_command(self):
         with mock.patch.object(
             amp_panel_cli.subprocess,

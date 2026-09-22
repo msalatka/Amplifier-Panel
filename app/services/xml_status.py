@@ -51,23 +51,51 @@ def _automatic_field(param: ET.Element, used_keys: set[str]) -> tuple[dict, floa
     )
 
 
-def load_mapping() -> dict:
-    """Load display labels and stable field selectors on every poll."""
-    mapping = json.loads(pathlib.Path(config.XML_MAPPING_FILE).read_text(encoding="utf-8"))
+def validate_mapping(mapping: dict) -> dict:
+    """Validate and return one complete XML display mapping."""
+    if not isinstance(mapping, dict):
+        raise ValueError("Mapping root must be a JSON object")
     for device in ("local", "remote", "oba", "oba3"):
-        sections = mapping[device]["sections"]
-        if not sections or len({s["key"] for s in sections}) != len(sections):
+        if device not in mapping or not isinstance(mapping[device], dict):
+            raise ValueError(f"Missing device mapping: {device}")
+        if not isinstance(mapping[device].get("label"), str):
+            raise ValueError(f"Invalid device label: {device}")
+        sections = mapping[device].get("sections")
+        if (
+            not isinstance(sections, list)
+            or not sections
+            or any(not isinstance(section, dict) for section in sections)
+            or len({section.get("key") for section in sections}) != len(sections)
+        ):
             raise ValueError(f"Invalid sections for {device}")
         for section in sections:
-            fields = section["fields"]
-            if not fields or len({f["key"] for f in fields}) != len(fields):
+            if not all(
+                isinstance(section.get(key), str) and section[key]
+                for key in ("key", "xml_section", "label")
+            ):
+                raise ValueError(f"Invalid section descriptor for {device}")
+            fields = section.get("fields")
+            if (
+                not isinstance(fields, list)
+                or not fields
+                or any(not isinstance(field, dict) for field in fields)
+                or len({field.get("key") for field in fields}) != len(fields)
+            ):
                 raise ValueError(f"Invalid fields for {device}")
             for field in fields:
+                if not isinstance(field.get("key"), str) or not field["key"]:
+                    raise ValueError(f"Invalid field key for {device}")
                 if not field.get("id") and not field.get("name"):
                     raise ValueError("Each field needs an XML id or name")
                 if field.get("type", "number") not in {"number", "text"}:
                     raise ValueError("Field type must be number or text")
     return mapping
+
+
+def load_mapping() -> dict:
+    """Load display labels and stable field selectors on every poll."""
+    mapping = json.loads(pathlib.Path(config.XML_MAPPING_FILE).read_text(encoding="utf-8"))
+    return validate_mapping(mapping)
 
 
 def parse_status(payload: bytes, mapping: dict) -> dict:
@@ -163,7 +191,9 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                         continue
                     automatic = _automatic_field(param, used_keys)
                     if automatic is None:
-                        issues.append(f"Invalid automatic field: {section['key']}.{name or identifier}")
+                        issues.append(
+                            f"Invalid automatic field: {section['key']}.{name or identifier}"
+                        )
                         continue
                     descriptor, value = automatic
                     fields.append(descriptor)
@@ -200,9 +230,7 @@ def poll_once() -> None:
         if time.time() - modified > config.XML_STALE_SECONDS:
             raise ValueError("XML file is stale: producer has not refreshed it")
         snapshots = parse_status(payload, mapping)
-        modified_at = datetime.datetime.fromtimestamp(
-            modified, datetime.timezone.utc
-        ).isoformat()
+        modified_at = datetime.datetime.fromtimestamp(modified, datetime.timezone.utc).isoformat()
     except (OSError, ValueError, ET.ParseError, KeyError, TypeError, AttributeError) as exc:
         for key in enabled:
             runtime.report_failure(key, f"XML: {exc}")

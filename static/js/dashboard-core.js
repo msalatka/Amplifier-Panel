@@ -179,6 +179,7 @@ function setActiveTab(tabName) {
 	if (tabName === 'network-settings') loadNetworkSettings()
 	if (tabName === 'ntp-settings') loadNtpStatus()
 	if (tabName === 'service-diagnostics') loadServiceDiagnostics()
+	if (tabName === 'variable-blocks') loadXmlMapping()
 	return true
 }
 

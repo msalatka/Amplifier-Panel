@@ -78,6 +78,25 @@ class DashboardUiTests(unittest.TestCase):
         self.assertNotIn("showModal()", script)
         self.assertIn("addEventListener('toggle'", script)
 
+    def test_administration_has_complete_xml_mapping_editor(self):
+        template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+        script = (ROOT / "static" / "js" / "dashboard-mapping.js").read_text(encoding="utf-8")
+
+        self.assertIn('data-tab="variable-blocks"', template)
+        self.assertIn('id="xml-mapping-path"', template)
+        self.assertIn('id="xml-mapping-content"', template)
+        self.assertIn("/api/xml-mapping", script)
+
+    def test_save_and_secondary_buttons_use_shared_styles(self):
+        template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="save-network-button" class="button-primary"', template)
+        self.assertIn('id="refresh-network-button" class="button-secondary"', template)
+        self.assertIn(">Status</button>", template)
+        self.assertIn("button.button-primary", stylesheet)
+        self.assertIn("button.button-secondary", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()

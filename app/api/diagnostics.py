@@ -2,6 +2,10 @@
 
 import asyncio
 import datetime
+import json
+import os
+import pathlib
+import tempfile
 
 import fastapi
 import fastapi.responses
@@ -15,6 +19,7 @@ from app.services import network as network_service
 from app.services import ntp as ntp_service
 from app.services import snmp as snmp_service
 from app.services import syslog as syslog_service
+from app.services import xml_status
 
 router = fastapi.APIRouter()
 heartbeat_settings_changed = asyncio.Event()
@@ -53,6 +58,72 @@ class SnmpSettingsUpdateRequest(pydantic.BaseModel):
     community: str
     trap_host: str
     trap_port: int
+
+
+class XmlMappingUpdateRequest(pydantic.BaseModel):
+    """Complete JSON mapping submitted by an administrator."""
+
+    content: str
+
+
+@router.get("/api/xml-mapping")
+def get_xml_mapping(
+    _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
+):
+    """Return the editable XML mapping and its configured disk location."""
+
+    path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
+    try:
+        content = path.read_text(encoding="utf-8")
+        xml_status.validate_mapping(json.loads(content))
+    except (OSError, ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise fastapi.HTTPException(
+            status_code=500, detail=f"Could not read mapping: {exc}"
+        ) from exc
+    return {"path": str(path), "content": content}
+
+
+@router.put("/api/xml-mapping")
+def update_xml_mapping(
+    payload: XmlMappingUpdateRequest,
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
+):
+    """Validate and atomically replace the complete XML mapping file."""
+
+    try:
+        mapping = json.loads(payload.content)
+        xml_status.validate_mapping(mapping)
+    except (ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise fastapi.HTTPException(status_code=400, detail=f"Invalid mapping: {exc}") from exc
+
+    path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
+    content = json.dumps(mapping, ensure_ascii=False, indent=2) + "\n"
+    temporary_path: pathlib.Path | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, delete=False, newline="\n"
+        ) as temporary:
+            temporary.write(content)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = pathlib.Path(temporary.name)
+        os.replace(temporary_path, path)
+    except OSError as exc:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise fastapi.HTTPException(
+            status_code=500, detail=f"Could not save mapping: {exc}"
+        ) from exc
+
+    api_security.audit_event(
+        request,
+        "xml_mapping_updated",
+        current_user["username"],
+        f"path={path}",
+    )
+    return {"status": "ok", "path": str(path), "content": content}
 
 
 @router.get("/api/service-diagnostics")

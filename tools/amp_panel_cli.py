@@ -62,6 +62,12 @@ TIMESYNCD_FILE = pathlib.Path(
     )
 )
 VERSION_FILE = pathlib.Path(os.getenv("AMP_PANEL_VERSION_FILE", "/usr/lib/amp-panel/VERSION"))
+PACKAGED_XML_MAPPING_FILE = pathlib.Path(
+    os.getenv(
+        "AMP_PANEL_PACKAGED_XML_MAPPING_FILE",
+        "/usr/lib/amp-panel/app/devices/xml_mapping.json",
+    )
+)
 
 CURRENT_SERVICE = "amp-panel.service"
 NETWORK_AGENT_SERVICE = "amp-panel-network-agent.service"
@@ -433,7 +439,7 @@ def default_configuration() -> dict[str, str]:
         "AMP_PANEL_DATA_DIR": str(data_dir),
         "ENABLED_DEVICES": "local,remote,oba,oba3",
         "XML_STATUS_FILE": str(data_dir / "status.xml"),
-        "XML_MAPPING_FILE": "/usr/lib/amp-panel/app/devices/xml_mapping.json",
+        "XML_MAPPING_FILE": str(data_dir / "xml_mapping.json"),
         "XML_POLL_SECONDS": "2",
         "XML_STALE_SECONDS": "60",
         "DEVICE_NAME": device_name,
@@ -535,6 +541,8 @@ def merge_configuration(source_values: dict[str, str]) -> dict[str, str]:
             translated[key] = source_values[key]
     data_dir = _normalized_data_dir(translated["AMP_PANEL_DATA_DIR"])
     translated["AMP_PANEL_DATA_DIR"] = str(data_dir)
+    if translated["XML_MAPPING_FILE"] == str(PACKAGED_XML_MAPPING_FILE):
+        translated["XML_MAPPING_FILE"] = str(data_dir / "xml_mapping.json")
     return translated
 
 
@@ -729,6 +737,16 @@ def prepare_data_directory(values: dict[str, str]) -> None:
     os.chmod(data_dir, 0o750)
     database = pathlib.Path(values["DATABASE_FILE"])
     state_file = pathlib.Path(values["PERSISTED_STATE_FILE"])
+    mapping_file = pathlib.Path(values["XML_MAPPING_FILE"])
+    if data_dir in mapping_file.parents:
+        if not mapping_file.exists():
+            if not PACKAGED_XML_MAPPING_FILE.is_file():
+                raise ConfigurationError(
+                    f"Packaged XML mapping is missing: {PACKAGED_XML_MAPPING_FILE}"
+                )
+            shutil.copyfile(PACKAGED_XML_MAPPING_FILE, mapping_file)
+        _chown(mapping_file, uid, gid)
+        os.chmod(mapping_file, 0o640)
     managed_files = (
         database,
         pathlib.Path(f"{database}-wal"),
@@ -1100,9 +1118,13 @@ def doctor_command(_args: argparse.Namespace) -> int:
 
 
 def _update_data_paths(values: dict[str, str], data_dir: pathlib.Path) -> None:
+    previous_data_dir = pathlib.Path(values["AMP_PANEL_DATA_DIR"])
+    mapping_file = pathlib.Path(values["XML_MAPPING_FILE"])
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
+    if previous_data_dir in mapping_file.parents:
+        values["XML_MAPPING_FILE"] = str(data_dir / "xml_mapping.json")
 
 
 def data_dir_command(args: argparse.Namespace) -> int:

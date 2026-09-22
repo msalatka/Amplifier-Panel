@@ -55,6 +55,7 @@
                     <button type="button" class="nav-link" data-tab="network-settings" data-title="Network Configuration" data-admin-only>Network Configuration</button>
                     <button type="button" class="nav-link" data-tab="ntp-settings" data-title="Time Diagnostics" data-admin-only>Time Diagnostics</button>
                     <button type="button" class="nav-link" data-tab="service-diagnostics" data-title="Service Diagnostics" data-admin-only>Service Diagnostics</button>
+                    <button type="button" class="nav-link" data-tab="variable-blocks" data-title="Variable Blocks" data-admin-only>Variable Blocks</button>
                 </div>
             </nav>
         </aside>
@@ -93,7 +94,7 @@
                         <form id="access-user-form" class="administration-section access-form">
                             <div class="settings-header control-save-header">
                                 <h2>Add User</h2>
-                                <button type="submit">Add</button>
+                                <button type="submit" class="button-primary">Add</button>
                             </div>
 
                             <label class="form-field">
@@ -145,7 +146,7 @@
                         <section class="administration-section audit-export-panel">
                             <div class="settings-header control-save-header">
                                 <div><h2>Syslog</h2><p class="settings-description">Warnings and recorded user actions, including parameter changes.</p></div>
-                                <button id="download-syslog-button" type="button">Download</button>
+                                <button id="download-syslog-button" class="button-secondary" type="button">Download</button>
                             </div>
                         </section>
                         </div>
@@ -164,7 +165,7 @@
                         <form id="snmp-settings-form" class="administration-section administration-form">
                             <div class="settings-header control-save-header">
                                 <h2>Agent Settings</h2>
-                                <button type="submit">Save</button>
+                                <button type="submit" class="button-primary">Save</button>
                             </div>
                             <div class="administration-fields">
                                 <label class="toggle-field"><input id="snmp-enabled-input" type="checkbox"> Enable SNMP agent</label>
@@ -189,7 +190,7 @@
                                 <h2>Network Configuration</h2>
                                 <p>Review the active connection and configure IPv4 addressing.</p>
                             </div>
-                            <button id="refresh-network-button" type="button">Refresh</button>
+                            <button id="refresh-network-button" class="button-secondary" type="button">Refresh</button>
                         </div>
                         <div class="administration-list">
                         <section class="administration-section">
@@ -216,7 +217,7 @@
                                 <label>DNS servers<input name="dns" type="text" placeholder="1.1.1.1, 8.8.8.8"></label>
                             </div>
                             <p class="network-warning">For safe validation, you can only change the interface currently carrying this Amp Panel session. Applying settings reloads that connection and may temporarily disconnect this panel.</p>
-                            <button id="save-network-button" type="submit" data-admin-only>Save network settings</button>
+                            <button id="save-network-button" class="button-primary" type="submit" data-admin-only>Save network settings</button>
                         </form>
                         </div>
                     </div>
@@ -229,7 +230,7 @@
                                 <h2>Time Diagnostics</h2>
                                 <p>Inspect NTP reachability and the current synchronization state.</p>
                             </div>
-                            <button id="refresh-ntp-button" type="button">Refresh</button>
+                            <button id="refresh-ntp-button" class="button-secondary" type="button">Refresh</button>
                         </div>
                         <div class="administration-list">
                         <section class="administration-section">
@@ -260,7 +261,7 @@
                             <h2>Service Diagnostics</h2>
                             <p>Runtime status and local service configuration for this device.</p>
                         </div>
-                        <button id="refresh-services-button" type="button">Refresh status</button>
+                        <button id="refresh-services-button" class="button-secondary" type="button">Status</button>
                     </div>
 
                     <div class="service-diagnostics-list">
@@ -311,7 +312,7 @@
                                 <h2>Service Configuration</h2>
                                 <p class="settings-description">Changes are stored on this device and applied immediately.</p>
                             </div>
-                            <button type="submit">Save changes</button>
+                            <button type="submit" class="button-primary">Save changes</button>
                         </div>
                         <div class="service-settings-sections">
                             <fieldset class="service-settings-section">
@@ -341,6 +342,35 @@
                     </form>
                     </div>
                 </section>
+
+                <section class="tab-panel" data-tab="variable-blocks" data-admin-only>
+                    <div class="data-panel administration-panel">
+                        <div class="service-page-header">
+                            <div>
+                                <h2>Variable Blocks</h2>
+                                <p>Edit labels, units, groups and XML selectors used to build device views.</p>
+                            </div>
+                        </div>
+                        <div class="administration-list">
+                            <form id="xml-mapping-form" class="administration-section mapping-editor-form">
+                                <div class="settings-header control-save-header">
+                                    <div>
+                                        <h2>XML Mapping JSON</h2>
+                                        <p class="settings-description">The complete file is validated before it replaces the active mapping.</p>
+                                    </div>
+                                    <button class="button-primary" type="submit">Save</button>
+                                </div>
+                                <div class="mapping-file-location">
+                                    <span>File location</span>
+                                    <code id="xml-mapping-path">--</code>
+                                </div>
+                                <label class="mapping-editor-label" for="xml-mapping-content">JSON content</label>
+                                <textarea id="xml-mapping-content" spellcheck="false" required></textarea>
+                                <p id="xml-mapping-message" class="network-message" role="status"></p>
+                            </form>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
@@ -350,6 +380,7 @@
     <script src="/static/vendor/chart.js/chart.umd.min.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard-core.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard-network.js?v={{ static_asset_version }}"></script>
+    <script src="/static/js/dashboard-mapping.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard-history.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard-xml.js?v={{ static_asset_version }}"></script>
