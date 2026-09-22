@@ -814,6 +814,12 @@ select {
     gap: 20px;
 }
 
+.chart-settings { margin:0 0 18px; padding:14px; border:1px solid #294438; border-radius:8px; }
+.chart-settings summary { cursor:pointer; font-weight:700; }
+.chart-field-settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 18px; margin:14px 0; }
+.chart-field-settings label { display:grid; grid-template-columns:minmax(0,1fr) 120px; gap:10px; align-items:center; }
+.chart-field-settings select { width:100%; }
+
 .charts-filter-hint {
     display: flex;
     justify-content: space-between;
@@ -1693,7 +1699,8 @@ select {
     }
 
     .fts-station-systems,
-    .fts-settings-fields {
+    .fts-settings-fields,
+    .chart-field-settings {
         grid-template-columns: 1fr;
     }
 

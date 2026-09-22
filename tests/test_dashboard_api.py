@@ -68,6 +68,34 @@ class DashboardApiTests(unittest.TestCase):
             )
         self.assertEqual(caught.exception.status_code, 422)
 
+    def test_operator_can_put_two_series_on_the_same_chart(self):
+        device_id = "oba3"
+        previous = devices.state.device_chart_layouts.get(device_id)
+        live = {"data": {"sections": [{"key": "oba3", "fields": [
+            {"key": "Temp", "type": "number"},
+            {"key": "PumpI", "type": "number"},
+        ]}]}}
+        try:
+            with (
+                mock.patch.object(devices.config, "ENABLED_DEVICES", (device_id,)),
+                mock.patch.object(devices.state, "snapshot_device_live", return_value=live),
+                mock.patch.object(devices.state, "save_persisted_state") as save,
+                mock.patch.object(devices.api_security, "audit_event"),
+            ):
+                result = devices.update_chart_layout(
+                    device_id,
+                    devices.ChartLayoutUpdate(charts={"oba3:Temp": 1, "oba3:PumpI": 1}),
+                    mock.Mock(),
+                    {"username": "operator", "role": "Operator"},
+                )
+            self.assertEqual(result["chart_layout"], {"oba3:Temp": 1, "oba3:PumpI": 1})
+            save.assert_called_once()
+        finally:
+            if previous is None:
+                devices.state.device_chart_layouts.pop(device_id, None)
+            else:
+                devices.state.device_chart_layouts[device_id] = previous
+
 
 if __name__ == "__main__":
     unittest.main()

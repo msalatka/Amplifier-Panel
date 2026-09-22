@@ -27,6 +27,12 @@ class LiveFieldsUpdate(pydantic.BaseModel):
     fields: list[str] = pydantic.Field(max_length=64)
 
 
+class ChartLayoutUpdate(pydantic.BaseModel):
+    """Measurement-to-chart assignments shared by all users."""
+
+    charts: dict[str, int]
+
+
 @router.get("/{device_id}/history/export.csv")
 def export_device_history(device_id: str, range: str = "5m", _current_user: dict = viewer):
     """Stream complete per-device history without the chart downsampling limit."""
@@ -107,6 +113,7 @@ def latest(device_id: str, _current_user: dict = viewer):
         "data": live["data"],
         "database": database_service.get_runtime_status(device_id),
         "live_fields": state.device_live_fields.get(device_id, []),
+        "chart_layout": state.device_chart_layouts.get(device_id),
     }
 
 
@@ -116,6 +123,16 @@ def _available_field_ids(device_id: str) -> set[str]:
         f"{section['key']}:{field['key']}"
         for section in live["data"].get("sections", [])
         for field in section.get("fields", [])
+    }
+
+
+def _numeric_field_ids(device_id: str) -> set[str]:
+    live = state.snapshot_device_live(device_id)
+    return {
+        f"{section['key']}:{field['key']}"
+        for section in live["data"].get("sections", [])
+        for field in section.get("fields", [])
+        if field.get("type") == "number"
     }
 
 
@@ -155,6 +172,46 @@ def update_live_fields(
         f"device={device_id}; fields={','.join(fields)}",
     )
     return {"device_id": device_id, "live_fields": fields}
+
+
+@router.put("/{device_id}/chart-layout")
+def update_chart_layout(
+    device_id: str,
+    body: ChartLayoutUpdate,
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(
+        api_security.require_roles("Administrator", "Operator")
+    ),
+):
+    """Persist selected numeric series and their chart assignments."""
+    require_enabled(device_id)
+    charts = {field: chart for field, chart in body.charts.items() if chart != 0}
+    if any(not 1 <= chart <= 8 for chart in charts.values()):
+        raise fastapi.HTTPException(status_code=422, detail="Chart number must be from 1 to 8")
+    unknown = sorted(set(charts) - _numeric_field_ids(device_id))
+    if unknown:
+        raise fastapi.HTTPException(status_code=422, detail=f"Unknown numeric fields: {', '.join(unknown)}")
+
+    with state.state_lock:
+        before = state.device_chart_layouts.get(device_id)
+        state.device_chart_layouts[device_id] = charts
+    try:
+        state.save_persisted_state()
+    except OSError as exc:
+        with state.state_lock:
+            if before is None:
+                state.device_chart_layouts.pop(device_id, None)
+            else:
+                state.device_chart_layouts[device_id] = before
+        raise fastapi.HTTPException(status_code=500, detail="Could not save chart layout") from exc
+
+    api_security.audit_event(
+        request,
+        "device_chart_layout_updated",
+        current_user["username"],
+        f"device={device_id}; series={len(charts)}",
+    )
+    return {"device_id": device_id, "chart_layout": charts}
 
 
 @router.get("/{device_id}/history")

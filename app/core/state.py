@@ -181,6 +181,7 @@ def save_persisted_state() -> None:
         "service_settings": service_settings,
         "device_live_fields": device_live_fields,
         "device_live_fields_version": DEVICE_LIVE_FIELDS_VERSION,
+        "device_chart_layouts": device_chart_layouts,
     }
     with persist_lock:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -253,3 +254,12 @@ device_live_fields = merge_device_live_fields(
     persisted_state.get("device_live_fields"),
     persisted_state.get("device_live_fields_version"),
 )
+device_chart_layouts = {
+    device_id: {
+        str(field): int(chart)
+        for field, chart in layout.items()
+        if isinstance(field, str) and isinstance(chart, int) and 1 <= chart <= 8
+    }
+    for device_id, layout in persisted_state.get("device_chart_layouts", {}).items()
+    if isinstance(device_id, str) and isinstance(layout, dict)
+}

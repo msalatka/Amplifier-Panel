@@ -66,6 +66,16 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("justify-content: center;", stylesheet)
         self.assertIn("calc((100% - 72px) / 4)", stylesheet)
 
+    def test_chart_series_can_be_hidden_or_combined_by_operators(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
+        template = (ROOT / "templates" / "device-history.html").read_text(encoding="utf-8")
+
+        self.assertIn("/chart-layout`,", script)
+        self.assertIn("Hidden</option>", script)
+        self.assertIn("xmlChartLayout[fieldIdentifier(field)] === chart", script)
+        self.assertIn('id="xml-chart-settings"', template)
+        self.assertIn("data-operator-only", template)
+
 
 if __name__ == "__main__":
     unittest.main()

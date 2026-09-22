@@ -115,6 +115,14 @@ restarcie usługi. `Gain` zajmuje główne pole, a pozostałe kafelki są układ
 nim maksymalnie po cztery w rzędzie. Viewer widzi przypięte wartości, ale nie
 widzi sekcji **All measurements** ani kontrolek konfiguracji.
 
+## Konfiguracja wykresów
+
+Administrator i Operator mogą w zakładce historii rozwinąć **Configure charts**.
+Każde pole liczbowe można ukryć albo przypisać do wykresu 1–8. Pola przypisane
+do tego samego numeru są wyświetlane jako osobne serie na wspólnym wykresie.
+Konfiguracja jest wspólna dla użytkowników i pozostaje po restarcie. Viewer widzi
+gotowe wykresy, ale nie widzi edytora ich układu.
+
 W instalacji docelowej warto skopiować mapowanie do
 `/etc/amp-panel/xml_mapping.json` i wskazać je w `XML_MAPPING_FILE`, żeby lokalne
 zmiany nazw przetrwały aktualizację pakietu. Plik musi być czytelny dla `amp-panel`.

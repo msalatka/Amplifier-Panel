@@ -5,7 +5,8 @@ let xmlStatisticsBusy = false
 let xmlDashboardBusy = false
 let xmlLayoutSignature = ''
 const xmlCharts = new Map()
-let xmlGroups = []
+let xmlChartGroups = []
+let xmlChartLayout = {}
 let amplifierLiveFields = []
 
 function fieldValue(snapshot, field) {
@@ -21,6 +22,36 @@ function measurementText(snapshot, field) {
 	if (value === null) return '--'
 	if (field.type === 'boolean') return value ? 'true' : 'false'
 	return `${value}${field.unit ? ' ' + field.unit : ''}`
+}
+
+function defaultChartLayout() {
+	const groups = []
+	const layout = {}
+	for (const field of xmlFields.filter((item) => item.type === 'number')) {
+		const group = `${field.section}:${field.group}`
+		if (!groups.includes(group) && groups.length < 8) groups.push(group)
+		const chart = groups.indexOf(group) + 1
+		if (chart > 0) layout[fieldIdentifier(field)] = chart
+	}
+	return layout
+}
+
+function renderChartSettings() {
+	const container = document.getElementById('xml-chart-field-settings')
+	container.innerHTML = xmlFields
+		.filter((field) => field.type === 'number')
+		.map((field) => {
+			const identifier = fieldIdentifier(field)
+			const selected = xmlChartLayout[identifier] || 0
+			const options = ['<option value="0">Hidden</option>']
+			for (let chart = 1; chart <= 8; chart += 1) {
+				options.push(
+					`<option value="${chart}"${selected === chart ? ' selected' : ''}>Chart ${chart}</option>`,
+				)
+			}
+			return `<label><span>${escapeHtml(field.title)}</span><select data-chart-field="${escapeHtml(identifier)}">${options.join('')}</select></label>`
+		})
+		.join('')
 }
 
 function renderXmlStatus(result) {
@@ -40,6 +71,8 @@ function renderXmlStatus(result) {
 			title: `${section.label} / ${field.label}`,
 		})),
 	)
+	xmlChartLayout = result.chart_layout === null ? defaultChartLayout() : result.chart_layout || {}
+	renderChartSettings()
 	if (deviceProfile === 'amplifier') {
 		for (const readout of document.querySelectorAll('[data-readout]')) {
 			const field = xmlFields.find((item) => item.role === readout.dataset.readout)
@@ -108,21 +141,17 @@ function renderXmlStatus(result) {
 					.join('')}</div></article>`,
 		)
 		.join('')
-	const signature = JSON.stringify(xmlFields)
+	const signature = JSON.stringify([xmlFields, xmlChartLayout])
 	if (signature !== xmlLayoutSignature) {
 		for (const chart of xmlCharts.values()) chart.destroy()
 		xmlCharts.clear()
-		xmlGroups = [
-			...new Set(
-				xmlFields
-					.filter((f) => f.type === 'number')
-					.map((f) => `${f.section} / ${f.group}`),
-			),
-		]
-		document.getElementById('xml-charts').innerHTML = xmlGroups
+		xmlChartGroups = [...new Set(Object.values(xmlChartLayout))]
+			.filter((chart) => Number.isInteger(chart) && chart >= 1 && chart <= 8)
+			.sort((a, b) => a - b)
+		document.getElementById('xml-charts').innerHTML = xmlChartGroups
 			.map(
-				(group, index) =>
-					`<article class="chart-card"><div class="chart-card-header"><h3>${escapeHtml(group)}</h3><button class="chart-expand-button" type="button" aria-label="Expand chart"></button></div><div class="chart-container"><canvas id="xml-chart-${index}"></canvas></div></article>`,
+				(chart, index) =>
+					`<article class="chart-card"><div class="chart-card-header"><h3>Chart ${chart}</h3><button class="chart-expand-button" type="button" aria-label="Expand chart"></button></div><div class="chart-container"><canvas id="xml-chart-${index}"></canvas></div></article>`,
 			)
 			.join('')
 		setupChartExpansion()
@@ -154,6 +183,36 @@ async function toggleAmplifierLiveField(identifier) {
 		await updateDashboard()
 	} catch (error) {
 		showNotification(error.message || 'Could not save live view.', 'error')
+	}
+}
+
+async function saveChartLayout() {
+	if (!canOperate()) return
+	const charts = {}
+	for (const select of document.querySelectorAll('[data-chart-field]')) {
+		const chart = Number(select.value)
+		if (chart) charts[select.dataset.chartField] = chart
+	}
+	try {
+		const response = await fetch(
+			`/api/devices/${encodeURIComponent(selectedDeviceId)}/chart-layout`,
+			{
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ charts }),
+			},
+		)
+		handleAuthResponse(response)
+		const result = await response.json()
+		if (!response.ok)
+			throw new Error(apiErrorMessage(result.detail, 'Could not save chart layout'))
+		xmlChartLayout = result.chart_layout
+		xmlLayoutSignature = ''
+		showNotification('Chart layout updated for all users.')
+		await updateDashboard()
+		await loadXmlHistory()
+	} catch (error) {
+		showNotification(error.message || 'Could not save chart layout.', 'error')
 	}
 }
 
@@ -206,9 +265,9 @@ async function loadXmlHistory() {
 		}
 		if (bounds.max === bounds.min) bounds.min -= 1000
 		const colors = ['#66d9ac', '#75b9ff', '#e7bc6d', '#cf92eb', '#ef8596', '#a5cb65']
-		xmlGroups.forEach((group, index) => {
+		xmlChartGroups.forEach((chart, index) => {
 			const fields = xmlFields.filter(
-				(f) => `${f.section} / ${f.group}` === group && f.type === 'number',
+				(field) => xmlChartLayout[fieldIdentifier(field)] === chart,
 			)
 			const datasets = fields.map((field, i) => ({
 				label: field.label + (field.unit ? ` [${field.unit}]` : ''),
@@ -287,3 +346,5 @@ document.getElementById('xml-live').addEventListener('click', (event) => {
 	const button = event.target.closest('[data-live-field]')
 	if (button) toggleAmplifierLiveField(button.dataset.liveField)
 })
+
+document.getElementById('xml-save-chart-layout').addEventListener('click', saveChartLayout)

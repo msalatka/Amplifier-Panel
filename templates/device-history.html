@@ -3,6 +3,11 @@
         <label>Range <select id="xml-history-range"><option value="5m">5 min</option><option value="1h">1 hour</option><option value="24h">24 hours</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="all">All</option></select></label>
         <a id="xml-export" class="button" href="/api/devices/{{ selected_device }}/history/export.csv?range=5m">Export CSV</a>
     </div><span id="xml-history-message" class="loading-status" role="status"></span></div>
+    <details id="xml-chart-settings" class="chart-settings" data-operator-only>
+        <summary>Configure charts</summary>
+        <div id="xml-chart-field-settings" class="chart-field-settings"></div>
+        <button id="xml-save-chart-layout" type="button">Save chart layout</button>
+    </details>
     <div id="xml-charts" class="charts-grid"></div>
 </section>
 <section class="tab-panel" data-tab="statistics">
