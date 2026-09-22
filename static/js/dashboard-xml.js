@@ -72,7 +72,6 @@ function renderXmlStatus(result) {
 		})),
 	)
 	xmlChartLayout = result.chart_layout === null ? defaultChartLayout() : result.chart_layout || {}
-	renderChartSettings()
 	if (deviceProfile === 'amplifier') {
 		for (const readout of document.querySelectorAll('[data-readout]')) {
 			const field = xmlFields.find((item) => item.role === readout.dataset.readout)
@@ -208,12 +207,23 @@ async function saveChartLayout() {
 			throw new Error(apiErrorMessage(result.detail, 'Could not save chart layout'))
 		xmlChartLayout = result.chart_layout
 		xmlLayoutSignature = ''
+		document.getElementById('xml-chart-settings').close()
 		showNotification('Chart layout updated for all users.')
 		await updateDashboard()
 		await loadXmlHistory()
 	} catch (error) {
 		showNotification(error.message || 'Could not save chart layout.', 'error')
 	}
+}
+
+function openChartSettings() {
+	if (!canOperate()) return
+	renderChartSettings()
+	document.getElementById('xml-chart-settings').showModal()
+}
+
+function closeChartSettings() {
+	document.getElementById('xml-chart-settings').close()
 }
 
 async function updateDashboard() {
@@ -348,3 +358,6 @@ document.getElementById('xml-live').addEventListener('click', (event) => {
 })
 
 document.getElementById('xml-save-chart-layout').addEventListener('click', saveChartLayout)
+document.getElementById('xml-open-chart-layout').addEventListener('click', openChartSettings)
+document.getElementById('xml-cancel-chart-layout').addEventListener('click', closeChartSettings)
+document.getElementById('xml-close-chart-layout').addEventListener('click', closeChartSettings)

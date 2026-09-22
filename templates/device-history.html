@@ -3,13 +3,22 @@
         <label>Range <select id="xml-history-range"><option value="5m">5 min</option><option value="1h">1 hour</option><option value="24h">24 hours</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="all">All</option></select></label>
         <a id="xml-export" class="button" href="/api/devices/{{ selected_device }}/history/export.csv?range=5m">Export CSV</a>
     </div><span id="xml-history-message" class="loading-status" role="status"></span></div>
-    <details id="xml-chart-settings" class="chart-settings" data-operator-only>
-        <summary>Configure charts</summary>
-        <div id="xml-chart-field-settings" class="chart-field-settings"></div>
-        <button id="xml-save-chart-layout" type="button">Save chart layout</button>
-    </details>
+    <button id="xml-open-chart-layout" class="chart-settings-open" type="button" data-operator-only>Configure charts</button>
     <div id="xml-charts" class="charts-grid"></div>
 </section>
+<dialog id="xml-chart-settings" class="chart-settings-dialog">
+    <form method="dialog" class="chart-settings-panel">
+        <div class="chart-settings-header">
+            <div><span>History</span><h2>Configure charts</h2><p>Assign measurements to the same chart to compare them.</p></div>
+            <button id="xml-close-chart-layout" class="chart-settings-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="xml-chart-field-settings" class="chart-field-settings"></div>
+        <div class="chart-settings-actions">
+            <button id="xml-cancel-chart-layout" type="button">Cancel</button>
+            <button id="xml-save-chart-layout" type="button">Save</button>
+        </div>
+    </form>
+</dialog>
 <section class="tab-panel" data-tab="statistics">
     <div class="monitors-header"><h2>Statistics</h2><label>Range <select id="xml-statistics-range"><option value="5m">5 min</option><option value="1h" selected>1 hour</option><option value="24h">24 hours</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="all">All</option></select></label></div>
     <div id="xml-statistics" class="data-panel"></div>
