@@ -1445,6 +1445,12 @@ button.button-secondary:disabled {
     outline: none;
 }
 
+[data-variable-automatic="true"] {
+    outline: 1px solid rgb(214 176 72 / 58%);
+    outline-offset: -1px;
+    background-image: linear-gradient(rgb(214 176 72 / 8%), rgb(214 176 72 / 8%));
+}
+
 
 
 .action-buttons select {

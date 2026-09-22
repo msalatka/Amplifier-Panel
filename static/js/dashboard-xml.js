@@ -384,6 +384,9 @@ document.addEventListener('contextmenu', (event) => {
 		key: target.dataset.variableKey,
 		automatic: target.dataset.variableAutomatic === 'true',
 	}
+	variableContextMenu.querySelector('button').textContent = contextVariable.automatic
+		? 'Add to mapping'
+		: 'Edit variable'
 	variableContextMenu.hidden = false
 	const left = Math.min(event.clientX, window.innerWidth - variableContextMenu.offsetWidth - 8)
 	const top = Math.min(event.clientY, window.innerHeight - variableContextMenu.offsetHeight - 8)

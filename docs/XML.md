@@ -104,6 +104,12 @@ i dodać do Live. Wszystkie automatycznie wykryte wartości trafiają do snapsho
 i eksportu CSV. Dodanie pola do mapowania jest nadal potrzebne, jeśli ma ono
 otrzymać własną etykietę, jednostkę, grupę lub typ logiczny.
 
+Niezmapowane pola są delikatnie oznaczone na żółto. Administrator może kliknąć
+takie pole prawym przyciskiem i wybrać **Add to mapping**. Panel dopisze podstawową
+definicję do właściwej sekcji i otworzy ją w **Edit Variables**. Zmapowane pola
+mają w tym samym menu opcję **Edit variable**, która przechodzi bezpośrednio do
+istniejącej definicji.
+
 Mapowanie jest wczytywane przy każdym odczycie; poprawne zmiany pojawią się
 automatycznie. Nieprawidłowy JSON zgłosi błąd źródła i zostanie ponownie
 sprawdzony przy następnym odczycie.

@@ -121,6 +121,8 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("contextmenu", live_script)
         self.assertIn("isAdministrator()", live_script)
         self.assertIn("openXmlVariableEditor", mapping_script)
+        self.assertIn("/api/xml-mapping/fields", mapping_script)
+        self.assertIn("Add to mapping", live_script)
         self.assertIn("setSelectionRange", mapping_script)
 
 

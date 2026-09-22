@@ -40,6 +40,8 @@ def _automatic_field(param: ET.Element, used_keys: set[str]) -> tuple[dict, floa
     return (
         {
             "key": key,
+            "id": identifier,
+            "name": name,
             "label": label,
             "unit": "",
             "group": label,

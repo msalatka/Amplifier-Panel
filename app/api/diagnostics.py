@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import tempfile
+import threading
 
 import fastapi
 import fastapi.responses
@@ -23,6 +24,7 @@ from app.services import xml_status
 
 router = fastapi.APIRouter()
 heartbeat_settings_changed = asyncio.Event()
+xml_mapping_write_lock = threading.Lock()
 
 
 class NetworkSettingsRequest(pydantic.BaseModel):
@@ -66,6 +68,38 @@ class XmlMappingUpdateRequest(pydantic.BaseModel):
     content: str
 
 
+class XmlMappingFieldRequest(pydantic.BaseModel):
+    """Automatically discovered field that should become a persistent mapping entry."""
+
+    device_id: str
+    section: str
+    key: str
+
+
+def _write_xml_mapping(mapping: dict) -> tuple[pathlib.Path, str]:
+    """Validate and atomically write a complete mapping document."""
+
+    xml_status.validate_mapping(mapping)
+    path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
+    content = json.dumps(mapping, ensure_ascii=False, indent=2) + "\n"
+    temporary_path: pathlib.Path | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, delete=False, newline="\n"
+        ) as temporary:
+            temporary.write(content)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = pathlib.Path(temporary.name)
+        os.replace(temporary_path, path)
+    except OSError:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
+    return path, content
+
+
 @router.get("/api/xml-mapping")
 def get_xml_mapping(
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
@@ -97,22 +131,10 @@ def update_xml_mapping(
     except (ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise fastapi.HTTPException(status_code=400, detail=f"Invalid mapping: {exc}") from exc
 
-    path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
-    content = json.dumps(mapping, ensure_ascii=False, indent=2) + "\n"
-    temporary_path: pathlib.Path | None = None
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=path.parent, delete=False, newline="\n"
-        ) as temporary:
-            temporary.write(content)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_path = pathlib.Path(temporary.name)
-        os.replace(temporary_path, path)
+        with xml_mapping_write_lock:
+            path, content = _write_xml_mapping(mapping)
     except OSError as exc:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
         raise fastapi.HTTPException(
             status_code=500, detail=f"Could not save mapping: {exc}"
         ) from exc
@@ -124,6 +146,77 @@ def update_xml_mapping(
         f"path={path}",
     )
     return {"status": "ok", "path": str(path), "content": content}
+
+
+@router.post("/api/xml-mapping/fields")
+def add_xml_mapping_field(
+    payload: XmlMappingFieldRequest,
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
+):
+    """Persist one currently visible automatically discovered XML field."""
+
+    if payload.device_id not in config.ENABLED_DEVICES:
+        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
+    live = state.snapshot_device_live(payload.device_id).get("data", {})
+    live_section = next(
+        (section for section in live.get("sections", []) if section.get("key") == payload.section),
+        None,
+    )
+    live_field = next(
+        (
+            field
+            for field in (live_section or {}).get("fields", [])
+            if field.get("key") == payload.key and field.get("automatic") is True
+        ),
+        None,
+    )
+    if live_field is None:
+        raise fastapi.HTTPException(
+            status_code=409, detail="The field is no longer available as an unmapped variable"
+        )
+
+    try:
+        with xml_mapping_write_lock:
+            mapping = xml_status.load_mapping()
+            mapping_section = next(
+                (
+                    section
+                    for section in mapping[payload.device_id]["sections"]
+                    if section["key"] == payload.section
+                ),
+                None,
+            )
+            if mapping_section is None:
+                raise fastapi.HTTPException(status_code=404, detail="Mapping section not found")
+            if any(field["key"] == payload.key for field in mapping_section["fields"]):
+                raise fastapi.HTTPException(status_code=409, detail="Variable is already mapped")
+            field = {
+                "key": payload.key,
+                "id": live_field.get("id", ""),
+                "name": live_field.get("name", ""),
+                "label": live_field.get("label", payload.key),
+                "type": live_field.get("type", "number"),
+                "unit": live_field.get("unit", ""),
+                "group": live_field.get("label", payload.key),
+                "role": "",
+            }
+            mapping_section["fields"].append(field)
+            path, content = _write_xml_mapping(mapping)
+    except fastapi.HTTPException:
+        raise
+    except (OSError, ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise fastapi.HTTPException(
+            status_code=500, detail=f"Could not add variable to mapping: {exc}"
+        ) from exc
+
+    api_security.audit_event(
+        request,
+        "xml_mapping_field_added",
+        current_user["username"],
+        f"device={payload.device_id}; section={payload.section}; key={payload.key}; path={path}",
+    )
+    return {"status": "ok", "path": str(path), "content": content, "field": field}
 
 
 @router.get("/api/service-diagnostics")

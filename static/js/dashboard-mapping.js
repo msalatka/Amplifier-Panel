@@ -44,13 +44,30 @@ function locateXmlVariable(variable) {
 	showNotification(`Editing ${field.label || variable.key}.`)
 }
 
-window.openXmlVariableEditor = (variable) => {
+async function addAutomaticXmlVariable(variable) {
+	const response = await fetch('/api/xml-mapping/fields', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			device_id: selectedDeviceId,
+			section: variable.section,
+			key: variable.key,
+		}),
+	})
+	handleAuthResponse(response)
+	if (!response.ok) throw await responseError(response, 'Could not add variable to mapping')
+	showNotification('Variable added to the mapping.')
+	return { ...variable, automatic: false }
+}
+
+window.openXmlVariableEditor = async (variable) => {
 	if (variable.automatic) {
-		showNotification(
-			'This automatically discovered variable is not defined in the mapping JSON.',
-			'error',
-		)
-		return
+		try {
+			variable = await addAutomaticXmlVariable(variable)
+		} catch (error) {
+			showNotification(error.message || 'Could not add variable to mapping.', 'error')
+			return
+		}
 	}
 	pendingXmlVariable = variable
 	if (!setActiveTab('variable-blocks')) return

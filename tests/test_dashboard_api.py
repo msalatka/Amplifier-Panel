@@ -52,6 +52,53 @@ class DashboardApiTests(unittest.TestCase):
             self.assertEqual(caught.exception.status_code, 400)
             self.assertEqual(path.read_text(encoding="utf-8"), original)
 
+    def test_administrator_can_persist_an_automatically_discovered_field(self):
+        mapping = xml_status.load_mapping()
+        live = {
+            "data": {
+                "sections": [
+                    {
+                        "key": "oba3",
+                        "fields": [
+                            {
+                                "key": "auto:5.1.1.99",
+                                "id": "5.1.1.99",
+                                "name": "TestVariable",
+                                "label": "TestVariable",
+                                "type": "number",
+                                "unit": "",
+                                "automatic": True,
+                            }
+                        ],
+                    }
+                ]
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "xml_mapping.json"
+            path.write_text(json.dumps(mapping), encoding="utf-8")
+            with (
+                mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
+                mock.patch.object(diagnostics.config, "ENABLED_DEVICES", ("oba3",)),
+                mock.patch.object(diagnostics.state, "snapshot_device_live", return_value=live),
+                mock.patch.object(diagnostics.api_security, "audit_event") as audit,
+            ):
+                result = diagnostics.add_xml_mapping_field(
+                    diagnostics.XmlMappingFieldRequest(
+                        device_id="oba3", section="oba3", key="auto:5.1.1.99"
+                    ),
+                    mock.Mock(),
+                    {"username": "admin", "role": "Administrator"},
+                )
+
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            field = saved["oba3"]["sections"][0]["fields"][-1]
+            self.assertEqual(field["key"], "auto:5.1.1.99")
+            self.assertEqual(field["id"], "5.1.1.99")
+            self.assertEqual(field["group"], "TestVariable")
+            self.assertEqual(result["field"], field)
+            audit.assert_called_once()
+
     def test_latest_includes_current_host_system_time(self):
         before = datetime.datetime.now(datetime.timezone.utc)
         with mock.patch.object(

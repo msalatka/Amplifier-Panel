@@ -97,6 +97,8 @@ class XmlStatusTests(unittest.TestCase):
         )
 
         self.assertEqual(automatic["label"], "NewAmplifierValue")
+        self.assertEqual(automatic["id"], "5.1.1.99")
+        self.assertEqual(automatic["name"], "NewAmplifierValue")
         self.assertEqual(automatic["type"], "number")
         self.assertEqual(result["values"]["oba3"]["auto:5.1.1.99"], 42.5)
 
