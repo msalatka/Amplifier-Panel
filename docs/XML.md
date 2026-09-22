@@ -90,6 +90,11 @@ tworzy edytowalną kopię w katalogu danych. Przykładowe pole:
   zarówno w pełnej liście pomiarów, jak i w przypiętym kafelku Live, np.
   `"unit": "dB"`.
 - `xml_section`: nazwa sekcji XML; również można ją zmienić w mapowaniu.
+- `role`: opcjonalne specjalne miejsce lub zachowanie pola. We wzmacniaczu role
+  `gain`, `input_a`, `output_a`, `input_b` i `output_b` wskazują element schematu.
+  W stacji tylko `on` wpływa na stan bloczka: wartość `false` wyszarza bloczek.
+  Bez roli `on` bloczek jest zawsze wyświetlany normalnie. Pozostałe pola, w tym
+  statusy blokady lasera, powinny mieć pustą rolę.
 
 Jeżeli producent zmieni tylko `<name>Gain</name>`, a pozostawi `id="5.1.1.1"`,
 nic nie trzeba zmieniać. Gdy zmieni identyfikator, popraw `id` w mapowaniu.

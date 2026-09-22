@@ -125,19 +125,10 @@ function renderXmlStatus(result) {
 							const fields = xmlFields.filter(
 								(field) => field.section === section.key && field.group === group,
 							)
-							const flags = fields
-								.filter((field) => ['on', 'locked'].includes(field.role))
-								.map((field) => fieldValue(snapshot, field))
-							const status =
-								!result.connected ||
-								!section.present ||
-								!flags.length ||
-								flags.some((v) => v === null)
-									? 'unknown'
-									: flags.every((v) => v === true || v === 1)
-										? 'up'
-										: 'down'
-							return `<article class="fts-module"><div class="fts-module-title"><span class="fts-led ${status}"></span><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div ${variableDataAttributes(field)}><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`).join('')}</dl></article>`
+							const switchedOff = fields
+								.filter((field) => field.role === 'on')
+								.some((field) => [false, 0].includes(fieldValue(snapshot, field)))
+							return `<article class="fts-module${switchedOff ? ' is-switched-off' : ''}"><div class="fts-module-title"><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div ${variableDataAttributes(field)}><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`).join('')}</dl></article>`
 						})
 						.join('')}</div></section>`
 				})

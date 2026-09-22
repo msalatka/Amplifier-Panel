@@ -1570,6 +1570,12 @@ button.button-secondary:disabled {
     background: #121c18;
 }
 
+.fts-module.is-switched-off {
+    opacity: 0.48;
+    border-top-color: #5d6b65;
+    filter: grayscale(0.55);
+}
+
 .fts-module.unequipped {
     opacity: 0.42;
     border-top-color: #5d6b65;
@@ -1593,19 +1599,6 @@ button.button-secondary:disabled {
     color: #8fa59b;
     font-weight: 650;
 }
-
-.fts-led {
-    width: 10px;
-    height: 10px;
-    flex: 0 0 10px;
-    border-radius: 50%;
-    background: #68756f;
-    box-shadow: 0 0 0 3px rgb(104 117 111 / 14%);
-}
-
-.fts-led.reported { background: #8fa59b; }
-.fts-led.up { background: #4eb782; box-shadow: 0 0 0 3px rgb(78 183 130 / 16%); }
-.fts-led.down { background: #68756f; box-shadow: 0 0 0 3px rgb(104 117 111 / 12%); }
 
 .fts-metrics {
     display: grid;

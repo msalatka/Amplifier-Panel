@@ -108,7 +108,7 @@
             "type": "number",
             "unit": "",
             "group": "Laser",
-            "role": "locked"
+            "role": ""
           },
           {
             "key": "LaserTEC",
@@ -236,7 +236,7 @@
             "type": "number",
             "unit": "",
             "group": "Laser 1",
-            "role": "locked"
+            "role": ""
           },
           {
             "key": "Laser1TEC",
@@ -276,7 +276,7 @@
             "type": "number",
             "unit": "",
             "group": "Laser 2",
-            "role": "locked"
+            "role": ""
           },
           {
             "key": "Laser2TEC",
@@ -389,7 +389,7 @@
             "type": "number",
             "unit": "",
             "group": "Laser",
-            "role": "locked"
+            "role": ""
           },
           {
             "key": "LaserTEC",
@@ -506,7 +506,7 @@
             "type": "number",
             "unit": "",
             "group": "Laser",
-            "role": "locked"
+            "role": ""
           },
           {
             "key": "LaserTEC",

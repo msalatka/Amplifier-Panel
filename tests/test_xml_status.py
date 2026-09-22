@@ -17,6 +17,16 @@ class XmlStatusTests(unittest.TestCase):
         self.mapping = xml_status.load_mapping()
         self.payload = (pathlib.Path(__file__).parent / "fixtures/status.xml").read_bytes()
 
+    def test_default_mapping_does_not_use_the_retired_locked_role(self):
+        roles = {
+            field.get("role", "")
+            for device in self.mapping.values()
+            for section in device["sections"]
+            for field in section["fields"]
+        }
+
+        self.assertNotIn("locked", roles)
+
     def test_all_six_sections_in_four_views(self):
         data = xml_status.parse_status(self.payload, self.mapping)
         self.assertEqual(set(data), {"local", "remote", "oba", "oba3"})

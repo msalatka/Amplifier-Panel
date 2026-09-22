@@ -49,6 +49,16 @@ class DashboardUiTests(unittest.TestCase):
 
         self.assertIn("grid-template-columns: repeat(4, minmax(0, 1fr));", stylesheet)
 
+    def test_station_blocks_are_dimmed_only_by_the_on_role(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
+
+        self.assertIn("field.role === 'on'", script)
+        self.assertIn("is-switched-off", script)
+        self.assertNotIn("'locked'", script)
+        self.assertNotIn("fts-led", script)
+        self.assertIn(".fts-module.is-switched-off", stylesheet)
+
     def test_amplifier_live_fields_are_shared_and_hidden_from_viewers(self):
         script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(encoding="utf-8")
         template = (ROOT / "templates" / "device-live.html").read_text(encoding="utf-8")
