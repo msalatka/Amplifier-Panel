@@ -1029,15 +1029,12 @@ button.button-secondary:disabled {
 }
 
 .mapping-file-location {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    display: flex;
+    justify-content: flex-end;
     align-items: baseline;
-    gap: 16px;
-    padding: 11px 12px;
+    gap: 10px;
     color: #a9b9b2;
-    background: #121b18;
-    border: 1px solid #20352d;
-    border-radius: 6px;
+    font-size: 13px;
 }
 
 .mapping-file-location code {

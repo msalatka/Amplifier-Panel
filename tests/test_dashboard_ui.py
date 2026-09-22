@@ -83,9 +83,12 @@ class DashboardUiTests(unittest.TestCase):
         script = (ROOT / "static" / "js" / "dashboard-mapping.js").read_text(encoding="utf-8")
 
         self.assertIn('data-tab="variable-blocks"', template)
+        self.assertIn('data-title="Edit Variables"', template)
         self.assertIn('id="xml-mapping-path"', template)
         self.assertIn('id="xml-mapping-content"', template)
         self.assertIn("/api/xml-mapping", script)
+        self.assertIn("beforeunload", script)
+        self.assertIn("confirmDiscardXmlMappingChanges", script)
 
     def test_save_and_secondary_buttons_use_shared_styles(self):
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")

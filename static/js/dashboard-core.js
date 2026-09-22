@@ -236,6 +236,14 @@ function showApp() {
 navLinks.forEach((link) => {
 	link.addEventListener('click', () => {
 		const targetTab = link.dataset.tab
+		const activeTab = document.querySelector('.nav-link.active')?.dataset.tab
+		if (targetTab === activeTab) return
+		if (
+			typeof window.confirmDiscardXmlMappingChanges === 'function' &&
+			!window.confirmDiscardXmlMappingChanges()
+		) {
+			return
+		}
 		if (!setActiveTab(targetTab)) return
 		history.pushState(
 			null,
@@ -246,5 +254,20 @@ navLinks.forEach((link) => {
 })
 
 window.addEventListener('popstate', () => {
-	if (currentUser) restoreTabFromUrl()
+	if (!currentUser) return
+	const activeTab = document.querySelector('.nav-link.active')?.dataset.tab || 'standard-view'
+	const targetTab = decodeURIComponent(window.location.hash.slice(1)) || 'standard-view'
+	if (
+		targetTab !== activeTab &&
+		typeof window.confirmDiscardXmlMappingChanges === 'function' &&
+		!window.confirmDiscardXmlMappingChanges()
+	) {
+		history.pushState(
+			null,
+			'',
+			`${window.location.pathname}${window.location.search}#${encodeURIComponent(activeTab)}`,
+		)
+		return
+	}
+	restoreTabFromUrl()
 })

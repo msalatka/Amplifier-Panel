@@ -1,4 +1,26 @@
 // Administrator editor for the complete XML-to-dashboard mapping.
+let xmlMappingSavedContent = null
+
+function hasUnsavedXmlMappingChanges() {
+	const content = document.getElementById('xml-mapping-content')
+	return xmlMappingSavedContent !== null && content?.value !== xmlMappingSavedContent
+}
+
+window.confirmDiscardXmlMappingChanges = () => {
+	if (!hasUnsavedXmlMappingChanges()) return true
+	const shouldContinue = window.confirm(
+		'You have unsaved JSON changes. Continue without saving them?',
+	)
+	if (shouldContinue) xmlMappingSavedContent = null
+	return shouldContinue
+}
+
+window.addEventListener('beforeunload', (event) => {
+	if (!hasUnsavedXmlMappingChanges()) return
+	event.preventDefault()
+	event.returnValue = ''
+})
+
 async function loadXmlMapping() {
 	if (!isAdministrator()) return
 	const content = document.getElementById('xml-mapping-content')
@@ -14,6 +36,7 @@ async function loadXmlMapping() {
 		const result = await response.json()
 		setTextIfExists('xml-mapping-path', result.path)
 		content.value = result.content
+		xmlMappingSavedContent = result.content
 		message.textContent = ''
 	} catch (error) {
 		message.classList.add('error')
@@ -41,8 +64,9 @@ document.getElementById('xml-mapping-form')?.addEventListener('submit', async (e
 		const result = await response.json()
 		setTextIfExists('xml-mapping-path', result.path)
 		content.value = result.content
+		xmlMappingSavedContent = result.content
 		message.textContent = 'Mapping saved. Device views will use it on the next XML poll.'
-		showNotification('Variable blocks saved.')
+		showNotification('Variables saved.')
 	} catch (error) {
 		message.classList.add('error')
 		message.textContent = error.message
