@@ -135,6 +135,25 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("Add to mapping", live_script)
         self.assertIn("setSelectionRange", mapping_script)
 
+    def test_device_control_is_generated_from_writable_xml_fields(self):
+        template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+        control_template = (ROOT / "templates" / "device-control.html").read_text(
+            encoding="utf-8"
+        )
+        script = (ROOT / "static" / "js" / "dashboard-control.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('data-tab="device-control"', template)
+        self.assertIn("dashboard-control.js", template)
+        self.assertIn('id="device-control-fields"', control_template)
+        self.assertIn("fields.filter((field) => field.writable)", script)
+        self.assertIn("for (const identifier of deviceControlDirty)", script)
+        self.assertIn("method: 'PUT'", script)
+        self.assertIn("/control/status", script)
+        self.assertNotIn("/api/set_gain", script)
+        self.assertNotIn("gain-set-input", control_template)
+
 
 if __name__ == "__main__":
     unittest.main()

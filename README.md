@@ -1,7 +1,8 @@
 # Amp Panel
 
-Amp Panel jest lokalną aplikacją webową do monitorowania i sterowania
-urządzeniami optycznymi. Obsługuje cztery niezależne profile XML:
+Amp Panel jest lokalną aplikacją webową, która odczytuje stan urządzeń i
+przekazuje do nich polecenia za pomocą plików XML. Obsługuje cztery niezależne
+profile:
 
 - `local` — stacja lokalna / DI,
 - `remote` — stacja zdalna / DI,
@@ -76,6 +77,19 @@ niezależny stan połączenia, dane bieżące i historię.
 Pokazuje ostatni kompletny snapshot wybranego urządzenia. Dla wzmacniaczy
 Administrator i Operator mogą wybierać pomiary widoczne na głównym ekranie.
 Viewer ma dostęp wyłącznie do odczytu.
+
+### Control
+
+Zakładka **Control** jest dostępna dla Operatora i Administratora. Jej pola są
+tworzone automatycznie na podstawie `xml_mapping.json`: pojawia się w niej każde
+pole oznaczone jako `"writable": true`. Po wybraniu **Apply changes** panel
+zapisuje do `control.xml` wyłącznie wartości zmienione przez użytkownika.
+
+Sekcja **Last request** pokazuje identyfikator i stan ostatniego polecenia.
+Urządzenie potwierdza wykonanie w `status.xml`; panel prezentuje stany takie jak
+`pending`, `applied`, `rejected`, `failed` lub `timeout`. Dodanie kolejnego pola
+sterującego nie wymaga zmiany kodu GUI — wystarczy dodać je do mapowania wraz z
+typem, zakresem i flagą `writable`.
 
 ### Overview i Statistics
 

@@ -1899,8 +1899,26 @@ button.button-secondary:disabled {
 .xml-metric dt { color:#9cb6a9; }
 .xml-metric dd { margin:8px 0 0; font-weight:700; }
 .xml-stale { opacity:.5; }
+.device-control-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+.device-control-field { display:grid; gap:8px; padding:16px; border:1px solid #294438; border-radius:8px; background:#102219; }
+.device-control-field > span { color:#dfe8e3; font-weight:700; }
+.device-control-field > small { color:#8fa59b; }
+.device-control-input { display:flex; align-items:center; gap:10px; }
+.device-control-input input { width:100%; min-width:0; padding:10px 12px; color:#edf3ef; border:1px solid #3d5149; border-radius:6px; background:#0d1c15; }
+.device-control-input input:focus { outline:2px solid #57c08a; outline-offset:1px; }
+.device-control-input small { min-width:max-content; color:#9cb6a9; }
+.device-control-message { grid-column:span 2; }
+.control-state { text-transform:capitalize; }
+.control-state-pending { color:#e4c46a; }
+.control-state-applied { color:#66d9ac; }
+.control-state-rejected,
+.control-state-failed,
+.control-state-timeout { color:#ff8b8b; }
 #xml-charts .chart-container { position:relative; height:300px; min-height:0; }
 #xml-charts .chart-card.expanded .chart-container { height:calc(100% - 48px); }
 #xml-charts canvas { height:100% !important; }
 .range-toolbar select { background:#12251c; color:#dfe8e3; padding:8px; border:1px solid #3d5149; border-radius:6px; }
-@media(max-width:700px) { .device-heading { flex-direction:column; gap:8px; } }
+@media(max-width:700px) {
+    .device-heading { flex-direction:column; gap:8px; }
+    .device-control-message { grid-column:auto; }
+}

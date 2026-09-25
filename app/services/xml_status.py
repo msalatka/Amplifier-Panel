@@ -184,6 +184,8 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                 fields.append(
                     {
                         "key": field["key"],
+                        "id": field.get("id", ""),
+                        "name": field.get("name", ""),
                         "label": field.get("label", field["key"]),
                         "unit": field.get("unit", ""),
                         "group": field.get("group", "Measurements"),
@@ -192,6 +194,17 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                             "boolean"
                             if field["key"] in definition.get("boolean_fields", [])
                             else field.get("type", "number")
+                        ),
+                        "writable": field.get("writable", False),
+                        **(
+                            {"minimum": field["minimum"]}
+                            if "minimum" in field
+                            else {}
+                        ),
+                        **(
+                            {"maximum": field["maximum"]}
+                            if "maximum" in field
+                            else {}
                         ),
                     }
                 )

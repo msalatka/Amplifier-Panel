@@ -60,6 +60,19 @@ class XmlStatusTests(unittest.TestCase):
         self.assertIs(result["local"]["values"]["local"]["LaserLocked"], True)
         self.assertIs(result["remote"]["values"]["remote"]["PPSSigDet"], True)
 
+    def test_writable_metadata_is_exposed_to_the_control_view(self):
+        result = xml_status.parse_status(self.payload, self.mapping)["oba3"]
+        gain_set = next(
+            field
+            for section in result["sections"]
+            for field in section["fields"]
+            if field["key"] == "GainSet"
+        )
+
+        self.assertIs(gain_set["writable"], True)
+        self.assertEqual(gain_set["id"], "5.1.1.2")
+        self.assertEqual(gain_set["name"], "GainSet")
+
     def test_boolean_fields_reject_values_other_than_zero_or_one(self):
         payload = self.payload.replace(
             b"<name>LaserLocked</name>\n      <value>1</value>",

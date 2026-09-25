@@ -58,6 +58,8 @@ setInterval(() => {
 	}
 	const snmpTab = document.querySelector('.tab-panel[data-tab="snmp-settings"]')
 	if (snmpTab && snmpTab.classList.contains('active')) updateSnmpLiveValues()
+	const controlTab = document.querySelector('.tab-panel[data-tab="device-control"]')
+	if (controlTab && controlTab.classList.contains('active')) loadDeviceControlStatus()
 
 	const ntpTab = document.querySelector('.tab-panel[data-tab="ntp-settings"]')
 	if (ntpTab && ntpTab.classList.contains('active')) loadNtpStatus()

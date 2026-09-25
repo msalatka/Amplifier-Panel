@@ -1,0 +1,38 @@
+<section class="tab-panel" data-tab="device-control" data-operator-only>
+    <div class="data-panel device-control-panel">
+        <div class="service-page-header">
+            <div>
+                <h2>Device Control</h2>
+                <p>Change parameters explicitly marked as writable in the XML mapping.</p>
+            </div>
+        </div>
+
+        <form id="device-control-form" class="administration-section administration-form">
+            <div class="settings-header control-save-header">
+                <div>
+                    <h2 id="device-control-title">Writable parameters</h2>
+                    <p class="settings-description">Only edited values are sent to control.xml.</p>
+                </div>
+                <button id="device-control-submit" class="button-primary" type="submit" disabled>Apply changes</button>
+            </div>
+            <div id="device-control-fields" class="device-control-fields">
+                <p>No writable parameters are available for this device.</p>
+            </div>
+        </form>
+
+        <section class="administration-section device-control-status" aria-labelledby="device-control-status-title">
+            <div class="settings-header">
+                <div>
+                    <h2 id="device-control-status-title">Last request</h2>
+                    <p class="settings-description">The device confirms the request through status.xml.</p>
+                </div>
+                <button id="device-control-refresh" class="button-secondary" type="button">Refresh</button>
+            </div>
+            <div class="network-status-grid">
+                <div><span>Request ID</span><strong id="device-control-request-id">--</strong></div>
+                <div><span>State</span><strong id="device-control-state">idle</strong></div>
+                <div class="device-control-message"><span>Message</span><strong id="device-control-message">No request sent.</strong></div>
+            </div>
+        </section>
+    </div>
+</section>

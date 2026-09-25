@@ -88,6 +88,7 @@ function renderXmlStatus(result) {
 			title: `${section.label} / ${field.label}`,
 		})),
 	)
+	renderDeviceControl(snapshot, xmlFields)
 	xmlChartLayout = result.chart_layout === null ? defaultChartLayout() : result.chart_layout || {}
 	if (deviceProfile === 'amplifier') {
 		for (const readout of document.querySelectorAll('[data-readout]')) {
