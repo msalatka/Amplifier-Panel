@@ -181,12 +181,18 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn(".device-control-status-row > div", stylesheet)
 
     def test_live_variables_have_a_hover_highlight(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(
+            encoding="utf-8"
+        )
         stylesheet = (ROOT / "static" / "css" / "style.css").read_text(
             encoding="utf-8"
         )
 
         self.assertIn("#device-live-board [data-variable-key]:hover", stylesheet)
         self.assertIn("#xml-live [data-variable-key]:hover", stylesheet)
+        self.assertIn("liveBoardSignature !== deviceLiveBoardSignature", script)
+        self.assertIn("measurementsSignature !== allMeasurementsSignature", script)
+        self.assertIn("updateRenderedVariableValues(liveBoard, snapshot)", script)
         self.assertNotIn(
             "transition:background-color 120ms ease, box-shadow 120ms ease",
             stylesheet,

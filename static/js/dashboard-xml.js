@@ -8,6 +8,9 @@ const xmlCharts = new Map()
 let xmlChartGroups = []
 let xmlChartLayout = {}
 let amplifierLiveFields = []
+let deviceLiveBoardSignature = ''
+let amplifierPinnedSignature = ''
+let allMeasurementsSignature = ''
 
 function fieldValue(snapshot, field) {
 	return snapshot.values?.[field.section]?.[field.key] ?? null
@@ -39,6 +42,18 @@ function measurementText(snapshot, field) {
 	if (value === null) return '--'
 	if (field.type === 'boolean') return value ? 'true' : 'false'
 	return `${value}${field.unit ? ' ' + field.unit : ''}`
+}
+
+function updateRenderedVariableValues(container, snapshot) {
+	for (const element of container.querySelectorAll('[data-variable-key]')) {
+		const field = xmlFields.find(
+			(item) =>
+				item.section === element.dataset.variableSection &&
+				item.key === element.dataset.variableKey,
+		)
+		const value = element.querySelector('dd, strong')
+		if (field && value) value.textContent = measurementText(snapshot, field)
+	}
 }
 
 function defaultChartLayout() {
@@ -111,47 +126,82 @@ function renderXmlStatus(result) {
 		const pinnedFields = amplifierLiveFields
 			.map((identifier) => xmlFields.find((field) => fieldIdentifier(field) === identifier))
 			.filter((field) => field && field.role !== 'gain')
-		pinnedContainer.innerHTML = pinnedFields
-			.map(
+		const pinnedSignature = JSON.stringify(pinnedFields)
+		if (pinnedSignature !== amplifierPinnedSignature) {
+			pinnedContainer.innerHTML = pinnedFields
+				.map(
+					(field) =>
+						`<div class="metric-item" ${variableDataAttributes(field)}><span>${escapeHtml(field.label)}</span><strong></strong></div>`,
+				)
+				.join('')
+			amplifierPinnedSignature = pinnedSignature
+		}
+		updateRenderedVariableValues(pinnedContainer, snapshot)
+	} else {
+		const liveBoard = document.getElementById('device-live-board')
+		const liveBoardSignature = JSON.stringify([
+			xmlFields,
+			sections.map((section) => [section.key, section.label, section.present]),
+		])
+		if (liveBoardSignature !== deviceLiveBoardSignature) {
+			liveBoard.innerHTML =
+				sections
+					.map((section) => {
+						const groups = [...new Set(section.fields.map((field) => field.group))]
+						return `<section class="fts-station-group"><div class="fts-section-heading"><h3>${escapeHtml(section.label)}</h3>${section.present ? '' : '<span>Not present</span>'}</div><div class="fts-station-systems">${groups
+							.map((group) => {
+								const fields = xmlFields.filter(
+									(field) =>
+										field.section === section.key && field.group === group,
+								)
+								return `<article class="fts-module" data-station-section="${escapeHtml(section.key)}" data-station-group="${escapeHtml(group)}"><div class="fts-module-title"><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div ${variableDataAttributes(field)}><dt>${escapeHtml(field.label)}</dt><dd></dd></div>`).join('')}</dl></article>`
+							})
+							.join('')}</div></section>`
+					})
+					.join('') || '<p>Waiting for station data...</p>'
+			deviceLiveBoardSignature = liveBoardSignature
+		}
+		updateRenderedVariableValues(liveBoard, snapshot)
+		for (const module of liveBoard.querySelectorAll('[data-station-group]')) {
+			const fields = xmlFields.filter(
 				(field) =>
-					`<div class="metric-item" ${variableDataAttributes(field)}><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(measurementText(snapshot, field))}</strong></div>`,
+					field.section === module.dataset.stationSection &&
+					field.group === module.dataset.stationGroup,
+			)
+			module.classList.toggle(
+				'is-switched-off',
+				fields
+					.filter((field) => field.role === 'on')
+					.some((field) => [false, 0].includes(fieldValue(snapshot, field))),
+			)
+		}
+	}
+	const allMeasurements = document.getElementById('xml-live')
+	const measurementsSignature = JSON.stringify([
+		xmlFields,
+		amplifierLiveFields,
+		deviceProfile === 'amplifier' && canOperate(),
+	])
+	if (measurementsSignature !== allMeasurementsSignature) {
+		allMeasurements.innerHTML = sections
+			.map(
+				(section) =>
+					`<article><h3>${escapeHtml(section.label)}</h3><div class="xml-metrics">${xmlFields
+						.filter((f) => f.section === section.key)
+						.map((field) => {
+							const identifier = fieldIdentifier(field)
+							const pinned = amplifierLiveFields.includes(identifier)
+							const contents = `<span class="xml-metric-label">${escapeHtml(field.label)}</span><strong></strong>`
+							return deviceProfile === 'amplifier' && canOperate()
+								? `<button type="button" class="xml-metric xml-metric-selectable${pinned ? ' is-pinned' : ''}" data-live-field="${escapeHtml(identifier)}" ${variableDataAttributes(field)} aria-pressed="${pinned}">${contents}</button>`
+								: `<div class="xml-metric${pinned ? ' is-pinned' : ''}" ${variableDataAttributes(field)}>${contents}</div>`
+						})
+						.join('')}</div></article>`,
 			)
 			.join('')
-	} else {
-		document.getElementById('device-live-board').innerHTML =
-			sections
-				.map((section) => {
-					const groups = [...new Set(section.fields.map((field) => field.group))]
-					return `<section class="fts-station-group"><div class="fts-section-heading"><h3>${escapeHtml(section.label)}</h3>${section.present ? '' : '<span>Not present</span>'}</div><div class="fts-station-systems">${groups
-						.map((group) => {
-							const fields = xmlFields.filter(
-								(field) => field.section === section.key && field.group === group,
-							)
-							const switchedOff = fields
-								.filter((field) => field.role === 'on')
-								.some((field) => [false, 0].includes(fieldValue(snapshot, field)))
-							return `<article class="fts-module${switchedOff ? ' is-switched-off' : ''}"><div class="fts-module-title"><strong>${escapeHtml(group)}</strong></div><dl class="fts-metrics">${fields.map((field) => `<div ${variableDataAttributes(field)}><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(measurementText(snapshot, field))}</dd></div>`).join('')}</dl></article>`
-						})
-						.join('')}</div></section>`
-				})
-				.join('') || '<p>Waiting for station data...</p>'
+		allMeasurementsSignature = measurementsSignature
 	}
-	document.getElementById('xml-live').innerHTML = sections
-		.map(
-			(section) =>
-				`<article><h3>${escapeHtml(section.label)}</h3><div class="xml-metrics">${xmlFields
-					.filter((f) => f.section === section.key)
-					.map((field) => {
-						const identifier = fieldIdentifier(field)
-						const pinned = amplifierLiveFields.includes(identifier)
-						const contents = `<span class="xml-metric-label">${escapeHtml(field.label)}</span><strong>${escapeHtml(measurementText(snapshot, field))}</strong>`
-						return deviceProfile === 'amplifier' && canOperate()
-							? `<button type="button" class="xml-metric xml-metric-selectable${pinned ? ' is-pinned' : ''}" data-live-field="${escapeHtml(identifier)}" ${variableDataAttributes(field)} aria-pressed="${pinned}">${contents}</button>`
-							: `<div class="xml-metric${pinned ? ' is-pinned' : ''}" ${variableDataAttributes(field)}>${contents}</div>`
-					})
-					.join('')}</div></article>`,
-		)
-		.join('')
+	updateRenderedVariableValues(allMeasurements, snapshot)
 	const signature = JSON.stringify([xmlFields, xmlChartLayout])
 	if (signature !== xmlLayoutSignature) {
 		for (const chart of xmlCharts.values()) chart.destroy()
