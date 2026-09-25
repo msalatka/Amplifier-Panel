@@ -1,133 +1,361 @@
-# Optical equipment control panel
+# Amp Panel
 
-Local web application for monitoring optical devices from a daemon-owned
-`status.xml`. Four XML views are enabled by default: `local` (Local and LocalDI),
-`remote` (Remote and RemoteDI), `oba` and `oba3` (EDFA amplifiers). These views
-never open a serial port and expose no device control commands.
+Amp Panel jest lokalną aplikacją webową do monitorowania i sterowania
+urządzeniami optycznymi. Obsługuje cztery niezależne profile XML:
 
-See [XML configuration and field mapping](docs/XML.md) for setup, migration,
-display labels and firmware field changes. The retired `amplifier` and `fts-ls`
-configuration names are migrated automatically to the four XML devices.
+- `local` — stacja lokalna / DI,
+- `remote` — stacja zdalna / DI,
+- `oba` — wzmacniacz EDFA OBA,
+- `oba3` — wzmacniacz EDFA OBA3.
 
-## Building the Debian package
+Urządzenie przekazuje telemetrię przez `status.xml`. Panel nigdy nie modyfikuje
+tego pliku. Polecenia w przeciwnym kierunku są publikowane w oddzielnym
+`control.xml`, dzięki czemu odczyt i zapis nie konkurują o ten sam plik.
 
-Install the build dependencies once on a clean Debian system:
+## Instalacja
 
-```console
+### Budowanie pakietu Debiana
+
+Na docelowym systemie Debian zainstaluj narzędzia budowania:
+
+```bash
 sudo apt update
 sudo apt install build-essential debhelper git python3 python3-pip
 ```
 
-When already logged in as `root`, omit `sudo`. The `debhelper` package provides
-the required `debhelper-compat (= 13)` dependency.
+W katalogu projektu uruchom:
 
-Build the package from the project root:
-
-```console
+```bash
 ./packaging/build_deb.sh
 ```
 
-The script verifies the build dependencies and writes the resulting `.deb` file
-to the parent directory of the project.
+Pakiet `.deb` zostanie zapisany w katalogu nadrzędnym. Zainstaluj go, podając
+rzeczywistą nazwę wygenerowanego pliku:
 
-## Installing and configuring
-
-Install the generated package, using its exact filename:
-
-```console
-cd ..
-sudo apt install "./amp-panel_0.1.0_$(dpkg --print-architecture).deb"
+```bash
+sudo apt install ../amp-panel_*.deb
 ```
 
-The installer asks for the device views, XML file path, initial
-administrator, and authentication method. Choose either local passwords stored
-on the panel host as salted hashes, or a RADIUS server. Configuration can be
-repeated later:
+Instalator tworzy użytkownika systemowego `amp-panel`, usługi systemd, katalog
+danych oraz początkową konfigurację. Konfigurację można ponowić w dowolnym
+momencie:
 
-```console
+```bash
 sudo amp-panel configure
 ```
 
-`amp-panel configure` opens the complete configuration file in `$VISUAL`,
-`$EDITOR`, or the system `editor`. When the editor closes, the values are
-validated before the installed configuration is replaced and services are
-reloaded. Use `sudo amp-panel configure --prompt` for the older question-and-
-answer wizard.
+Domyślnie polecenie otwiera pełny plik konfiguracyjny w `$VISUAL`, `$EDITOR`
+lub systemowym `editor`. Kreator pytań można uruchomić przez:
 
-Verify the installation with:
+```bash
+sudo amp-panel configure --prompt
+```
 
-```console
+Po instalacji sprawdź system:
+
+```bash
 sudo amp-panel doctor
 sudo amp-panel status
 ```
 
-## Frontend dependency
+Panel jest dostępny domyślnie pod adresem:
 
-Chart.js `4.5.1` is pinned in `package.json` and stored locally in
-`static/vendor/chart.js`. Charts therefore do not require Internet access. When
-upgrading the library, update both the bundled script and its license file.
+```text
+http://amp-panel.local:8000
+```
 
-## Authentication
+Nazwa hosta i port zależą od konfiguracji instalacji.
 
-The selected method applies to all browser logins:
+## Korzystanie z aplikacji
 
-- **Local passwords**: the panel stores its users, roles, active state, and
-  salted PBKDF2 password hashes in its restricted state file on the panel host.
-  Administrators create users and change passwords in **Access Control**.
-- **RADIUS**: the panel stores only the username, role, and active state. The
-  RADIUS server verifies passwords and remains the source of user accounts.
+Po zalogowaniu wybierz urządzenie z selektora w nagłówku. Każdy profil ma
+niezależny stan połączenia, dane bieżące i historię.
 
-To switch methods, run `sudo amp-panel configure` and select `local` or
-`radius`. Selecting local authentication asks for a new initial administrator
-password. RADIUS settings are retained when local authentication is selected,
-so switching back does not require entering them again.
+### Live View
 
-## Setting up a RADIUS server
+Pokazuje ostatni kompletny snapshot wybranego urządzenia. Dla wzmacniaczy
+Administrator i Operator mogą wybierać pomiary widoczne na głównym ekranie.
+Viewer ma dostęp wyłącznie do odczytu.
 
-RADIUS mode requires a reachable RADIUS server on a separate host.
+### Overview i Statistics
 
-The repository includes a FreeRADIUS setup script:
+- **Overview** przedstawia przebieg wybranych wartości historycznych.
+- **Statistics** oblicza statystyki dla wybranego okresu.
+- Historia może zostać wyeksportowana do CSV.
+- Układ wykresów jest wspólny dla użytkowników i zachowywany po restarcie.
 
-```console
+### Administration
+
+Funkcje administracyjne obejmują:
+
+- **Access Control** — użytkownicy, role, hasła lokalne i aktywność kont,
+- **SNMP Configuration** — agent, community oraz odbiorca trapów,
+- **Network Configuration** — aktualny interfejs i ustawienia IPv4,
+- **Time Diagnostics** — stan synchronizacji NTP,
+- **Service Diagnostics** — telemetria XML, baza danych i Syslog,
+- **Edit Variables** — edycja mapowania pól XML.
+
+Zmiany sieciowe mogą przerwać bieżące połączenie z panelem. Należy wykonywać je
+z interfejsu, którego konfiguracja jest aktualnie wyświetlana.
+
+## Uwierzytelnianie
+
+Panel obsługuje dwa tryby wybierane przez `amp-panel configure`:
+
+- `local` — konta i hashe PBKDF2 są przechowywane lokalnie,
+- `radius` — hasło sprawdza zewnętrzny serwer RADIUS, a panel przechowuje role i
+  informację, czy konto jest aktywne.
+
+W trybie RADIUS użytkownik musi istnieć zarówno w konfiguracji panelu, jak i na
+serwerze RADIUS. Repozytorium zawiera pomocniczy instalator:
+
+```bash
 cd server_setup
 sudo ./install_radius_server.sh
 ```
 
-The script asks for the panel host's IP address or CIDR, registers it as a
-RADIUS client, and generates a shared secret when one is not supplied. Keep that
-secret for `amp-panel configure`.
+## Najważniejsza konfiguracja
 
-### Adding user accounts
-
-Every user allowed to sign in to the panel must also have an account on the
-RADIUS server. The panel stores the username, role, and active status, but it
-does not create or store RADIUS passwords.
-
-On a standard FreeRADIUS installation, accounts are defined in
-`/etc/freeradius/3.0/users`, for example:
+Konfiguracja pakietu znajduje się w:
 
 ```text
-admin Cleartext-Password := "a-strong-password-here"
+/etc/amp-panel/amp-panel.env
 ```
 
-### Diagnosing an unknown RADIUS client
+Nie należy edytować jej podczas działania usługi. Bezpieczniej użyć:
 
-When traffic passes through NAT or another forwarded network path, FreeRADIUS
-may see a different source address than the panel host's address. To identify
-it:
-
-```console
-sudo systemctl stop freeradius
-sudo freeradius -X
+```bash
+sudo amp-panel configure
 ```
 
-Attempt a login and look for `Ignoring request ... from unknown client
-X.X.X.X`. Add the reported address or an appropriate network range to
-`/etc/freeradius/3.0/clients.conf`, then restart the service:
+Najważniejsze ustawienia XML:
 
-```console
-sudo systemctl start freeradius
+```ini
+ENABLED_DEVICES=local,remote,oba,oba3
+XML_STATUS_FILE=/var/lib/amp-panel/status.xml
+XML_CONTROL_FILE=/var/lib/amp-panel/control.xml
+XML_CONTROL_ACK_TIMEOUT_SECONDS=15
+XML_MAPPING_FILE=/var/lib/amp-panel/xml_mapping.json
+XML_POLL_SECONDS=2
+XML_STALE_SECONDS=60
 ```
 
-Finally, run `amp-panel configure` on the panel host and provide the RADIUS
-server address, UDP port (`1812` by default), and shared secret.
+Pozostałe istotne ustawienia:
+
+```ini
+AMP_PANEL_PORT=8000
+AMP_PANEL_DATA_DIR=/var/lib/amp-panel
+DATABASE_FILE=/var/lib/amp-panel/measurements.db
+PERSISTED_STATE_FILE=/var/lib/amp-panel/persisted_state.json
+AUTH_MODE=local
+SNMP_PORT=1161
+```
+
+Po zmianie konfiguracji `amp-panel configure` sprawdza wartości, przygotowuje
+pliki i uprawnienia, a następnie restartuje usługi. Pliki bazy, stanu i
+`control.xml` muszą znajdować się w `AMP_PANEL_DATA_DIR`.
+
+## Telemetria: status.xml
+
+`status.xml` jest własnością procesu urządzenia. Zalecany sposób aktualizacji to
+zapis pliku tymczasowego i atomowe zastąpienie właściwego pliku. Panel cyklicznie
+odczytuje dokument, ale nigdy go nie zapisuje.
+
+Minimalna struktura:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<status>
+  <module>
+    <serial_number>DEVICE-001</serial_number>
+    <firmware>1.0</firmware>
+  </module>
+
+  <params_oba3>
+    <param id="5.1.1.1">
+      <name>Gain</name>
+      <value>30.0</value>
+    </param>
+    <param id="5.1.1.2">
+      <name>GainSet</name>
+      <value>28.5</value>
+    </param>
+  </params_oba3>
+</status>
+```
+
+Sekcje używane przez domyślne profile:
+
+| Profil | Sekcje XML |
+|---|---|
+| `local` | `params_local`, `params_localdi` |
+| `remote` | `params_remote`, `params_remotedi` |
+| `oba` | `params_oba` |
+| `oba3` | `params_oba3` |
+
+Plik musi być poprawnym XML UTF-8, mieć korzeń `<status>` i nie może przekraczać
+1 MB. DTD oraz encje zewnętrzne są odrzucane. Brakujące, zduplikowane i
+niepoprawne wartości są raportowane w diagnostyce profilu.
+
+## Mapowanie pól XML
+
+`xml_mapping.json` łączy elementy firmware z trwałymi kluczami aplikacji.
+Przykładowe pole:
+
+```json
+{
+  "key": "GainSet",
+  "id": "5.1.1.2",
+  "name": "GainSet",
+  "label": "Gain setpoint",
+  "type": "number",
+  "unit": "dB",
+  "role": "gain_set",
+  "group": "Amplifier",
+  "writable": true
+}
+```
+
+Znaczenie właściwości:
+
+- `key` — stabilny klucz używany przez API i historię,
+- `id` lub `name` — selektor parametru w XML,
+- `label`, `unit`, `group` — opis prezentowany użytkownikowi,
+- `type` — `number` albo `text`,
+- `role` — opcjonalna rola semantyczna,
+- `writable` — jawne zezwolenie na zapis do `control.xml`,
+- `minimum`, `maximum` — opcjonalne granice wartości zapisywanej.
+
+Panel nigdy nie pozwala zapisać pola bez `"writable": true`. Zakresy należy
+ustawić według specyfikacji urządzenia; aplikacja nie zgaduje bezpiecznych
+wartości. Automatycznie odkryte pola są domyślnie tylko do odczytu.
+
+Mapowanie można edytować w **Administration → Edit Variables**. Jest ono
+wczytywane przy każdym odczycie XML, więc poprawna zmiana nie wymaga restartu.
+
+## Sterowanie: control.xml
+
+Żądanie sterujące jest walidowane według mapowania, otrzymuje UUID, a następnie
+jest zapisywane atomowo. Przykład:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<control version="1">
+  <request id="11111111-1111-4111-8111-111111111111"
+           created_at="2026-09-25T14:30:00+00:00">
+    <device id="oba3">
+      <parameter section="oba3" key="GainSet" type="number"
+                 id="5.1.1.2" name="GainSet">
+        <value>28.5</value>
+      </parameter>
+    </device>
+  </request>
+</control>
+```
+
+Proces urządzenia powinien:
+
+1. Obserwować `control.xml`.
+2. Sprawdzić `request.id`.
+3. Zastosować każde UUID najwyżej raz.
+4. Zignorować ponownie odczytane, już obsłużone UUID.
+5. Umieścić wynik w kolejnym `status.xml`.
+
+Potwierdzenie w `status.xml`:
+
+```xml
+<control_status>
+  <last_request_id>11111111-1111-4111-8111-111111111111</last_request_id>
+  <state>applied</state>
+  <message>OK</message>
+</control_status>
+```
+
+Dozwolone stany odpowiedzi urządzenia:
+
+- `pending` — urządzenie przyjęło żądanie,
+- `applied` — zmiana została zastosowana,
+- `rejected` — urządzenie odrzuciło wartość,
+- `failed` — wykonanie zakończyło się błędem.
+
+Jeżeli zgodne potwierdzenie nie pojawi się przed
+`XML_CONTROL_ACK_TIMEOUT_SECONDS`, panel zwróci stan `timeout`.
+
+## API sterowania XML
+
+Zapis jest dostępny dla Administratora i Operatora:
+
+```http
+PUT /api/devices/oba3/control
+Content-Type: application/json
+
+{
+  "values": {
+    "oba3:GainSet": 28.5
+  }
+}
+```
+
+Odpowiedź zawiera `request_id`, stan `pending` i ścieżkę pliku sterującego.
+Wartości są identyfikowane jako `sekcja:key`.
+
+Stan ostatniego żądania:
+
+```http
+GET /api/devices/oba3/control/status
+```
+
+Każdy zapis jest rejestrowany w audycie. API odrzuca pola tylko do odczytu,
+wartości niefinitywne, wartości poza skonfigurowanym zakresem i nadmiernie
+długie teksty.
+
+## Diagnostyka i obsługa usługi
+
+```bash
+sudo amp-panel status
+sudo amp-panel doctor
+sudo amp-panel logs -n 100
+sudo amp-panel logs -f
+sudo amp-panel restart
+sudo amp-panel paths
+```
+
+`amp-panel doctor` sprawdza konfigurację, katalog danych, bazę SQLite,
+`status.xml`, zapisywalność `control.xml` oraz usługi systemd.
+
+Typowe problemy:
+
+- **Brak danych** — sprawdź istnienie i czas modyfikacji `status.xml`.
+- **Źródło stale** — proces urządzenia nie odświeżył pliku przed
+  `XML_STALE_SECONDS`.
+- **Control timeout** — urządzenie nie zwróciło zgodnego UUID w
+  `<control_status>`.
+- **Pole read-only** — w mapowaniu brakuje `"writable": true`.
+- **Permission denied** — proces urządzenia i użytkownik `amp-panel` nie mają
+  odpowiednich praw do katalogu wymiany.
+
+## Rozwój i testy
+
+Instalacja zależności Pythona:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Uruchomienie testów:
+
+```bash
+python -m unittest discover -s tests -q
+```
+
+Kontrola kodu Pythona:
+
+```bash
+python -m ruff check .
+python -m ruff format --check .
+```
+
+Frontend korzysta z lokalnie dołączonego Chart.js, dlatego wykresy nie
+wymagają dostępu do Internetu.
