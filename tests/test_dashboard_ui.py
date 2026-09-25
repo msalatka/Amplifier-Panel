@@ -165,7 +165,20 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("const groups = new Map()", script)
         self.assertIn('class="device-control-group"', script)
         self.assertIn(".device-control-group + .device-control-group", stylesheet)
-        self.assertIn("grid-template-columns:minmax(160px,1fr)", stylesheet)
+        self.assertIn("grid-template-columns:minmax(140px,220px)", stylesheet)
+        self.assertIn("max-width:900px", stylesheet)
+
+    def test_last_control_request_uses_one_diagnostics_row(self):
+        template = (ROOT / "templates" / "device-control.html").read_text(
+            encoding="utf-8"
+        )
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('class="device-control-status-row"', template)
+        self.assertNotIn('class="network-status-grid"', template)
+        self.assertIn(".device-control-status-row > div", stylesheet)
 
     def test_live_variables_have_a_hover_highlight(self):
         stylesheet = (ROOT / "static" / "css" / "style.css").read_text(

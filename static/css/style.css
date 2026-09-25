@@ -1930,8 +1930,8 @@ button.button-secondary:disabled {
 .device-control-fields { display:grid; gap:24px; }
 .device-control-group + .device-control-group { padding-top:20px; border-top:1px solid #294438; }
 .device-control-group h3 { margin:0 0 14px; color:#edf3ef; }
-.device-control-group-fields { display:grid; gap:12px; }
-.device-control-field { display:grid; grid-template-columns:minmax(160px,1fr) minmax(180px,1fr) minmax(220px,1.2fr); align-items:center; gap:16px; }
+.device-control-group-fields { display:grid; gap:12px; max-width:900px; }
+.device-control-field { display:grid; grid-template-columns:minmax(140px,220px) minmax(120px,180px) minmax(180px,1fr); align-items:center; gap:12px; }
 .device-control-field > span { color:#dfe8e3; font-weight:600; }
 .device-control-help { color:#8fa59b; }
 .device-control-input { display:flex; align-items:center; gap:10px; }
@@ -1939,6 +1939,11 @@ button.button-secondary:disabled {
 .device-control-input input:focus { outline:2px solid #57c08a; outline-offset:1px; }
 .device-control-input small { min-width:max-content; color:#9cb6a9; }
 .device-control-message { grid-column:span 2; }
+.device-control-status-row { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(110px,.5fr) minmax(0,2fr); gap:0 28px; }
+.device-control-status-row > div { display:flex; align-items:baseline; justify-content:space-between; gap:18px; min-width:0; padding:10px 0; border-bottom:1px solid #20352d; }
+.device-control-status-row span { color:#8fa59b; font-size:12px; font-weight:700; }
+.device-control-status-row strong { min-width:0; overflow-wrap:anywhere; text-align:right; }
+.device-control-status-row .device-control-message { grid-column:auto; }
 .control-state { text-transform:capitalize; }
 .control-state-pending { color:#e4c46a; }
 .control-state-applied { color:#66d9ac; }
@@ -1955,4 +1960,5 @@ button.button-secondary:disabled {
     .device-heading { flex-direction:column; gap:8px; }
     .device-control-message { grid-column:auto; }
     .device-control-field { grid-template-columns:1fr; gap:7px; }
+    .device-control-status-row { grid-template-columns:1fr; }
 }
