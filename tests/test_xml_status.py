@@ -15,7 +15,11 @@ from app.services import xml_status
 class XmlStatusTests(unittest.TestCase):
     def setUp(self):
         self.mapping = xml_status.load_mapping()
-        self.payload = (pathlib.Path(__file__).parent / "fixtures/status.xml").read_bytes()
+        self.payload = (
+            (pathlib.Path(__file__).parent / "fixtures/status.xml")
+            .read_bytes()
+            .replace(b"\r\n", b"\n")
+        )
 
     def test_default_mapping_does_not_use_the_retired_locked_role(self):
         roles = {
