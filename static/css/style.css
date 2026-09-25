@@ -1404,6 +1404,10 @@ button.button-secondary:disabled {
 }
 
 .notification {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     padding: 12px 16px;
     color: #edf3ef;
     background: #18241f;
@@ -1411,6 +1415,31 @@ button.button-secondary:disabled {
     border-left: 4px solid #57c08a;
     border-radius: 7px;
     box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+.notification-count {
+    display: none;
+    flex: 0 0 auto;
+    min-width: 30px;
+    padding: 2px 7px;
+    color: #b8c9c0;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    border: 1px solid #3d5149;
+    border-radius: 999px;
+}
+
+.notification[data-repeat-count]:not([data-repeat-count="1"]) .notification-count {
+    display: inline-block;
+}
+
+.notification.repeated {
+    animation: notification-repeated 180ms ease-out;
+}
+
+@keyframes notification-repeated {
+    50% { transform: translateX(-4px); border-color: #57c08a; }
 }
 
 .notification.warning { border-left-color: #d7b66f; }

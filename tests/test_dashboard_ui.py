@@ -154,6 +154,20 @@ class DashboardUiTests(unittest.TestCase):
         self.assertNotIn("/api/set_gain", script)
         self.assertNotIn("gain-set-input", control_template)
 
+    def test_repeated_notifications_are_deduplicated(self):
+        script = (ROOT / "static" / "js" / "dashboard-core.js").read_text(
+            encoding="utf-8"
+        )
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("item.dataset.message === message", script)
+        self.assertIn("item.dataset.type === type", script)
+        self.assertIn("window.clearTimeout", script)
+        self.assertIn("notification-count", script)
+        self.assertIn(".notification.repeated", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()

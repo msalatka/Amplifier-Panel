@@ -68,12 +68,35 @@ function escapeHtml(value) {
 function showNotification(message, type = 'success') {
 	const container = document.getElementById('notification-container')
 	if (!container) return
+	const existing = Array.from(container.children).find(
+		(item) => item.dataset.message === message && item.dataset.type === type,
+	)
+	if (existing) {
+		const count = Number(existing.dataset.repeatCount || 1) + 1
+		existing.dataset.repeatCount = String(count)
+		existing.querySelector('.notification-count').textContent = `×${count}`
+		window.clearTimeout(Number(existing.dataset.dismissTimer))
+		existing.classList.remove('repeated')
+		void existing.offsetWidth
+		existing.classList.add('repeated')
+		existing.dataset.dismissTimer = String(window.setTimeout(() => existing.remove(), 5000))
+		return
+	}
 	const notification = document.createElement('div')
 	notification.className = `notification ${type}`
 	notification.setAttribute('role', type === 'error' ? 'alert' : 'status')
-	notification.textContent = message
+	notification.dataset.message = message
+	notification.dataset.type = type
+	notification.dataset.repeatCount = '1'
+	const text = document.createElement('span')
+	text.textContent = message
+	const count = document.createElement('span')
+	count.className = 'notification-count'
+	count.setAttribute('aria-label', 'Notification repeat count')
+	count.textContent = '×1'
+	notification.append(text, count)
 	container.appendChild(notification)
-	window.setTimeout(() => notification.remove(), 5000)
+	notification.dataset.dismissTimer = String(window.setTimeout(() => notification.remove(), 5000))
 }
 
 function apiErrorMessage(detail, fallback) {
