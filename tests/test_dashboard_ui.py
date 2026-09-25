@@ -174,6 +174,10 @@ class DashboardUiTests(unittest.TestCase):
 
         self.assertIn("#device-live-board [data-variable-key]:hover", stylesheet)
         self.assertIn("#xml-live [data-variable-key]:hover", stylesheet)
+        self.assertNotIn(
+            "transition:background-color 120ms ease, box-shadow 120ms ease",
+            stylesheet,
+        )
 
     def test_repeated_notifications_are_deduplicated(self):
         script = (ROOT / "static" / "js" / "dashboard-core.js").read_text(

@@ -1945,8 +1945,6 @@ button.button-secondary:disabled {
 .control-state-rejected,
 .control-state-failed,
 .control-state-timeout { color:#ff8b8b; }
-#device-live-board [data-variable-key],
-#xml-live [data-variable-key] { transition:background-color 120ms ease, box-shadow 120ms ease; }
 #device-live-board [data-variable-key]:hover,
 #xml-live [data-variable-key]:hover { background-color:rgb(87 192 138 / 12%); box-shadow:inset 0 0 0 1px rgb(87 192 138 / 34%); }
 #xml-charts .chart-container { position:relative; height:300px; min-height:0; }
