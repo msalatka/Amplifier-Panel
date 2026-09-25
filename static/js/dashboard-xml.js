@@ -84,6 +84,7 @@ function renderXmlStatus(result) {
 		section.fields.map((field) => ({
 			...field,
 			section: section.key,
+			sectionLabel: section.label,
 			path: `values.${section.key}.${field.key}`,
 			title: `${section.label} / ${field.label}`,
 		})),

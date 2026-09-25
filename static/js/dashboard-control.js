@@ -34,23 +34,43 @@ function renderDeviceControl(snapshot, fields) {
 		]),
 	])
 	if (signature !== deviceControlSignature) {
-		container.innerHTML = deviceControlFields.length
-			? deviceControlFields
-					.map((field) => {
-						const identifier = fieldIdentifier(field)
-						const numeric = field.type === 'number'
-						const attributes = [
-							`data-control-field="${escapeHtml(identifier)}"`,
-							`data-control-type="${escapeHtml(field.type)}"`,
-							numeric ? 'type="number" step="any"' : 'type="text"',
-							field.minimum !== undefined ? `min="${escapeHtml(field.minimum)}"` : '',
-							field.maximum !== undefined ? `max="${escapeHtml(field.maximum)}"` : '',
-							'data-operator-control',
-						]
-							.filter(Boolean)
-							.join(' ')
-						return `<label class="device-control-field"><span>${escapeHtml(field.label)}</span><div class="device-control-input"><input ${attributes}><small>${escapeHtml(field.unit || '')}</small></div><small>${escapeHtml(controlRangeDescription(field))}</small></label>`
-					})
+		const groups = new Map()
+		for (const field of deviceControlFields) {
+			const key = `${field.section}:${field.group || 'Parameters'}`
+			if (!groups.has(key)) {
+				groups.set(key, {
+					label: field.group || field.sectionLabel || 'Parameters',
+					fields: [],
+				})
+			}
+			groups.get(key).fields.push(field)
+		}
+		container.innerHTML = groups.size
+			? Array.from(groups.values())
+					.map(
+						(group) =>
+							`<section class="device-control-group"><h3>${escapeHtml(group.label)}</h3><div class="device-control-group-fields">${group.fields
+								.map((field) => {
+									const identifier = fieldIdentifier(field)
+									const numeric = field.type === 'number'
+									const attributes = [
+										`data-control-field="${escapeHtml(identifier)}"`,
+										`data-control-type="${escapeHtml(field.type)}"`,
+										numeric ? 'type="number" step="any"' : 'type="text"',
+										field.minimum !== undefined
+											? `min="${escapeHtml(field.minimum)}"`
+											: '',
+										field.maximum !== undefined
+											? `max="${escapeHtml(field.maximum)}"`
+											: '',
+										'data-operator-control',
+									]
+										.filter(Boolean)
+										.join(' ')
+									return `<label class="device-control-field"><span>${escapeHtml(field.label)}:</span><div class="device-control-input"><input ${attributes}><small>${escapeHtml(field.unit || '')}</small></div><small class="device-control-help">${escapeHtml(controlRangeDescription(field))}</small></label>`
+								})
+								.join('')}</div></section>`,
+					)
 					.join('')
 			: '<p>No writable parameters are available for this device.</p>'
 		deviceControlSignature = signature

@@ -154,6 +154,27 @@ class DashboardUiTests(unittest.TestCase):
         self.assertNotIn("/api/set_gain", script)
         self.assertNotIn("gain-set-input", control_template)
 
+    def test_device_control_uses_compact_grouped_rows(self):
+        script = (ROOT / "static" / "js" / "dashboard-control.js").read_text(
+            encoding="utf-8"
+        )
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("const groups = new Map()", script)
+        self.assertIn('class="device-control-group"', script)
+        self.assertIn(".device-control-group + .device-control-group", stylesheet)
+        self.assertIn("grid-template-columns:minmax(160px,1fr)", stylesheet)
+
+    def test_live_variables_have_a_hover_highlight(self):
+        stylesheet = (ROOT / "static" / "css" / "style.css").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("#device-live-board [data-variable-key]:hover", stylesheet)
+        self.assertIn("#xml-live [data-variable-key]:hover", stylesheet)
+
     def test_repeated_notifications_are_deduplicated(self):
         script = (ROOT / "static" / "js" / "dashboard-core.js").read_text(
             encoding="utf-8"
@@ -167,6 +188,8 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("window.clearTimeout", script)
         self.assertIn("notification-count", script)
         self.assertIn(".notification.repeated", stylesheet)
+        self.assertIn("bottom: 18px;", stylesheet)
+        self.assertNotIn("border-left: 4px solid #57c08a", stylesheet)
 
 
 if __name__ == "__main__":
