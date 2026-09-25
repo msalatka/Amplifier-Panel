@@ -1,7 +1,8 @@
 # Dane z status.xml
 
 Panel odczytuje lokalny plik aktualizowany przez zewnętrzny proces urządzenia.
-Nie modyfikuje XML, nie wysyła poleceń do urządzenia i nie korzysta z snmp_conf.xml.
+Nigdy nie modyfikuje `status.xml`. Polecenia zapisuje do oddzielnego
+`control.xml` i nie korzysta z `snmp_conf.xml`.
 
 ## Uruchomienie i migracja
 
@@ -10,6 +11,8 @@ W konfiguracji procesu (w instalacji Debian: `sudo amp-panel configure`) ustaw:
 ```ini
 ENABLED_DEVICES=local,remote,oba,oba3
 XML_STATUS_FILE=/var/lib/amp-panel/status.xml
+XML_CONTROL_FILE=/var/lib/amp-panel/control.xml
+XML_CONTROL_ACK_TIMEOUT_SECONDS=15
 XML_MAPPING_FILE=/var/lib/amp-panel/xml_mapping.json
 XML_POLL_SECONDS=2
 XML_STALE_SECONDS=60
@@ -25,6 +28,67 @@ $env:ENABLED_DEVICES = 'local,remote,oba,oba3'
 $env:XML_STATUS_FILE = 'D:/Downloads/status.xml'
 .venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+## Oddzielny kanał sterowania
+
+Panel publikuje żądania przez atomowe zastąpienie `control.xml`; najpierw
+zapisuje i synchronizuje plik tymczasowy, a następnie wykonuje `rename`. Proces
+urządzenia nie zobaczy więc częściowo zapisanego dokumentu. Każde żądanie ma
+UUID i czas utworzenia:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<control version="1">
+  <request id="11111111-1111-4111-8111-111111111111"
+           created_at="2026-09-25T14:30:00+00:00">
+    <device id="oba3">
+      <parameter section="oba3" key="GainSet" type="number"
+                 id="5.1.1.2" name="GainSet">
+        <value>28.5</value>
+      </parameter>
+    </device>
+  </request>
+</control>
+```
+
+Urządzenie powinno zastosować każde UUID najwyżej raz i umieścić wynik w
+produkowanym przez siebie `status.xml`:
+
+```xml
+<control_status>
+  <last_request_id>11111111-1111-4111-8111-111111111111</last_request_id>
+  <state>applied</state>
+  <message>OK</message>
+</control_status>
+```
+
+Dozwolone stany to `pending`, `applied`, `rejected` i `failed`. Brak zgodnego
+potwierdzenia po `XML_CONTROL_ACK_TIMEOUT_SECONDS` jest raportowany jako
+`timeout`. Pola przeznaczone do sterowania muszą być jawnie oznaczone w
+`xml_mapping.json`:
+
+```json
+{
+  "key": "GainSet",
+  "id": "5.1.1.2",
+  "name": "GainSet",
+  "type": "number",
+  "writable": true
+}
+```
+
+Opcjonalne `minimum` i `maximum` należy dodać zgodnie ze specyfikacją danego
+urządzenia; panel nie zgaduje bezpiecznego zakresu.
+
+Żądanie backendu ma postać `PUT /api/devices/{device_id}/control`:
+
+```json
+{"values": {"oba3:GainSet": 28.5}}
+```
+
+Status potwierdzenia jest dostępny pod
+`GET /api/devices/{device_id}/control/status`. Endpoint zapisu jest ograniczony
+do Administratora i Operatora oraz zapisuje zdarzenie audytowe.
 
 Pozostałe ustawienia logowania i bazy danych pozostają wymagane jak wcześniej.
 Zmiana zmiennych procesu wymaga restartu usługi. Istniejąca instalacja zachowuje

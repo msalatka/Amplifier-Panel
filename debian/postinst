@@ -57,6 +57,7 @@ for xml_device in local remote oba oba3; do
     esac
 done
 read_answer xml-status-file XML_STATUS_FILE
+read_answer xml-control-file XML_CONTROL_FILE
 encoded_devices="$(printf '%s' "${enabled_devices:-local,remote,oba,oba3}" | base64 | tr -d '\n')"
 printf 'ENABLED_DEVICES_B64=%s\n' "${encoded_devices}" >>"${answers_file}"
 read_answer radius-server RADIUS_SERVER

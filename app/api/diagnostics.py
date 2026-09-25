@@ -20,7 +20,7 @@ from app.services import network as network_service
 from app.services import ntp as ntp_service
 from app.services import snmp as snmp_service
 from app.services import syslog as syslog_service
-from app.services import xml_status
+from app.services import xml_control, xml_status
 
 router = fastapi.APIRouter()
 heartbeat_settings_changed = asyncio.Event()
@@ -239,6 +239,11 @@ def service_diagnostics(
             "poll_seconds": config.XML_POLL_SECONDS,
             "connected": live["connected"],
             "error": live["error"],
+        },
+        "xml_control": {
+            "file": config.XML_CONTROL_FILE,
+            "ack_timeout_seconds": config.XML_CONTROL_ACK_TIMEOUT_SECONDS,
+            "acknowledgement": xml_control.get_control_status(),
         },
         "database": {
             **database_service.get_runtime_status(device),

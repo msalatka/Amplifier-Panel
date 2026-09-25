@@ -69,3 +69,10 @@ Type: string
 Default: /var/lib/amp-panel/status.xml
 Description: Path to status.xml refreshed by the device daemon:
  The panel only reads this file. It does not modify it.
+
+Template: amp-panel/xml-control-file
+Type: string
+Default: /var/lib/amp-panel/control.xml
+Description: Path to control.xml consumed by the device daemon:
+ The panel validates and atomically replaces this file. The device should only
+ read it and acknowledge the request in status.xml.

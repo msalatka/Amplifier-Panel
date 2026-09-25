@@ -91,6 +91,21 @@ def validate_mapping(mapping: dict) -> dict:
                     raise ValueError("Each field needs an XML id or name")
                 if field.get("type", "number") not in {"number", "text"}:
                     raise ValueError("Field type must be number or text")
+                if not isinstance(field.get("writable", False), bool):
+                    raise ValueError("Field writable flag must be boolean")
+                for boundary in ("minimum", "maximum"):
+                    if boundary in field and (
+                        isinstance(field[boundary], bool)
+                        or not isinstance(field[boundary], (int, float))
+                        or not math.isfinite(field[boundary])
+                    ):
+                        raise ValueError(f"Field {boundary} must be finite and numeric")
+                if (
+                    "minimum" in field
+                    and "maximum" in field
+                    and field["minimum"] > field["maximum"]
+                ):
+                    raise ValueError("Field minimum must not exceed maximum")
     return mapping
 
 

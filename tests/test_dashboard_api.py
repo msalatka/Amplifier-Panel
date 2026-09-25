@@ -114,6 +114,32 @@ class DashboardApiTests(unittest.TestCase):
         self.assertLessEqual(before, system_time)
         self.assertLessEqual(system_time, after)
 
+    def test_operator_can_write_device_control_without_changing_gui_state(self):
+        request = mock.Mock()
+        with (
+            mock.patch.object(devices.config, "ENABLED_DEVICES", ("oba3",)),
+            mock.patch.object(
+                devices.xml_control,
+                "write_control",
+                return_value={
+                    "request_id": "11111111-1111-4111-8111-111111111111",
+                    "state": "pending",
+                    "control_file": "/var/lib/amp-panel/control.xml",
+                },
+            ) as write,
+            mock.patch.object(devices.api_security, "audit_event") as audit,
+        ):
+            result = devices.update_device_control(
+                "oba3",
+                devices.DeviceControlUpdate(values={"oba3:GainSet": 28.5}),
+                request,
+                {"username": "operator", "role": "Operator"},
+            )
+
+        write.assert_called_once_with("oba3", {"oba3:GainSet": 28.5})
+        self.assertEqual(result["state"], "pending")
+        audit.assert_called_once()
+
     def test_operator_can_persist_shared_amplifier_live_fields(self):
         device_id = "oba3"
         previous = list(devices.state.device_live_fields[device_id])

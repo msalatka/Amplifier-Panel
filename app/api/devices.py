@@ -14,6 +14,7 @@ from app.api import security as api_security
 from app.core import config, state
 from app.devices.registry import DEVICES
 from app.services import database as database_service
+from app.services import xml_control
 from app.services.device_statistics import scalar_fields
 
 router = fastapi.APIRouter(prefix="/api/devices")
@@ -31,6 +32,12 @@ class ChartLayoutUpdate(pydantic.BaseModel):
     """Measurement-to-chart assignments shared by all users."""
 
     charts: dict[str, int]
+
+
+class DeviceControlUpdate(pydantic.BaseModel):
+    """Validated desired values written to the device control XML."""
+
+    values: dict[str, str | float | int] = pydantic.Field(min_length=1, max_length=64)
 
 
 @router.get("/{device_id}/history/export.csv")
@@ -115,6 +122,41 @@ def latest(device_id: str, _current_user: dict = viewer):
         "live_fields": state.device_live_fields.get(device_id, []),
         "chart_layout": state.device_chart_layouts.get(device_id),
     }
+
+
+@router.put("/{device_id}/control")
+def update_device_control(
+    device_id: str,
+    body: DeviceControlUpdate,
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(
+        api_security.require_roles("Administrator", "Operator")
+    ),
+):
+    """Atomically publish validated desired values to the device-facing XML."""
+
+    require_enabled(device_id)
+    try:
+        result = xml_control.write_control(device_id, body.values)
+    except ValueError as exc:
+        raise fastapi.HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise fastapi.HTTPException(status_code=503, detail="Could not write control XML") from exc
+    api_security.audit_event(
+        request,
+        "device_control_requested",
+        current_user["username"],
+        f"device={device_id}; request_id={result['request_id']}; fields={','.join(body.values)}",
+    )
+    return {"device_id": device_id, **result}
+
+
+@router.get("/{device_id}/control/status")
+def device_control_status(device_id: str, _current_user: dict = viewer):
+    """Return the most recent device acknowledgement from status.xml."""
+
+    require_enabled(device_id)
+    return {"device_id": device_id, **xml_control.get_control_status()}
 
 
 def _available_field_ids(device_id: str) -> set[str]:

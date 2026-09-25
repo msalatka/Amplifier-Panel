@@ -50,6 +50,10 @@ try:
 except ValueError as exc:
     raise RuntimeError(str(exc)) from exc
 XML_STATUS_FILE = os.getenv("XML_STATUS_FILE", "data/status.xml")
+XML_CONTROL_FILE = os.getenv("XML_CONTROL_FILE", "data/control.xml")
+XML_CONTROL_ACK_TIMEOUT_SECONDS = max(
+    1.0, _env_float("XML_CONTROL_ACK_TIMEOUT_SECONDS", 15.0)
+)
 XML_MAPPING_FILE = os.getenv(
     "XML_MAPPING_FILE", str(pathlib.Path(__file__).parents[1] / "devices" / "xml_mapping.json")
 )

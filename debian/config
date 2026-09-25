@@ -28,6 +28,7 @@ db_input high amp-panel/auth-mode || true
 db_input high amp-panel/port || true
 db_input high amp-panel/data-dir || true
 db_input high amp-panel/xml-status-file || true
+db_input high amp-panel/xml-control-file || true
 db_get amp-panel/auth-mode || RET="radius"
 case "${RET}" in
     local|"Local passwords on this device")

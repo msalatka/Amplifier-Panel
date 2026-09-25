@@ -1,4 +1,6 @@
 import base64
+import json
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -9,6 +11,21 @@ from tools import amp_panel_cli
 
 
 class AmpPanelCliTests(unittest.TestCase):
+    def test_configuration_upgrade_places_new_control_file_in_existing_data_directory(self):
+        with mock.patch.object(
+            amp_panel_cli,
+            "_normalized_data_dir",
+            return_value=pathlib.Path("/srv/existing-panel"),
+        ):
+            values = amp_panel_cli.merge_configuration(
+                {"AMP_PANEL_DATA_DIR": "/srv/existing-panel"}
+            )
+
+        self.assertEqual(
+            pathlib.Path(values["XML_CONTROL_FILE"]),
+            pathlib.Path("/srv/existing-panel/control.xml"),
+        )
+
     def test_default_mapping_is_writable_runtime_data(self):
         values = amp_panel_cli.default_configuration()
 
@@ -30,6 +47,7 @@ class AmpPanelCliTests(unittest.TestCase):
                     "DATABASE_FILE": str(data_dir / "measurements.db"),
                     "PERSISTED_STATE_FILE": str(data_dir / "persisted_state.json"),
                     "XML_MAPPING_FILE": str(data_dir / "xml_mapping.json"),
+                    "XML_CONTROL_FILE": str(data_dir / "control.xml"),
                 }
             )
             with (
@@ -47,6 +65,70 @@ class AmpPanelCliTests(unittest.TestCase):
                 (data_dir / "xml_mapping.json").read_text(encoding="utf-8"),
                 '{"mapping": true}\n',
             )
+            control = data_dir / "control.xml"
+            self.assertTrue(control.is_file())
+            if os.name == "posix":
+                self.assertEqual(control.stat().st_mode & 0o777, 0o660)
+
+    def test_control_file_must_be_inside_data_directory(self):
+        values = amp_panel_cli.default_configuration()
+        values.update(
+            {
+                "XML_CONTROL_FILE": "/tmp/control.xml",
+                "RADIUS_SERVER": "192.0.2.10",
+                "RADIUS_SECRET": "secret",
+            }
+        )
+        with mock.patch.object(
+            amp_panel_cli,
+            "_normalized_data_dir",
+            return_value=pathlib.Path(values["AMP_PANEL_DATA_DIR"]),
+        ):
+            with self.assertRaisesRegex(amp_panel_cli.ConfigurationError, "XML_CONTROL_FILE"):
+                amp_panel_cli.validate_configuration(values)
+
+    def test_existing_mapping_receives_new_write_metadata_without_overwriting_it(self):
+        current = {
+            "oba3": {
+                "sections": [
+                    {"key": "oba3", "fields": [{"key": "GainSet", "writable": False}]}
+                ]
+            }
+        }
+        packaged = {
+            "oba3": {
+                "sections": [
+                    {
+                        "key": "oba3",
+                        "fields": [
+                            {
+                                "key": "GainSet",
+                                "writable": True,
+                                "minimum": 0,
+                                "maximum": 40,
+                            }
+                        ],
+                    }
+                ]
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            current_path = root / "current.json"
+            packaged_path = root / "packaged.json"
+            current_path.write_text(json.dumps(current), encoding="utf-8")
+            packaged_path.write_text(json.dumps(packaged), encoding="utf-8")
+            with mock.patch.object(
+                amp_panel_cli, "PACKAGED_XML_MAPPING_FILE", packaged_path
+            ):
+                amp_panel_cli._merge_control_mapping_metadata(current_path)
+            field = json.loads(current_path.read_text(encoding="utf-8"))["oba3"][
+                "sections"
+            ][0]["fields"][0]
+
+        self.assertIs(field["writable"], False)
+        self.assertEqual(field["minimum"], 0)
+        self.assertEqual(field["maximum"], 40)
 
     def test_run_reports_a_timed_out_configuration_command(self):
         with mock.patch.object(

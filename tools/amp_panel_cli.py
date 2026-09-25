@@ -13,6 +13,7 @@ import datetime
 import getpass
 import hashlib
 import html
+import json
 import math
 import os
 import pathlib
@@ -100,6 +101,8 @@ CONFIG_KEYS = (
     "AMP_PANEL_DATA_DIR",
     "ENABLED_DEVICES",
     "XML_STATUS_FILE",
+    "XML_CONTROL_FILE",
+    "XML_CONTROL_ACK_TIMEOUT_SECONDS",
     "XML_MAPPING_FILE",
     "XML_POLL_SECONDS",
     "XML_STALE_SECONDS",
@@ -162,6 +165,8 @@ CONFIG_SECTIONS = {
 
 CONFIG_HELP = {
     "XML_STATUS_FILE": "Path to status.xml refreshed by the external daemon (read-only).",
+    "XML_CONTROL_FILE": "Device-facing control XML written atomically by Amp Panel.",
+    "XML_CONTROL_ACK_TIMEOUT_SECONDS": "Seconds allowed for the device to acknowledge a control request.",
     "XML_MAPPING_FILE": "JSON field mapping; changes apply automatically on the next poll.",
     "XML_POLL_SECONDS": "XML polling interval in seconds (minimum 0.2).",
     "XML_STALE_SECONDS": "Mark source stale after this many seconds without a file refresh.",
@@ -434,11 +439,13 @@ def default_configuration() -> dict[str, str]:
     data_dir = DEFAULT_DATA_DIR.resolve()
     device_name = _device_name()
     return {
-        "AMP_PANEL_CONFIG_VERSION": "2",
+        "AMP_PANEL_CONFIG_VERSION": "3",
         "AMP_PANEL_PORT": "8000",
         "AMP_PANEL_DATA_DIR": str(data_dir),
         "ENABLED_DEVICES": "local,remote,oba,oba3",
         "XML_STATUS_FILE": str(data_dir / "status.xml"),
+        "XML_CONTROL_FILE": str(data_dir / "control.xml"),
+        "XML_CONTROL_ACK_TIMEOUT_SECONDS": "15",
         "XML_MAPPING_FILE": str(data_dir / "xml_mapping.json"),
         "XML_POLL_SECONDS": "2",
         "XML_STALE_SECONDS": "60",
@@ -541,6 +548,8 @@ def merge_configuration(source_values: dict[str, str]) -> dict[str, str]:
             translated[key] = source_values[key]
     data_dir = _normalized_data_dir(translated["AMP_PANEL_DATA_DIR"])
     translated["AMP_PANEL_DATA_DIR"] = str(data_dir)
+    if "XML_CONTROL_FILE" not in source_values:
+        translated["XML_CONTROL_FILE"] = str(data_dir / "control.xml")
     if translated["XML_MAPPING_FILE"] == str(PACKAGED_XML_MAPPING_FILE):
         translated["XML_MAPPING_FILE"] = str(data_dir / "xml_mapping.json")
     return translated
@@ -554,19 +563,29 @@ def validate_configuration(values: dict[str, str]) -> None:
     _safe_int(values.get("AMP_PANEL_PORT"), "Web port", 1024, 65535)
     enabled_devices = _enabled_devices(values.get("ENABLED_DEVICES"))
     if any(key in enabled_devices for key in ("local", "remote", "oba", "oba3")):
-        for key in ("XML_STATUS_FILE", "XML_MAPPING_FILE"):
+        for key in ("XML_STATUS_FILE", "XML_CONTROL_FILE", "XML_MAPPING_FILE"):
             if not values.get(key, "").strip():
                 raise ConfigurationError(f"{key} must not be empty.")
         if _safe_float(values.get("XML_POLL_SECONDS"), "XML polling interval") < 0.2:
             raise ConfigurationError("XML polling interval must be at least 0.2 seconds.")
         if _safe_float(values.get("XML_STALE_SECONDS"), "XML stale timeout") < 1:
             raise ConfigurationError("XML stale timeout must be at least 1 second.")
+        if (
+            _safe_float(
+                values.get("XML_CONTROL_ACK_TIMEOUT_SECONDS"),
+                "XML control acknowledgement timeout",
+            )
+            < 1
+        ):
+            raise ConfigurationError("XML control acknowledgement timeout must be at least 1 second.")
     data_dir = _normalized_data_dir(values.get("AMP_PANEL_DATA_DIR", ""))
     database_file = pathlib.Path(values.get("DATABASE_FILE", ""))
     state_file = pathlib.Path(values.get("PERSISTED_STATE_FILE", ""))
+    control_file = pathlib.Path(values.get("XML_CONTROL_FILE", ""))
     for path, label in (
         (database_file, "DATABASE_FILE"),
         (state_file, "PERSISTED_STATE_FILE"),
+        (control_file, "XML_CONTROL_FILE"),
     ):
         if not path.is_absolute() or data_dir not in path.parents:
             raise ConfigurationError(f"{label} must be inside the data directory.")
@@ -652,6 +671,7 @@ def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
+    values["XML_CONTROL_FILE"] = str(data_dir / "control.xml")
     if values["AUTH_MODE"] == "radius":
         values["RADIUS_SERVER"] = _prompt("RADIUS server", values["RADIUS_SERVER"])
         values["RADIUS_PORT"] = _prompt("RADIUS UDP port", values["RADIUS_PORT"])
@@ -671,6 +691,7 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     mapping = {
         "enabled_devices": "ENABLED_DEVICES",
         "xml_status_file": "XML_STATUS_FILE",
+        "xml_control_file": "XML_CONTROL_FILE",
         "admin_username": "INITIAL_ADMIN_USERNAME",
         "auth_mode": "AUTH_MODE",
         "port": "AMP_PANEL_PORT",
@@ -709,6 +730,8 @@ def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
+    if not answers.get("xml_control_file") and not answers.get("xml_control_file_b64"):
+        values["XML_CONTROL_FILE"] = str(data_dir / "control.xml")
 
 
 def _lookup_identity() -> tuple[int | None, int | None]:
@@ -727,6 +750,45 @@ def _chown(path: pathlib.Path, uid: int | None, gid: int | None) -> None:
         os.chown(path, uid, gid)
 
 
+def _merge_control_mapping_metadata(mapping_file: pathlib.Path) -> None:
+    """Add packaged write-safety metadata without replacing operator customizations."""
+
+    try:
+        current = json.loads(mapping_file.read_text(encoding="utf-8"))
+        packaged = json.loads(PACKAGED_XML_MAPPING_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(current, dict) or not isinstance(packaged, dict):
+        return
+    changed = False
+    for device_id, packaged_device in packaged.items():
+        current_device = current.get(device_id)
+        if not isinstance(current_device, dict) or not isinstance(packaged_device, dict):
+            continue
+        packaged_fields = {
+            (section.get("key"), field.get("key")): field
+            for section in packaged_device.get("sections", [])
+            if isinstance(section, dict)
+            for field in section.get("fields", [])
+            if isinstance(field, dict)
+        }
+        for section in current_device.get("sections", []):
+            if not isinstance(section, dict):
+                continue
+            for field in section.get("fields", []):
+                if not isinstance(field, dict):
+                    continue
+                source = packaged_fields.get((section.get("key"), field.get("key")), {})
+                for key in ("writable", "minimum", "maximum"):
+                    if key in source and key not in field:
+                        field[key] = source[key]
+                        changed = True
+    if changed:
+        temporary = mapping_file.with_suffix(mapping_file.suffix + ".tmp")
+        temporary.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, mapping_file)
+
+
 def prepare_data_directory(values: dict[str, str]) -> None:
     """Create runtime storage with ownership and permissions for the service."""
 
@@ -738,6 +800,7 @@ def prepare_data_directory(values: dict[str, str]) -> None:
     database = pathlib.Path(values["DATABASE_FILE"])
     state_file = pathlib.Path(values["PERSISTED_STATE_FILE"])
     mapping_file = pathlib.Path(values["XML_MAPPING_FILE"])
+    control_file = pathlib.Path(values["XML_CONTROL_FILE"])
     if data_dir in mapping_file.parents:
         if not mapping_file.exists():
             if not PACKAGED_XML_MAPPING_FILE.is_file():
@@ -745,8 +808,17 @@ def prepare_data_directory(values: dict[str, str]) -> None:
                     f"Packaged XML mapping is missing: {PACKAGED_XML_MAPPING_FILE}"
                 )
             shutil.copyfile(PACKAGED_XML_MAPPING_FILE, mapping_file)
+        _merge_control_mapping_metadata(mapping_file)
         _chown(mapping_file, uid, gid)
         os.chmod(mapping_file, 0o640)
+    if not control_file.exists():
+        control_file.parent.mkdir(parents=True, exist_ok=True)
+        control_file.write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n<control version="1" />\n',
+            encoding="utf-8",
+        )
+    _chown(control_file, uid, gid)
+    os.chmod(control_file, 0o660)
     managed_files = (
         database,
         pathlib.Path(f"{database}-wal"),
@@ -983,6 +1055,9 @@ def configure_command(args: argparse.Namespace) -> int:
             values["AMP_PANEL_DATA_DIR"] = str(data_dir)
             values["DATABASE_FILE"] = str(data_dir / "measurements.db")
             values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
+            values["XML_CONTROL_FILE"] = str(data_dir / "control.xml")
+        if args.xml_control_file:
+            values["XML_CONTROL_FILE"] = args.xml_control_file
         if args.radius_server:
             values["RADIUS_SERVER"] = args.radius_server
         if args.radius_port:
@@ -1037,6 +1112,8 @@ def paths_command(_args: argparse.Namespace) -> int:
     print("Application:   /usr/lib/amp-panel")
     print(f"Configuration: {CONFIG_FILE}")
     print(f"Data:          {data_dir}")
+    print(f"XML status:    {values.get('XML_STATUS_FILE', '--') if 'values' in locals() else '--'}")
+    print(f"XML control:   {values.get('XML_CONTROL_FILE', '--') if 'values' in locals() else '--'}")
     print(f"Logs:          {LOG_DIR}")
     print(f"Runtime:       {RUN_DIR}")
     return 0
@@ -1108,6 +1185,19 @@ def doctor_command(_args: argparse.Namespace) -> int:
         failures += 0 if valid else 1
     else:
         print("[OK] SQLite database will be created on the first measurement.")
+    status_file = pathlib.Path(values["XML_STATUS_FILE"])
+    print(
+        f"[{'OK' if status_file.is_file() else 'FAIL'}] XML status: "
+        f"{status_file if status_file.is_file() else 'file is missing'}"
+    )
+    failures += 0 if status_file.is_file() else 1
+    control_file = pathlib.Path(values["XML_CONTROL_FILE"])
+    control_ready = control_file.is_file() and os.access(control_file, os.W_OK)
+    print(
+        f"[{'OK' if control_ready else 'FAIL'}] XML control: "
+        f"{control_file if control_ready else 'file is missing or not writable'}"
+    )
+    failures += 0 if control_ready else 1
     for service in (CURRENT_SERVICE, NETWORK_AGENT_SERVICE):
         if _service_exists(service):
             result = _run(["systemctl", "is-active", service], capture=True)
@@ -1120,11 +1210,14 @@ def doctor_command(_args: argparse.Namespace) -> int:
 def _update_data_paths(values: dict[str, str], data_dir: pathlib.Path) -> None:
     previous_data_dir = pathlib.Path(values["AMP_PANEL_DATA_DIR"])
     mapping_file = pathlib.Path(values["XML_MAPPING_FILE"])
+    control_file = pathlib.Path(values["XML_CONTROL_FILE"])
     values["AMP_PANEL_DATA_DIR"] = str(data_dir)
     values["DATABASE_FILE"] = str(data_dir / "measurements.db")
     values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
     if previous_data_dir in mapping_file.parents:
         values["XML_MAPPING_FILE"] = str(data_dir / "xml_mapping.json")
+    if previous_data_dir in control_file.parents:
+        values["XML_CONTROL_FILE"] = str(data_dir / "control.xml")
 
 
 def data_dir_command(args: argparse.Namespace) -> int:
@@ -1236,6 +1329,7 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--port", type=int)
     configure.add_argument("--data-dir")
     configure.add_argument("--enabled-devices", help="comma-separated registered device IDs")
+    configure.add_argument("--xml-control-file")
     configure.add_argument("--radius-server")
     configure.add_argument("--radius-port", type=int)
     configure.add_argument("--radius-secret")

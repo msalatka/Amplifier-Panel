@@ -672,6 +672,7 @@
             "type": "number",
             "unit": "",
             "role": "gain_set",
+            "writable": true,
             "group": "Amplifier"
           },
           {
