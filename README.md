@@ -1,141 +1,141 @@
 # Amp Panel
 
-Amp Panel jest lokalną aplikacją webową, która odczytuje stan urządzeń i
-przekazuje do nich polecenia za pomocą plików XML. Obsługuje cztery profile:
+Amp Panel is a local web application that reads device status and sends commands
+to devices through XML files. It supports four profiles:
 
-- `local` — stacja lokalna / DI,
-- `remote` — stacja zdalna / DI,
-- `oba` — wzmacniacz EDFA OBA,
-- `oba3` — wzmacniacz EDFA OBA3.
+- `local` — local station / DI,
+- `remote` — remote station / DI,
+- `oba` — EDFA OBA amplifier,
+- `oba3` — EDFA OBA3 amplifier.
 
-Panel odczytuje bieżące dane urządzenia z pliku 'status.xml', a polecenia i 
-ustawienia zapisuje w osobnym pliku 'control.xml'
+The panel reads current device data from `status.xml` and writes commands and
+settings to a separate `control.xml` file.
 
-## Instalacja
+## Installation
 
-### Budowanie pakietu Debiana
+### Building the Debian package
 
-Na docelowym systemie Debian zainstaluj narzędzia budowania:
+Install the build tools on the target Debian system:
 
 ```bash
 sudo apt update
 sudo apt install build-essential debhelper git python3 python3-pip
 ```
 
-W katalogu projektu uruchom:
+Run the following command in the project directory:
 
 ```bash
 ./packaging/build_deb.sh
 ```
 
-Pakiet `.deb` zostanie zapisany w katalogu nadrzędnym. Zainstaluj go, podając
-nazwę wygenerowanego pliku:
+The `.deb` package will be created in the parent directory. Install it using the
+generated file name:
 
 ```bash
 sudo apt install ../amp-panel_*.deb
 ```
 
-Instalator tworzy użytkownika systemowego `amp-panel`, usługi systemd, katalog
-danych oraz wstępną konfigurację. Konfigurację można zmienić w dowolnym
-momencie komendą:
+The installer creates the `amp-panel` system user, systemd services, a data
+directory, and an initial configuration. The configuration can be changed at
+any time with:
 
 ```bash
 sudo amp-panel configure
 ```
 
-Polecenie otwiera pełny plik konfiguracyjny w `$VISUAL`, `$EDITOR` lub
-systemowym `editor`, a przed zastosowaniem zmian sprawdza jego poprawność.
+This command opens the complete configuration file in `$VISUAL`, `$EDITOR`, or
+the system `editor`, and validates it before applying any changes.
 
-Po instalacji można sprawdzić działanie systemu:
+After installation, you can verify the system with:
 
 ```bash
 sudo amp-panel doctor
 sudo amp-panel status
 ```
 
-Panel jest dostępny domyślnie pod adresem:
+By default, the panel is available at:
 
 ```text
 http://amp-panel.local:8000
 ```
 
-Nazwa hosta i port zależą od konfiguracji instalacji.
+The host name and port depend on the installation configuration.
 
-## Korzystanie z aplikacji
+## Using the application
 
-Po zalogowaniu wybierz urządzenie z selektora w nagłówku. Każdy profil ma
-niezależny stan połączenia, dane bieżące i historię.
+After signing in, select a device from the selector in the header. Each profile
+has its own connection status, live data, and history.
 
 ### Live View
 
-Pokazuje ostatni kompletny snapshot wybranego urządzenia. Dla wzmacniaczy
-Administrator i Operator mogą wybierać pomiary widoczne na głównym ekranie.
-Viewer ma dostęp wyłącznie do odczytu.
+Displays the latest complete snapshot of the selected device. For amplifiers,
+Administrators and Operators can choose which measurements appear on the main
+screen. Viewers have read-only access.
 
 ### Control
 
-Zakładka **Control** jest dostępna dla Operatora i Administratora. Jej pola są
-tworzone automatycznie na podstawie `xml_mapping.json`: pojawia się w niej każde
-pole oznaczone jako `"writable": true`. Po wybraniu **Apply changes** panel
-zapisuje do `control.xml` wyłącznie wartości zmienione przez użytkownika.
+The **Control** tab is available to Operators and Administrators. Its fields are
+generated automatically from `xml_mapping.json`: every field marked with
+`"writable": true` is displayed. When **Apply changes** is selected, the panel
+writes only the values changed by the user to `control.xml`.
 
-Sekcja **Last request** pokazuje identyfikator i stan ostatniego polecenia.
-Urządzenie potwierdza wykonanie w `status.xml`; panel prezentuje następujące stany:
-`pending`, `applied`, `rejected`, `failed` i `timeout`. Dodanie kolejnego pola
-sterującego nie wymaga zmiany kodu GUI — wystarczy dodać je do mapowania wraz z
-typem, zakresem i flagą `writable`.
+The **Last request** section shows the identifier and state of the latest
+command. The device confirms execution through `status.xml`; the panel displays
+the following states: `pending`, `applied`, `rejected`, `failed`, and `timeout`.
+Adding another control field does not require a GUI change—add it to the mapping
+with its type, range, and `writable` flag.
 
-### Overview i Statistics
+### Overview and Statistics
 
-- **Overview** przedstawia wykres wartości historycznych z wybranego okresu czasu.
-- **Statistics** oblicza statystyki dla wybranego okresu.
-- Historia może zostać wyeksportowana do CSV.
+- **Overview** displays a chart of historical values for the selected period.
+- **Statistics** calculates statistics for the selected period.
+- Historical data can be exported to CSV.
 
 ### Administration
 
-Funkcje administracyjne obejmują:
+Administrative functions include:
 
-- **Access Control** — użytkownicy, role, hasła lokalne i aktywność kont,
-- **SNMP Configuration** — agent, community oraz odbiorca trapów,
-- **Network Configuration** — aktualny interfejs i ustawienia IPv4,
-- **Time Diagnostics** — stan synchronizacji NTP,
-- **Service Diagnostics** — telemetria XML, baza danych i Syslog,
-- **Edit Variables** — edycja mapowania pól XML.
+- **Access Control** — users, roles, local passwords, and account activity,
+- **SNMP Configuration** — agent, community, and trap receiver,
+- **Network Configuration** — current interface and IPv4 settings,
+- **Time Diagnostics** — NTP synchronization status,
+- **Service Diagnostics** — XML telemetry, database, and Syslog,
+- **Edit Variables** — XML field mapping editor.
 
-Zmiany sieciowe mogą przerwać bieżące połączenie z panelem. Należy wykonywać je
-z interfejsu, którego konfiguracja jest aktualnie wyświetlana.
+Network changes may interrupt the current connection to the panel. Apply them
+only to the interface whose configuration is currently displayed.
 
-## Uwierzytelnianie
+## Authentication
 
-Panel obsługuje dwa tryby wybierane przez `amp-panel configure`:
+The panel supports two modes selected through `amp-panel configure`:
 
-- `local` — konta i hashe PBKDF2 są przechowywane lokalnie,
-- `radius` — hasło sprawdza zewnętrzny serwer RADIUS, a panel przechowuje role i
-  informację, czy konto jest aktywne.
+- `local` — accounts and PBKDF2 hashes are stored locally,
+- `radius` — an external RADIUS server verifies the password, while the panel
+  stores roles and account activity status.
 
-W trybie RADIUS użytkownik musi istnieć zarówno w konfiguracji panelu, jak i na
-serwerze RADIUS. Repozytorium zawiera pomocniczy instalator:
+In RADIUS mode, the user must exist in both the panel configuration and the
+RADIUS server. The repository includes a helper installer:
 
 ```bash
 cd server_setup
 sudo ./install_radius_server.sh
 ```
 
-## Najważniejsza konfiguracja
+## Main configuration
 
-Konfiguracja pakietu znajduje się w:
+The package configuration is stored in:
 
 ```text
 /etc/amp-panel/amp-panel.env
 ```
 
-Nie należy edytować jej podczas działania usługi. Bezpieczniej użyć:
+Do not edit it while the service is running. Use:
 
 ```bash
 sudo amp-panel configure
 ```
 
-Najważniejsze ustawienia XML:
+The main XML settings are:
 
 ```ini
 ENABLED_DEVICES=local,remote,oba,oba3
@@ -147,7 +147,7 @@ XML_POLL_SECONDS=2
 XML_STALE_SECONDS=60
 ```
 
-Pozostałe istotne ustawienia:
+Other important settings are:
 
 ```ini
 AMP_PANEL_PORT=8000
@@ -158,17 +158,17 @@ AUTH_MODE=local
 SNMP_PORT=1161
 ```
 
-Po zmianie konfiguracji `amp-panel configure` sprawdza wartości, przygotowuje
-pliki i uprawnienia, a następnie restartuje usługi. Pliki bazy, stanu i
-`control.xml` muszą znajdować się w `AMP_PANEL_DATA_DIR`.
+After a configuration change, `amp-panel configure` validates the values,
+prepares files and permissions, and restarts the services. The database, state,
+and `control.xml` files must be located inside `AMP_PANEL_DATA_DIR`.
 
-## Telemetria: status.xml
+## Telemetry: status.xml
 
-`status.xml` jest własnością procesu urządzenia. Zalecany sposób aktualizacji to
-zapis pliku tymczasowego i atomowe zastąpienie właściwego pliku. Panel cyklicznie
-odczytuje dokument, ale nigdy go nie zapisuje.
+`status.xml` is owned by the device process. The recommended update method is to
+write a temporary file and atomically replace the active file. The panel reads
+the document periodically but never writes to it.
 
-Minimalna struktura:
+Minimal structure:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -191,23 +191,23 @@ Minimalna struktura:
 </status>
 ```
 
-Sekcje używane przez domyślne profile:
+Sections used by the default profiles:
 
-| Profil | Sekcje XML |
+| Profile | XML sections |
 |---|---|
 | `local` | `params_local`, `params_localdi` |
 | `remote` | `params_remote`, `params_remotedi` |
 | `oba` | `params_oba` |
 | `oba3` | `params_oba3` |
 
-Plik musi być poprawnym XML UTF-8, mieć korzeń `<status>` i nie może przekraczać
-1 MB. DTD oraz encje zewnętrzne są odrzucane. Brakujące, zduplikowane i
-niepoprawne wartości są raportowane w diagnostyce profilu.
+The file must be valid UTF-8 XML, use `<status>` as its root, and not exceed
+1 MB. DTDs and external entities are rejected. Missing, duplicated, and invalid
+values are reported in the profile diagnostics.
 
-## Mapowanie pól XML
+## XML field mapping
 
-`xml_mapping.json` łączy elementy firmware z trwałymi kluczami aplikacji.
-Przykładowe pole:
+`xml_mapping.json` connects firmware elements to stable application keys.
+Example field:
 
 ```json
 {
@@ -230,60 +230,61 @@ Przykładowe pole:
 }
 ```
 
-Znaczenie właściwości:
+Property meanings:
 
-- `key` — stabilny klucz używany przez API i historię,
-- `id` lub `name` — selektor parametru w XML,
-- `label`, `unit`, `group` — opis prezentowany użytkownikowi,
-- `type` — `number` albo `text`,
-- `role` — opcjonalna rola semantyczna,
-- `writable` — jawne zezwolenie na zapis do `control.xml`,
-- `minimum`, `maximum` — opcjonalne granice wartości zapisywanej.
-- `alarm.enabled` — włącza sprawdzanie progów dla wartości odczytanej,
-- `alarm.minimum`, `alarm.maximum` — niezależne granice alarmowe.
+- `key` — stable key used by the API and history,
+- `id` or `name` — XML parameter selector,
+- `label`, `unit`, `group` — description presented to the user,
+- `type` — `number` or `text`,
+- `role` — optional semantic role,
+- `writable` — explicit permission to write the field to `control.xml`,
+- `minimum`, `maximum` — optional limits for a value being written,
+- `alarm.enabled` — enables threshold monitoring for the value being read,
+- `alarm.minimum`, `alarm.maximum` — independent alarm limits.
 
-Blok `alarm` jest opcjonalny. Jego brak oznacza alarm wyłączony. Po zapisaniu
-zakładki **Warnings** aplikacja nie dopisuje pustego `{"enabled": false}`: jeśli
-alarm jest wyłączony i oba progi są puste, istniejący blok zostaje usunięty z
-mapowania. Wyłączony alarm z wpisanym minimum lub maksimum pozostaje zapisany,
-aby można go było później ponownie włączyć bez utraty progów.
+The `alarm` block is optional. If it is absent, the alarm is disabled. When the
+**Warnings** tab is saved, the application does not add an empty
+`{"enabled": false}` block. If the alarm is disabled and both thresholds are
+empty, the existing block is removed from the mapping. A disabled alarm with a
+configured minimum or maximum remains stored so that it can be enabled again
+without losing its thresholds.
 
-Panel nigdy nie pozwala zapisać pola bez `"writable": true`. Zakresy należy
-ustawić według specyfikacji urządzenia; aplikacja nie zgaduje bezpiecznych
-wartości. Automatycznie odkryte pola są domyślnie tylko do odczytu.
+The panel never permits writing a field unless it has `"writable": true`. Set
+the ranges according to the device specification; the application does not
+guess safe values. Automatically discovered fields are read-only by default.
 
-Mapowanie można edytować w **Administration → Edit Variables**. Jest ono
-wczytywane przy każdym odczycie XML, więc poprawna zmiana nie wymaga restartu.
+The mapping can be edited in **Administration → Edit Variables**. It is loaded
+on every XML read, so a valid change does not require a restart.
 
-## Alarmy i trapy SNMP
+## Alarms and SNMP traps
 
-Zakładka **Warnings** pokazuje aktywne przekroczenia i pozwala Operatorowi lub
-Administratorowi konfigurować alarmy dla wszystkich pól liczbowych. Konfiguracja
-jest zapisywana bezpośrednio w `xml_mapping.json`; nie istnieje drugi plik progów.
-Można ustawić tylko dolną granicę, tylko górną albo obie.
+The **Warnings** tab displays active limit violations and allows Operators and
+Administrators to configure alarms for all numeric fields. The configuration is
+written directly to `xml_mapping.json`; there is no second threshold file. A
+lower limit, upper limit, or both can be configured.
 
-Alarm jest otwierany tylko przy przejściu wartości poza zakres i zamykany po jej
-powrocie. Zdarzenia `OPEN` oraz `CLEARED` trafiają do Sysloga. Przy `OPEN` panel
-wysyła jeden trap SNMP na skonfigurowany adres. Powtarzające się odczyty tej
-samej nieprawidłowej wartości nie generują kolejnych trapów.
+An alarm opens only when a value crosses a configured boundary and clears when
+the value returns to its valid range. `OPEN` and `CLEARED` events are written to
+Syslog. On `OPEN`, the panel sends one SNMP trap to the configured destination.
+Repeated readings of the same invalid value do not generate additional traps.
 
-Alarm pozostaje widoczny do potwierdzenia przez Operatora lub Administratora.
-Potwierdzenie aktywnego alarmu nie ukrywa go; wpis znika dopiero po jednoczesnym
-potwierdzeniu i powrocie wartości do prawidłowego zakresu. Dzięki temu krótki
-alarm, który ustąpił przed otwarciem strony, nadal wymaga świadomego
-potwierdzenia. Funkcji ignorowania alarmów nie ma.
+An alarm remains visible until an Operator or Administrator acknowledges it.
+Acknowledging an active alarm does not hide it; the entry disappears only after
+it has both been acknowledged and returned to its valid range. This ensures that
+a short alarm that clears before the page is opened still requires deliberate
+acknowledgement. Alarms cannot be ignored.
 
-W **SNMP Configuration** przycisk **Send test trap** wysyła kontrolny trap bez
-konieczności wywołania rzeczywistego alarmu.
+The **Send test trap** button in **SNMP Configuration** sends a test trap without
+requiring a real alarm.
 
-Granice `minimum` i `maximum` na poziomie pola dotyczą wartości wysyłanej przez
-`control.xml`. Granice wewnątrz `alarm` dotyczą wyłącznie telemetrii odczytanej
-z `status.xml`; te dwa mechanizmy są celowo rozdzielone.
+Field-level `minimum` and `maximum` limits apply to values sent through
+`control.xml`. Limits inside `alarm` apply only to telemetry read from
+`status.xml`; the two mechanisms are intentionally separate.
 
-## Sterowanie: control.xml
+## Control: control.xml
 
-Żądanie sterujące jest walidowane według mapowania, otrzymuje UUID, a następnie
-jest zapisywane atomowo. Przykład:
+A control request is validated against the mapping, assigned a UUID, and then
+written atomically. Example:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -300,15 +301,15 @@ jest zapisywane atomowo. Przykład:
 </control>
 ```
 
-Proces urządzenia powinien:
+The device process should:
 
-1. Obserwować `control.xml`.
-2. Sprawdzić `request.id`.
-3. Zastosować każde UUID najwyżej raz.
-4. Zignorować ponownie odczytane, już obsłużone UUID.
-5. Umieścić wynik w kolejnym `status.xml`.
+1. Watch `control.xml`.
+2. Check `request.id`.
+3. Apply each UUID no more than once.
+4. Ignore a UUID that has already been processed.
+5. Place the result in the next `status.xml`.
 
-Potwierdzenie w `status.xml`:
+Acknowledgement in `status.xml`:
 
 ```xml
 <control_status>
@@ -318,19 +319,19 @@ Potwierdzenie w `status.xml`:
 </control_status>
 ```
 
-Dozwolone stany odpowiedzi urządzenia:
+Allowed device response states:
 
-- `pending` — urządzenie przyjęło żądanie,
-- `applied` — zmiana została zastosowana,
-- `rejected` — urządzenie odrzuciło wartość,
-- `failed` — wykonanie zakończyło się błędem.
+- `pending` — the device accepted the request,
+- `applied` — the change was applied,
+- `rejected` — the device rejected the value,
+- `failed` — execution failed.
 
-Jeżeli zgodne potwierdzenie nie pojawi się przed
-`XML_CONTROL_ACK_TIMEOUT_SECONDS`, panel zwróci stan `timeout`.
+If a matching acknowledgement does not appear before
+`XML_CONTROL_ACK_TIMEOUT_SECONDS`, the panel reports `timeout`.
 
-## API sterowania XML
+## XML control API
 
-Zapis jest dostępny dla Administratora i Operatora:
+Writing is available to Administrators and Operators:
 
 ```http
 PUT /api/devices/oba3/control
@@ -343,43 +344,43 @@ Content-Type: application/json
 }
 ```
 
-Odpowiedź zawiera `request_id`, stan `pending` i ścieżkę pliku sterującego.
-Wartości są identyfikowane jako `sekcja:key`.
+The response contains the `request_id`, the `pending` state, and the control file
+path. Values are identified as `section:key`.
 
-Stan ostatniego żądania:
+Latest request status:
 
 ```http
 GET /api/devices/oba3/control/status
 ```
 
-Każdy zapis jest rejestrowany w audycie. API odrzuca pola tylko do odczytu,
-wartości niefinitywne, wartości poza skonfigurowanym zakresem i nadmiernie
-długie teksty.
+Every write is recorded in the audit log. The API rejects read-only fields,
+non-finite values, values outside their configured range, and excessively long
+text values.
 
-## Dane historyczne w SQLite
+## Historical data in SQLite
 
-Panel zapisuje historię pomiarów w bazie SQLite wskazanej przez `DATABASE_FILE`.
-Dane każdego urządzenia są przechowywane oddzielnie wraz z czasem ich odczytu.
-Nowy wpis powstaje tylko wtedy, gdy co najmniej jedna wartość urządzenia ulegnie
-zmianie. Regularne odświeżanie identycznego `status.xml` nie tworzy zbędnych
-duplikatów.
+The panel stores measurement history in the SQLite database specified by
+`DATABASE_FILE`. Data for each device is stored separately together with its
+read time. A new entry is created only when at least one device value changes.
+Regularly refreshing an unchanged `status.xml` does not create duplicate
+entries.
 
-Zapisana historia jest używana przez:
+Stored history is used by:
 
-- wykresy w zakładce **Overview**,
-- obliczenia w zakładce **Statistics**,
-- eksport danych do CSV.
+- charts in **Overview**,
+- calculations in **Statistics**,
+- CSV data exports.
 
-Dla dłuższych okresów panel korzysta z godzinowych podsumowań, dzięki czemu nie
-musi za każdym razem przetwarzać wszystkich pojedynczych pomiarów. Maksymalną
-liczbę zapisanych wpisów dla każdego urządzenia można ustawić w **Service
-Diagnostics**. Po osiągnięciu limitu najstarsze wpisy są usuwane. Wartość `0`
-oznacza brak limitu.
+For longer periods, the panel uses hourly summaries so that it does not need to
+process every individual measurement each time. The maximum number of stored
+entries for each device can be configured in **Service Diagnostics**. When the
+limit is reached, the oldest entries are removed. A value of `0` means unlimited
+history.
 
-Plik bazy jest zarządzany automatycznie przez aplikację i nie powinien być
-edytowany podczas działania usługi.
+The database file is managed automatically by the application and should not be
+edited while the service is running.
 
-## Diagnostyka i obsługa usługi
+## Diagnostics and service management
 
 ```bash
 sudo amp-panel status
@@ -390,23 +391,23 @@ sudo amp-panel restart
 sudo amp-panel paths
 ```
 
-`amp-panel doctor` sprawdza konfigurację, katalog danych, bazę SQLite,
-`status.xml`, zapisywalność `control.xml` oraz usługi systemd.
+`amp-panel doctor` checks the configuration, data directory, SQLite database,
+`status.xml`, `control.xml` write access, and systemd services.
 
-Typowe problemy:
+Common problems:
 
-- **Brak danych** — sprawdź istnienie i czas modyfikacji `status.xml`.
-- **Źródło stale** — proces urządzenia nie odświeżył pliku przed
-  `XML_STALE_SECONDS`.
-- **Control timeout** — urządzenie nie zwróciło zgodnego UUID w
+- **No data** — check that `status.xml` exists and inspect its modification time.
+- **Stale source** — the device process did not refresh the file before
+  `XML_STALE_SECONDS` elapsed.
+- **Control timeout** — the device did not return a matching UUID in
   `<control_status>`.
-- **Pole read-only** — w mapowaniu brakuje `"writable": true`.
-- **Permission denied** — proces urządzenia i użytkownik `amp-panel` nie mają
-  odpowiednich praw do katalogu wymiany.
+- **Read-only field** — the mapping does not contain `"writable": true`.
+- **Permission denied** — the device process and the `amp-panel` user do not have
+  the required access to the exchange directory.
 
-## Rozwój i testy
+## Development and testing
 
-Instalacja zależności Pythona:
+Install the Python dependencies:
 
 ```bash
 python3 -m venv .venv
@@ -414,18 +415,18 @@ python3 -m venv .venv
 pip install -r requirements.txt
 ```
 
-Uruchomienie testów:
+Run the tests:
 
 ```bash
 python -m unittest discover -s tests -q
 ```
 
-Kontrola kodu Pythona:
+Check the Python code:
 
 ```bash
 python -m ruff check .
 python -m ruff format --check .
 ```
 
-Frontend korzysta z lokalnie dołączonego Chart.js, dlatego wykresy nie
-wymagają dostępu do Internetu.
+The frontend uses a locally bundled copy of Chart.js, so charts do not require
+Internet access.
