@@ -1,17 +1,15 @@
 # Amp Panel
 
 Amp Panel jest lokalną aplikacją webową, która odczytuje stan urządzeń i
-przekazuje do nich polecenia za pomocą plików XML. Obsługuje cztery niezależne
-profile:
+przekazuje do nich polecenia za pomocą plików XML. Obsługuje cztery profile:
 
 - `local` — stacja lokalna / DI,
 - `remote` — stacja zdalna / DI,
 - `oba` — wzmacniacz EDFA OBA,
 - `oba3` — wzmacniacz EDFA OBA3.
 
-Urządzenie przekazuje telemetrię przez `status.xml`. Panel nigdy nie modyfikuje
-tego pliku. Polecenia w przeciwnym kierunku są publikowane w oddzielnym
-`control.xml`, dzięki czemu odczyt i zapis nie konkurują o ten sam plik.
+Panel odczytuje bieżące dane urządzenia z pliku 'status.xml', a polecenia i 
+ustawienia zapisuje w osobnym pliku 'control.xml'
 
 ## Instalacja
 
@@ -31,15 +29,15 @@ W katalogu projektu uruchom:
 ```
 
 Pakiet `.deb` zostanie zapisany w katalogu nadrzędnym. Zainstaluj go, podając
-rzeczywistą nazwę wygenerowanego pliku:
+nazwę wygenerowanego pliku:
 
 ```bash
 sudo apt install ../amp-panel_*.deb
 ```
 
 Instalator tworzy użytkownika systemowego `amp-panel`, usługi systemd, katalog
-danych oraz początkową konfigurację. Konfigurację można ponowić w dowolnym
-momencie:
+danych oraz wstępną konfigurację. Konfigurację można zmienić w dowolnym
+momencie komendą:
 
 ```bash
 sudo amp-panel configure
@@ -48,7 +46,7 @@ sudo amp-panel configure
 Polecenie otwiera pełny plik konfiguracyjny w `$VISUAL`, `$EDITOR` lub
 systemowym `editor`, a przed zastosowaniem zmian sprawdza jego poprawność.
 
-Po instalacji sprawdź system:
+Po instalacji można sprawdzić działanie systemu:
 
 ```bash
 sudo amp-panel doctor
@@ -82,17 +80,16 @@ pole oznaczone jako `"writable": true`. Po wybraniu **Apply changes** panel
 zapisuje do `control.xml` wyłącznie wartości zmienione przez użytkownika.
 
 Sekcja **Last request** pokazuje identyfikator i stan ostatniego polecenia.
-Urządzenie potwierdza wykonanie w `status.xml`; panel prezentuje stany takie jak
-`pending`, `applied`, `rejected`, `failed` lub `timeout`. Dodanie kolejnego pola
+Urządzenie potwierdza wykonanie w `status.xml`; panel prezentuje następujące stany:
+`pending`, `applied`, `rejected`, `failed` i `timeout`. Dodanie kolejnego pola
 sterującego nie wymaga zmiany kodu GUI — wystarczy dodać je do mapowania wraz z
 typem, zakresem i flagą `writable`.
 
 ### Overview i Statistics
 
-- **Overview** przedstawia przebieg wybranych wartości historycznych.
+- **Overview** przedstawia wykres wartości historycznych z wybranego okresu czasu.
 - **Statistics** oblicza statystyki dla wybranego okresu.
 - Historia może zostać wyeksportowana do CSV.
-- Układ wykresów jest wspólny dla użytkowników i zachowywany po restarcie.
 
 ### Administration
 
