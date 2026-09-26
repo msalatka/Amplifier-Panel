@@ -45,12 +45,8 @@ momencie:
 sudo amp-panel configure
 ```
 
-Domyślnie polecenie otwiera pełny plik konfiguracyjny w `$VISUAL`, `$EDITOR`
-lub systemowym `editor`. Kreator pytań można uruchomić przez:
-
-```bash
-sudo amp-panel configure --prompt
-```
+Polecenie otwiera pełny plik konfiguracyjny w `$VISUAL`, `$EDITOR` lub
+systemowym `editor`, a przed zastosowaniem zmian sprawdza jego poprawność.
 
 Po instalacji sprawdź system:
 

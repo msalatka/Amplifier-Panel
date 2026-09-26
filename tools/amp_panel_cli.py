@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import base64
 import datetime
-import getpass
 import hashlib
 import html
 import json
@@ -621,13 +620,6 @@ def validate_configuration(values: dict[str, str]) -> None:
             raise ConfigurationError("Remote syslog protocol must be tcp or udp.")
 
 
-def _prompt(label: str, default: str = "", *, secret: bool = False) -> str:
-    suffix = f" [{default}]" if default and not secret else ""
-    reader = getpass.getpass if secret else input
-    value = reader(f"{label}{suffix}: ").strip()
-    return value or default
-
-
 def _set_local_admin_password(values: dict[str, str], password: str) -> None:
     """Hash a local administrator password without retaining its clear-text form."""
 
@@ -639,52 +631,6 @@ def _set_local_admin_password(values: dict[str, str], password: str) -> None:
         digest
     ).decode("ascii")
     values["INITIAL_ADMIN_PASSWORD_SALT"] = base64.b64encode(salt).decode("ascii")
-
-
-def interactive_configuration(values: dict[str, str]) -> dict[str, str]:
-    """Prompt an administrator for devices, host, and service settings."""
-
-    print("\nAmp Panel configuration\n")
-    values["ENABLED_DEVICES"] = _prompt(
-        "Enabled devices (comma-separated: local,remote,oba,oba3)",
-        values.get("ENABLED_DEVICES", "local,remote,oba,oba3"),
-    ).lower()
-    values["INITIAL_ADMIN_USERNAME"] = _prompt(
-        "Administrator username",
-        values["INITIAL_ADMIN_USERNAME"],
-    )
-    values["AUTH_MODE"] = _prompt(
-        "Authentication mode (local/radius)", values.get("AUTH_MODE", "radius")
-    ).lower()
-    if values["AUTH_MODE"] == "local":
-        password = _prompt("Local administrator password", secret=True)
-        confirmation = _prompt("Repeat local administrator password", secret=True)
-        if password != confirmation:
-            raise ConfigurationError("Local administrator passwords do not match.")
-        _set_local_admin_password(values, password)
-    values["AMP_PANEL_PORT"] = _prompt("Web interface port", values["AMP_PANEL_PORT"])
-    values["AMP_PANEL_DATA_DIR"] = _prompt(
-        "Measurement data directory",
-        values["AMP_PANEL_DATA_DIR"],
-    )
-    data_dir = _normalized_data_dir(values["AMP_PANEL_DATA_DIR"])
-    values["AMP_PANEL_DATA_DIR"] = str(data_dir)
-    values["DATABASE_FILE"] = str(data_dir / "measurements.db")
-    values["PERSISTED_STATE_FILE"] = str(data_dir / "persisted_state.json")
-    values["XML_CONTROL_FILE"] = str(data_dir / "control.xml")
-    if values["AUTH_MODE"] == "radius":
-        values["RADIUS_SERVER"] = _prompt("RADIUS server", values["RADIUS_SERVER"])
-        values["RADIUS_PORT"] = _prompt("RADIUS UDP port", values["RADIUS_PORT"])
-        values["RADIUS_SECRET"] = _prompt(
-            "RADIUS shared secret",
-            values["RADIUS_SECRET"],
-            secret=True,
-        )
-    values["MDNS_HOSTNAME"] = _prompt(
-        "mDNS hostname (without .local)",
-        values["MDNS_HOSTNAME"],
-    ).lower()
-    return values
 
 
 def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
@@ -1067,9 +1013,7 @@ def configure_command(args: argparse.Namespace) -> int:
         if args.mdns_hostname:
             values["MDNS_HOSTNAME"] = args.mdns_hostname.lower()
         if not args.non_interactive:
-            values = (
-                interactive_configuration(values) if args.prompt else edit_configuration(values)
-            )
+            values = edit_configuration(values)
         _configuration_progress("Validating settings...")
         validate_configuration(values)
         _configuration_progress("Preparing the measurement data directory...")
@@ -1312,11 +1256,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     configure = subparsers.add_parser("configure", help="configure Amp Panel")
     configure.add_argument("--non-interactive", action="store_true")
-    configure.add_argument(
-        "--prompt",
-        action="store_true",
-        help="use the previous question-and-answer configuration wizard",
-    )
     configure.add_argument("--no-start", action="store_true")
     configure.add_argument("--answers-file")
     configure.add_argument("--admin-username")

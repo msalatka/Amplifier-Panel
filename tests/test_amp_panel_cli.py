@@ -291,6 +291,18 @@ class AmpPanelCliTests(unittest.TestCase):
     def test_each_configuration_key_has_a_help_comment(self):
         self.assertEqual(set(amp_panel_cli.CONFIG_KEYS), set(amp_panel_cli.CONFIG_HELP))
 
+    def test_configure_command_has_no_prompt_wizard_option(self):
+        parser = amp_panel_cli.build_parser()
+        subparsers = next(action for action in parser._actions if action.dest == "command")
+        configure = subparsers.choices["configure"]
+        options = {
+            option
+            for action in configure._actions
+            for option in action.option_strings
+        }
+
+        self.assertNotIn("--prompt", options)
+
     def test_editor_configuration_rejects_an_unknown_key(self):
         values = amp_panel_cli.default_configuration()
 
