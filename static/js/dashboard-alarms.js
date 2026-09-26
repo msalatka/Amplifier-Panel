@@ -41,10 +41,19 @@ async function loadActiveAlarms() {
 		const container = document.getElementById('active-alarms-list')
 		container.innerHTML = alarms.length
 			? alarms
-					.map(
-						(alarm) =>
-							`<div class="alarm-active-row"><span><strong>${escapeHtml(alarm.label)}</strong><small>${escapeHtml(alarm.kind === 'minimum' ? 'Value below configured minimum' : 'Value above configured maximum')}</small></span><strong>${escapeHtml(`${alarm.value}${alarm.unit ? ` ${alarm.unit}` : ''}`)}</strong><span>${escapeHtml(alarm.kind === 'minimum' ? `Minimum: ${alarm.target}` : `Maximum: ${alarm.target}`)}${escapeHtml(alarm.unit ? ` ${alarm.unit}` : '')}</span><time datetime="${escapeHtml(alarm.opened_at || '')}">${escapeHtml(formatDateTime(alarm.opened_at))}</time></div>`,
-					)
+					.map((alarm) => {
+						const state = alarm.condition_active
+							? alarm.acknowledged
+								? 'Active · acknowledged'
+								: 'Active · unacknowledged'
+							: 'Normal · acknowledgement required'
+						const action = canOperate()
+							? alarm.acknowledged
+								? 'Acknowledged'
+								: `<button class="button-secondary" type="button" data-acknowledge-alarm="${escapeHtml(alarm.key)}">Acknowledge</button>`
+							: '--'
+						return `<div class="alarm-active-row"><span><strong>${escapeHtml(alarm.label)}</strong><small>${escapeHtml(alarm.kind === 'minimum' ? 'Value below configured minimum' : 'Value above configured maximum')}</small></span><strong>${escapeHtml(`${alarm.value}${alarm.unit ? ` ${alarm.unit}` : ''}`)}</strong><span>${escapeHtml(alarm.kind === 'minimum' ? `Minimum: ${alarm.target}` : `Maximum: ${alarm.target}`)}${escapeHtml(alarm.unit ? ` ${alarm.unit}` : '')}</span><span class="alarm-state${alarm.condition_active ? ' is-active' : ' is-normal'}">${escapeHtml(state)}</span><time datetime="${escapeHtml(alarm.opened_at || '')}">${escapeHtml(formatDateTime(alarm.opened_at))}</time><span>${action}</span></div>`
+					})
 					.join('')
 			: '<p>No active alarms.</p>'
 	} catch (error) {
@@ -83,3 +92,26 @@ document.getElementById('alarm-settings-form')?.addEventListener('submit', async
 	}
 })
 document.getElementById('refresh-alarms-button')?.addEventListener('click', loadActiveAlarms)
+document.getElementById('active-alarms-list')?.addEventListener('click', async (event) => {
+	const button = event.target.closest('[data-acknowledge-alarm]')
+	if (!button || !canOperate()) return
+	button.disabled = true
+	try {
+		const response = await fetch(
+			`/api/devices/${encodeURIComponent(selectedDeviceId)}/alarms/acknowledge`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ key: button.dataset.acknowledgeAlarm }),
+			},
+		)
+		handleAuthResponse(response)
+		const result = await response.json()
+		if (!response.ok)
+			throw new Error(apiErrorMessage(result.detail, 'Could not acknowledge alarm'))
+		await loadActiveAlarms()
+	} catch (error) {
+		button.disabled = false
+		showNotification(error.message || 'Could not acknowledge alarm.', 'error')
+	}
+})

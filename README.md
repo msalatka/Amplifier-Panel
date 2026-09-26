@@ -268,6 +268,12 @@ powrocie. Zdarzenia `OPEN` oraz `CLEARED` trafiają do Sysloga. Przy `OPEN` pane
 wysyła jeden trap SNMP na skonfigurowany adres. Powtarzające się odczyty tej
 samej nieprawidłowej wartości nie generują kolejnych trapów.
 
+Alarm pozostaje widoczny do potwierdzenia przez Operatora lub Administratora.
+Potwierdzenie aktywnego alarmu nie ukrywa go; wpis znika dopiero po jednoczesnym
+potwierdzeniu i powrocie wartości do prawidłowego zakresu. Dzięki temu krótki
+alarm, który ustąpił przed otwarciem strony, nadal wymaga świadomego
+potwierdzenia. Funkcji ignorowania alarmów nie ma.
+
 W **SNMP Configuration** przycisk **Send test trap** wysyła kontrolny trap bez
 konieczności wywołania rzeczywistego alarmu.
 

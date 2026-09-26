@@ -31,7 +31,7 @@ class AlarmServiceTests(unittest.TestCase):
             "values": {"oba3": {"Temp": value}},
         }
 
-    def test_alarm_opens_once_and_clears_after_value_returns_to_range(self):
+    def test_alarm_latches_until_normal_and_acknowledged(self):
         with (
             mock.patch.object(alarms.syslog, "send_warning_event") as send_syslog,
             mock.patch.object(alarms.snmp, "send_trap") as send_trap,
@@ -44,9 +44,28 @@ class AlarmServiceTests(unittest.TestCase):
 
             alarms.evaluate("oba3", self.snapshot(40), "2026-09-26T10:00:02+00:00")
 
-        self.assertEqual(alarms.active("oba3"), [])
+        latched = alarms.active("oba3")
+        self.assertEqual(len(latched), 1)
+        self.assertFalse(latched[0]["condition_active"])
+        self.assertFalse(latched[0]["acknowledged"])
         self.assertEqual(send_syslog.call_count, 2)
         self.assertEqual(send_syslog.call_args.args[0], "CLEARED")
+
+        alarms.acknowledge("oba3", latched[0]["key"])
+        self.assertEqual(alarms.active("oba3"), [])
+
+    def test_acknowledged_active_alarm_remains_until_normal(self):
+        with (
+            mock.patch.object(alarms.syslog, "send_warning_event"),
+            mock.patch.object(alarms.snmp, "send_trap"),
+        ):
+            alarms.evaluate("oba3", self.snapshot(55), "2026-09-26T10:00:00+00:00")
+            key = alarms.active("oba3")[0]["key"]
+            alarms.acknowledge("oba3", key)
+            self.assertTrue(alarms.active("oba3")[0]["acknowledged"])
+            alarms.evaluate("oba3", self.snapshot(40), "2026-09-26T10:00:01+00:00")
+
+        self.assertEqual(alarms.active("oba3"), [])
 
 
 if __name__ == "__main__":

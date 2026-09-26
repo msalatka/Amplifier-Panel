@@ -54,6 +54,12 @@ class AlarmSettingsUpdate(pydantic.BaseModel):
     alarms: dict[str, AlarmLimits] = pydantic.Field(max_length=256)
 
 
+class AlarmAcknowledgement(pydantic.BaseModel):
+    """One latched alarm selected by its stable runtime key."""
+
+    key: str = pydantic.Field(min_length=1, max_length=512)
+
+
 @router.get("/{device_id}/history/export.csv")
 def export_device_history(device_id: str, range: str = "5m", _current_user: dict = viewer):
     """Stream complete per-device history without the chart downsampling limit."""
@@ -144,6 +150,31 @@ def device_alarms(device_id: str, _current_user: dict = viewer):
 
     require_enabled(device_id)
     return {"device_id": device_id, "alarms": alarms.active(device_id)}
+
+
+@router.post("/{device_id}/alarms/acknowledge")
+def acknowledge_device_alarm(
+    device_id: str,
+    body: AlarmAcknowledgement,
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(
+        api_security.require_roles("Administrator", "Operator")
+    ),
+):
+    """Acknowledge one alarm while retaining any active condition."""
+
+    require_enabled(device_id)
+    try:
+        alarm = alarms.acknowledge(device_id, body.key)
+    except ValueError as exc:
+        raise fastapi.HTTPException(status_code=404, detail=str(exc)) from exc
+    api_security.audit_event(
+        request,
+        "alarm_acknowledged",
+        current_user["username"],
+        f"device={device_id}; alarm={body.key}",
+    )
+    return {"device_id": device_id, "alarm": alarm}
 
 
 @router.put("/{device_id}/alarms/settings")
