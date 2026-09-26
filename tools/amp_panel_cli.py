@@ -95,7 +95,6 @@ def _enabled_devices(value: str | None) -> tuple[str, ...]:
 
 
 CONFIG_KEYS = (
-    "AMP_PANEL_CONFIG_VERSION",
     "AMP_PANEL_PORT",
     "AMP_PANEL_DATA_DIR",
     "ENABLED_DEVICES",
@@ -114,7 +113,6 @@ CONFIG_KEYS = (
     "PERSISTED_STATE_FILE",
     "DATABASE_FILE",
     "DATABASE_MAX_RECORDS",
-    "HISTORY_MAX_POINTS",
     "LOGIN_MAX_ATTEMPTS",
     "LOGIN_WINDOW_SECONDS",
     "SESSION_MAX_AGE_SECONDS",
@@ -150,7 +148,7 @@ CONFIG_KEYS = (
 )
 
 CONFIG_SECTIONS = {
-    "AMP_PANEL_CONFIG_VERSION": "Panel and web interface",
+    "AMP_PANEL_PORT": "Panel and web interface",
     "ENABLED_DEVICES": "Connected devices",
     "DEVICE_NAME": "Panel identity",
     "INITIAL_ADMIN_USERNAME": "Browser authentication",
@@ -169,7 +167,6 @@ CONFIG_HELP = {
     "XML_MAPPING_FILE": "JSON field mapping; changes apply automatically on the next poll.",
     "XML_POLL_SECONDS": "XML polling interval in seconds (minimum 0.2).",
     "XML_STALE_SECONDS": "Mark source stale after this many seconds without a file refresh.",
-    "AMP_PANEL_CONFIG_VERSION": "Configuration format version; do not change manually.",
     "AMP_PANEL_PORT": "Web interface TCP port: integer from 1024 to 65535, for example 8000.",
     "AMP_PANEL_DATA_DIR": "Data directory: /var/lib/amp-panel or a path below /mnt, /media or /srv.",
     "ENABLED_DEVICES": "XML devices: local,remote,oba,oba3.",
@@ -182,7 +179,6 @@ CONFIG_HELP = {
     "PERSISTED_STATE_FILE": "JSON file for panel settings and local accounts; must be inside AMP_PANEL_DATA_DIR.",
     "DATABASE_FILE": "SQLite measurement database; must be inside AMP_PANEL_DATA_DIR.",
     "DATABASE_MAX_RECORDS": "Maximum stored records; 0 means unlimited.",
-    "HISTORY_MAX_POINTS": "Maximum chart points returned by the API; integer of at least 100.",
     "LOGIN_MAX_ATTEMPTS": "Failed login attempts allowed within LOGIN_WINDOW_SECONDS.",
     "LOGIN_WINDOW_SECONDS": "Login rate-limit window in seconds.",
     "SESSION_MAX_AGE_SECONDS": "Maximum browser session age in seconds.",
@@ -438,7 +434,6 @@ def default_configuration() -> dict[str, str]:
     data_dir = DEFAULT_DATA_DIR.resolve()
     device_name = _device_name()
     return {
-        "AMP_PANEL_CONFIG_VERSION": "3",
         "AMP_PANEL_PORT": "8000",
         "AMP_PANEL_DATA_DIR": str(data_dir),
         "ENABLED_DEVICES": "local,remote,oba,oba3",
@@ -457,7 +452,6 @@ def default_configuration() -> dict[str, str]:
         "PERSISTED_STATE_FILE": str(data_dir / "persisted_state.json"),
         "DATABASE_FILE": str(data_dir / "measurements.db"),
         "DATABASE_MAX_RECORDS": "0",
-        "HISTORY_MAX_POINTS": "2000",
         "LOGIN_MAX_ATTEMPTS": "5",
         "LOGIN_WINDOW_SECONDS": "300",
         "SESSION_MAX_AGE_SECONDS": "43200",
