@@ -143,6 +143,31 @@ class SnmpServiceTests(unittest.TestCase):
         self.assertIn("1161", message)
         self.assertNotIn("top-secret-community", message)
 
+    def test_trap_uptime_uses_process_runtime_not_unix_epoch(self):
+        with (
+            mock.patch.object(
+                snmp.state,
+                "snmp_settings",
+                {
+                    "enabled": True,
+                    "community": "amp-panel-test",
+                    "trap_host": "127.0.0.1",
+                    "trap_port": 1162,
+                },
+            ),
+            mock.patch.object(snmp.time, "monotonic", return_value=snmp.started_monotonic + 12.34),
+            mock.patch.object(snmp, "TimeTicks", wraps=snmp.TimeTicks) as time_ticks,
+            mock.patch.object(
+                snmp,
+                "send_notification",
+                new=mock.AsyncMock(return_value=(None, 0, 0, [])),
+            ),
+        ):
+            sent = snmp.send_trap({"field": "test", "value": "TEST", "target": "receiver"})
+
+        self.assertTrue(sent)
+        time_ticks.assert_called_once_with(1234)
+
 
 if __name__ == "__main__":
     unittest.main()

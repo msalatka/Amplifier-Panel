@@ -473,6 +473,7 @@ def send_test_snmp_trap(
     if not snmp_service.send_trap(
         {"field": "test", "label": "Amp Panel test", "value": "TEST", "target": "configured receiver"}
     ):
-        raise fastapi.HTTPException(status_code=503, detail="SNMP trap could not be sent")
+        detail = snmp_service.last_trap_error or "SNMP trap could not be sent"
+        raise fastapi.HTTPException(status_code=503, detail=detail)
     api_security.audit_event(request, "snmp_test_trap_sent", current_user["username"], "")
     return {"sent": True}

@@ -35,6 +35,8 @@ LEGACY_LIVE_ROLES = {
 
 snmp_thread = None
 stop_event = threading.Event()
+started_monotonic = time.monotonic()
+last_trap_error = None
 
 
 def _oid_parts(oid: str) -> tuple[int, ...]:
@@ -222,9 +224,12 @@ def send_trap(error: dict) -> bool:
 
 
 async def _async_send_trap(error: dict):
+    global last_trap_error
+
     with state.state_lock:
         snmp_settings = getattr(state, "snmp_settings", {})
         if not snmp_settings.get("enabled", False):
+            last_trap_error = "SNMP is disabled"
             return False
         community = snmp_settings.get("community", "public")
         trap_host = snmp_settings.get("trap_host", "127.0.0.1")
@@ -238,25 +243,27 @@ async def _async_send_trap(error: dict):
 
     try:
         target = await UdpTransportTarget.create((trap_host, trap_port))
-        iterator = send_notification(
+        error_indication, _error_status, _error_index, _var_binds = await send_notification(
             SnmpEngine(),
             CommunityData(community, mpModel=1),
             target,
             ContextData(),
             "trap",
-            NotificationType(ObjectIdentity(TRAP_OID)).addVarBinds(
-                ("1.3.6.1.2.1.1.3.0", TimeTicks(int(time.time() * 100))),
+            NotificationType(ObjectIdentity(TRAP_OID)).add_varbinds(
+                ("1.3.6.1.2.1.1.3.0", TimeTicks(int((time.monotonic() - started_monotonic) * 100))),
                 ("1.3.6.1.6.3.1.1.4.1.0", ObjectIdentifier(TRAP_OID)),
                 (f"{TRAP_OID}.1", OctetString(error_message)),
             ),
         )
-        async for errorIndication, _errorStatus, _errorIndex, _varBinds in iterator:
-            if errorIndication:
-                print(f"[SNMP TRAP FAIL]: {errorIndication}")
-                return False
+        if error_indication:
+            last_trap_error = str(error_indication)
+            print(f"[SNMP TRAP FAIL]: {last_trap_error}")
+            return False
+        last_trap_error = None
         return True
     except Exception as e:
-        print(f"[SNMP TRAP ERROR]: {e}")
+        last_trap_error = str(e)
+        print(f"[SNMP TRAP ERROR]: {last_trap_error}")
         return False
 
 
