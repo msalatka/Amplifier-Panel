@@ -358,21 +358,26 @@ długie teksty.
 
 ## Dane historyczne w SQLite
 
-SQLite nie przechowuje już osobnych kolumn dla `GainSet`, temperatury ani innych
-wyróżnionych parametrów. Tabela `device_snapshots` zapisuje dla każdego profilu
-czas obserwacji, identyfikator profilu oraz kompletny, zwalidowany snapshot XML
-w postaci JSON. Nowy rekord powstaje tylko wtedy, gdy wartości danego urządzenia
-ulegną zmianie; samo ponowne zapisanie identycznego `status.xml` nie powiększa
-historii.
+Panel zapisuje historię pomiarów w bazie SQLite wskazanej przez `DATABASE_FILE`.
+Dane każdego urządzenia są przechowywane oddzielnie wraz z czasem ich odczytu.
+Nowy wpis powstaje tylko wtedy, gdy co najmniej jedna wartość urządzenia ulegnie
+zmianie. Regularne odświeżanie identycznego `status.xml` nie tworzy zbędnych
+duplikatów.
 
-Tabela `device_hourly_statistics` zawiera godzinowe podsumowania liczbowe używane
-do szybkiego wyświetlania długich zakresów. Konfiguracja alarmów pozostaje w
-`xml_mapping.json`, aktywne alarmy są stanem bieżącego procesu, a trwała historia
-otwarć i zamknięć jest zapisywana w Syslogu — nie w SQLite.
+Zapisana historia jest używana przez:
 
-`GainSet` nie ma specjalnego magazynu. Aktualna wartość pochodzi z `status.xml`,
-żądana wartość jest publikowana w `control.xml`, a historia — tak jak dla innych
-pól — znajduje się w snapshotach SQLite.
+- wykresy w zakładce **Overview**,
+- obliczenia w zakładce **Statistics**,
+- eksport danych do CSV.
+
+Dla dłuższych okresów panel korzysta z godzinowych podsumowań, dzięki czemu nie
+musi za każdym razem przetwarzać wszystkich pojedynczych pomiarów. Maksymalną
+liczbę zapisanych wpisów dla każdego urządzenia można ustawić w **Service
+Diagnostics**. Po osiągnięciu limitu najstarsze wpisy są usuwane. Wartość `0`
+oznacza brak limitu.
+
+Plik bazy jest zarządzany automatycznie przez aplikację i nie powinien być
+edytowany podczas działania usługi.
 
 ## Diagnostyka i obsługa usługi
 
