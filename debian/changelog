@@ -1,4 +1,4 @@
-amp-panel (0.1.0) unstable; urgency=medium
+amp-panel (0.2.0) unstable; urgency=medium
 
   * Initial pre-release of the optical equipment control panel.
   * Run one optical amplifier and one FTS-LS station view concurrently, with
