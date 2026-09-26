@@ -79,11 +79,12 @@ generated automatically from `xml_mapping.json`: every field marked with
 `"writable": true` is displayed. When **Apply changes** is selected, the panel
 writes only the values changed by the user to `control.xml`.
 
-The **Last request** section shows the identifier and state of the latest
-command. The device confirms execution through `status.xml`; the panel displays
-the following states: `pending`, `applied`, `rejected`, `failed`, and `timeout`.
-Adding another control field does not require a GUI change—add it to the mapping
-with its type, range, and `writable` flag.
+After changes are submitted, the bottom of the **Control** tab shows whether the
+device has processed them. The result is read from `status.xml` and may indicate
+that the command is waiting to be processed, has been applied, was rejected,
+failed, or was not confirmed in time. Adding another control field does not
+require a GUI change—add it to the mapping with its type, range, and `writable`
+flag.
 
 ### Overview and Statistics
 
