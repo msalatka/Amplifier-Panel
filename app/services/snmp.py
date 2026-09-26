@@ -215,23 +215,24 @@ class CustomInstrum:
         return vars_list
 
 
-def send_trap(error: dict) -> None:
+def send_trap(error: dict) -> bool:
     """Send one warning as an SNMP trap when trap delivery is enabled."""
 
-    asyncio.run(_async_send_trap(error))
+    return asyncio.run(_async_send_trap(error))
 
 
 async def _async_send_trap(error: dict):
     with state.state_lock:
         snmp_settings = getattr(state, "snmp_settings", {})
         if not snmp_settings.get("enabled", False):
-            return
+            return False
         community = snmp_settings.get("community", "public")
         trap_host = snmp_settings.get("trap_host", "127.0.0.1")
         trap_port = snmp_settings.get("trap_port", 162)
 
     error_message = (
-        f"ALARM: {error.get('field')} | W: {error.get('value', '--')} "
+        f"ALARM: {error.get('device_id', '--')}:{error.get('field')} "
+        f"| W: {error.get('value', '--')} "
         f"| T: {error.get('target', '--')}"
     )
 
@@ -252,8 +253,11 @@ async def _async_send_trap(error: dict):
         async for errorIndication, _errorStatus, _errorIndex, _varBinds in iterator:
             if errorIndication:
                 print(f"[SNMP TRAP FAIL]: {errorIndication}")
+                return False
+        return True
     except Exception as e:
         print(f"[SNMP TRAP ERROR]: {e}")
+        return False
 
 
 def _snmp_agent_loop():

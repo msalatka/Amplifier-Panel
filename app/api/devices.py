@@ -13,8 +13,8 @@ from app.api import history as history_api
 from app.api import security as api_security
 from app.core import config, state
 from app.devices.registry import DEVICES
+from app.services import alarms, xml_control
 from app.services import database as database_service
-from app.services import xml_control
 from app.services.device_statistics import scalar_fields
 
 router = fastapi.APIRouter(prefix="/api/devices")
@@ -38,6 +38,20 @@ class DeviceControlUpdate(pydantic.BaseModel):
     """Validated desired values written to the device control XML."""
 
     values: dict[str, str | float | int] = pydantic.Field(min_length=1, max_length=64)
+
+
+class AlarmLimits(pydantic.BaseModel):
+    """One field's optional lower and upper alarm boundaries."""
+
+    enabled: bool = False
+    minimum: float | None = None
+    maximum: float | None = None
+
+
+class AlarmSettingsUpdate(pydantic.BaseModel):
+    """Complete alarm-setting update keyed by section and field."""
+
+    alarms: dict[str, AlarmLimits] = pydantic.Field(max_length=256)
 
 
 @router.get("/{device_id}/history/export.csv")
@@ -122,6 +136,47 @@ def latest(device_id: str, _current_user: dict = viewer):
         "live_fields": state.device_live_fields.get(device_id, []),
         "chart_layout": state.device_chart_layouts.get(device_id),
     }
+
+
+@router.get("/{device_id}/alarms")
+def device_alarms(device_id: str, _current_user: dict = viewer):
+    """Return active alarms for one XML device."""
+
+    require_enabled(device_id)
+    return {"device_id": device_id, "alarms": alarms.active(device_id)}
+
+
+@router.put("/{device_id}/alarms/settings")
+def update_alarm_settings(
+    device_id: str,
+    body: AlarmSettingsUpdate,
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(
+        api_security.require_roles("Administrator", "Operator")
+    ),
+):
+    """Persist per-field XML alarm limits in the mapping file."""
+
+    require_enabled(device_id)
+    normalized = {}
+    for identifier, alarm in body.alarms.items():
+        value = {"enabled": alarm.enabled}
+        if alarm.minimum is not None:
+            value["minimum"] = alarm.minimum
+        if alarm.maximum is not None:
+            value["maximum"] = alarm.maximum
+        normalized[identifier] = value
+    try:
+        alarms.update_config(device_id, normalized)
+    except (KeyError, OSError, ValueError) as exc:
+        raise fastapi.HTTPException(status_code=422, detail=str(exc)) from exc
+    api_security.audit_event(
+        request,
+        "alarm_settings_updated",
+        current_user["username"],
+        f"device={device_id}; fields={','.join(sorted(normalized))}",
+    )
+    return {"device_id": device_id, "alarms": normalized}
 
 
 @router.put("/{device_id}/control")

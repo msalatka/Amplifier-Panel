@@ -73,6 +73,19 @@ class XmlStatusTests(unittest.TestCase):
         self.assertEqual(gain_set["id"], "5.1.1.2")
         self.assertEqual(gain_set["name"], "GainSet")
 
+    def test_alarm_configuration_is_validated_and_exposed(self):
+        mapping = copy.deepcopy(self.mapping)
+        field = mapping["oba3"]["sections"][0]["fields"][0]
+        field["alarm"] = {"enabled": True, "minimum": 10, "maximum": 40}
+
+        xml_status.validate_mapping(mapping)
+        result = xml_status.parse_status(self.payload, mapping)["oba3"]
+        descriptor = result["sections"][0]["fields"][0]
+
+        self.assertEqual(
+            descriptor["alarm"], {"enabled": True, "minimum": 10, "maximum": 40}
+        )
+
     def test_boolean_fields_reject_values_other_than_zero_or_one(self):
         payload = self.payload.replace(
             b"<name>LaserLocked</name>\n      <value>1</value>",

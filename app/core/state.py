@@ -197,6 +197,7 @@ def save_persisted_access_users() -> None:
 
 
 latest_snmp_data = {}
+active_alarms = {}
 device_live = {
     device_id: {
         "connected": False,

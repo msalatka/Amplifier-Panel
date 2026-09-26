@@ -226,7 +226,14 @@ Przykładowe pole:
   "unit": "dB",
   "role": "gain_set",
   "group": "Amplifier",
-  "writable": true
+  "writable": true,
+  "minimum": 0,
+  "maximum": 40,
+  "alarm": {
+    "enabled": true,
+    "minimum": 10,
+    "maximum": 35
+  }
 }
 ```
 
@@ -239,6 +246,8 @@ Znaczenie właściwości:
 - `role` — opcjonalna rola semantyczna,
 - `writable` — jawne zezwolenie na zapis do `control.xml`,
 - `minimum`, `maximum` — opcjonalne granice wartości zapisywanej.
+- `alarm.enabled` — włącza sprawdzanie progów dla wartości odczytanej,
+- `alarm.minimum`, `alarm.maximum` — niezależne granice alarmowe.
 
 Panel nigdy nie pozwala zapisać pola bez `"writable": true`. Zakresy należy
 ustawić według specyfikacji urządzenia; aplikacja nie zgaduje bezpiecznych
@@ -246,6 +255,25 @@ wartości. Automatycznie odkryte pola są domyślnie tylko do odczytu.
 
 Mapowanie można edytować w **Administration → Edit Variables**. Jest ono
 wczytywane przy każdym odczycie XML, więc poprawna zmiana nie wymaga restartu.
+
+## Alarmy i trapy SNMP
+
+Zakładka **Warnings** pokazuje aktywne przekroczenia i pozwala Operatorowi lub
+Administratorowi konfigurować alarmy dla wszystkich pól liczbowych. Konfiguracja
+jest zapisywana bezpośrednio w `xml_mapping.json`; nie istnieje drugi plik progów.
+Można ustawić tylko dolną granicę, tylko górną albo obie.
+
+Alarm jest otwierany tylko przy przejściu wartości poza zakres i zamykany po jej
+powrocie. Zdarzenia `OPEN` oraz `CLEARED` trafiają do Sysloga. Przy `OPEN` panel
+wysyła jeden trap SNMP na skonfigurowany adres. Powtarzające się odczyty tej
+samej nieprawidłowej wartości nie generują kolejnych trapów.
+
+W **SNMP Configuration** przycisk **Send test trap** wysyła kontrolny trap bez
+konieczności wywołania rzeczywistego alarmu.
+
+Granice `minimum` i `maximum` na poziomie pola dotyczą wartości wysyłanej przez
+`control.xml`. Granice wewnątrz `alarm` dotyczą wyłącznie telemetrii odczytanej
+z `status.xml`; te dwa mechanizmy są celowo rozdzielone.
 
 ## Sterowanie: control.xml
 
@@ -322,6 +350,24 @@ GET /api/devices/oba3/control/status
 Każdy zapis jest rejestrowany w audycie. API odrzuca pola tylko do odczytu,
 wartości niefinitywne, wartości poza skonfigurowanym zakresem i nadmiernie
 długie teksty.
+
+## Dane historyczne w SQLite
+
+SQLite nie przechowuje już osobnych kolumn dla `GainSet`, temperatury ani innych
+wyróżnionych parametrów. Tabela `device_snapshots` zapisuje dla każdego profilu
+czas obserwacji, identyfikator profilu oraz kompletny, zwalidowany snapshot XML
+w postaci JSON. Nowy rekord powstaje tylko wtedy, gdy wartości danego urządzenia
+ulegną zmianie; samo ponowne zapisanie identycznego `status.xml` nie powiększa
+historii.
+
+Tabela `device_hourly_statistics` zawiera godzinowe podsumowania liczbowe używane
+do szybkiego wyświetlania długich zakresów. Konfiguracja alarmów pozostaje w
+`xml_mapping.json`, aktywne alarmy są stanem bieżącego procesu, a trwała historia
+otwarć i zamknięć jest zapisywana w Syslogu — nie w SQLite.
+
+`GainSet` nie ma specjalnego magazynu. Aktualna wartość pochodzi z `status.xml`,
+żądana wartość jest publikowana w `control.xml`, a historia — tak jak dla innych
+pól — znajduje się w snapshotach SQLite.
 
 ## Diagnostyka i obsługa usługi
 

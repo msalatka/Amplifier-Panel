@@ -140,6 +140,44 @@ class DashboardApiTests(unittest.TestCase):
         self.assertEqual(result["state"], "pending")
         audit.assert_called_once()
 
+    def test_operator_can_persist_xml_alarm_settings(self):
+        with (
+            mock.patch.object(devices.config, "ENABLED_DEVICES", ("oba3",)),
+            mock.patch.object(devices.alarms, "update_config") as update,
+            mock.patch.object(devices.api_security, "audit_event") as audit,
+        ):
+            result = devices.update_alarm_settings(
+                "oba3",
+                devices.AlarmSettingsUpdate(
+                    alarms={
+                        "oba3:Temp": devices.AlarmLimits(
+                            enabled=True, minimum=5, maximum=50
+                        )
+                    }
+                ),
+                mock.Mock(),
+                {"username": "operator", "role": "Operator"},
+            )
+
+        update.assert_called_once_with(
+            "oba3", {"oba3:Temp": {"enabled": True, "minimum": 5.0, "maximum": 50.0}}
+        )
+        self.assertTrue(result["alarms"]["oba3:Temp"]["enabled"])
+        audit.assert_called_once()
+
+    def test_administrator_can_send_a_test_snmp_trap(self):
+        with (
+            mock.patch.object(diagnostics.snmp_service, "send_trap", return_value=True) as send,
+            mock.patch.object(diagnostics.api_security, "audit_event") as audit,
+        ):
+            result = diagnostics.send_test_snmp_trap(
+                mock.Mock(), {"username": "admin", "role": "Administrator"}
+            )
+
+        self.assertEqual(result, {"sent": True})
+        send.assert_called_once()
+        audit.assert_called_once()
+
     def test_operator_can_persist_shared_amplifier_live_fields(self):
         device_id = "oba3"
         previous = list(devices.state.device_live_fields[device_id])

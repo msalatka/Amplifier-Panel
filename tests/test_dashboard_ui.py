@@ -180,6 +180,20 @@ class DashboardUiTests(unittest.TestCase):
         self.assertNotIn('class="network-status-grid"', template)
         self.assertIn(".device-control-status-row > div", stylesheet)
 
+    def test_warning_tab_configures_xml_alarms_and_snmp_test_traps(self):
+        template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+        alarm_template = (ROOT / "templates" / "device-warnings.html").read_text(
+            encoding="utf-8"
+        )
+        script = (ROOT / "static" / "js" / "dashboard-alarms.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('data-tab="warnings"', template)
+        self.assertIn('id="snmp-test-trap-button"', template)
+        self.assertIn('id="alarm-settings-form"', alarm_template)
+        self.assertIn("/alarms/settings", script)
+
     def test_live_variables_have_a_hover_highlight(self):
         script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(
             encoding="utf-8"

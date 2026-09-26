@@ -330,3 +330,16 @@ if (snmpForm) {
 		}
 	})
 }
+
+document.getElementById('snmp-test-trap-button')?.addEventListener('click', async () => {
+	try {
+		const response = await fetch('/api/snmp/test-trap', { method: 'POST' })
+		handleAuthResponse(response)
+		const result = await response.json()
+		if (!response.ok)
+			throw new Error(apiErrorMessage(result.detail, 'Could not send test trap'))
+		showNotification('Test SNMP trap sent.')
+	} catch (error) {
+		showNotification(error.message || 'Could not send test trap.', 'error')
+	}
+})

@@ -461,3 +461,18 @@ def update_snmp_settings(
         api_security.audit_changes(before, state.snmp_settings, redacted={"community"}),
     )
     return state.snmp_settings
+
+
+@router.post("/api/snmp/test-trap")
+def send_test_snmp_trap(
+    request: starlette.requests.Request,
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
+):
+    """Send an explicit test notification to the configured trap receiver."""
+
+    if not snmp_service.send_trap(
+        {"field": "test", "label": "Amp Panel test", "value": "TEST", "target": "configured receiver"}
+    ):
+        raise fastapi.HTTPException(status_code=503, detail="SNMP trap could not be sent")
+    api_security.audit_event(request, "snmp_test_trap_sent", current_user["username"], "")
+    return {"sent": True}

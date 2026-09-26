@@ -198,6 +198,7 @@ function setActiveTab(tabName) {
 	if (tabName === 'overview') updateOverviewCharts()
 	if (tabName === 'statistics') updateStatisticsTable()
 	if (tabName === 'device-control') loadDeviceControlStatus()
+	if (tabName === 'warnings') loadActiveAlarms()
 	if (tabName === 'access-control') loadAccessUsers()
 	if (tabName === 'snmp-settings') loadSnmpSettings()
 	if (tabName === 'network-settings') loadNetworkSettings()

@@ -93,6 +93,20 @@ def validate_mapping(mapping: dict) -> dict:
                     raise ValueError("Field type must be number or text")
                 if not isinstance(field.get("writable", False), bool):
                     raise ValueError("Field writable flag must be boolean")
+                alarm = field.get("alarm", {"enabled": False})
+                if not isinstance(alarm, dict) or not isinstance(alarm.get("enabled", False), bool):
+                    raise ValueError("Field alarm must contain a boolean enabled flag")
+                for boundary in ("minimum", "maximum"):
+                    if boundary in alarm and (
+                        isinstance(alarm[boundary], bool)
+                        or not isinstance(alarm[boundary], (int, float))
+                        or not math.isfinite(alarm[boundary])
+                    ):
+                        raise ValueError(f"Alarm {boundary} must be finite and numeric")
+                if alarm.get("enabled") and not any(key in alarm for key in ("minimum", "maximum")):
+                    raise ValueError("Enabled alarm needs a minimum or maximum")
+                if "minimum" in alarm and "maximum" in alarm and alarm["minimum"] >= alarm["maximum"]:
+                    raise ValueError("Alarm minimum must be lower than maximum")
                 for boundary in ("minimum", "maximum"):
                     if boundary in field and (
                         isinstance(field[boundary], bool)
@@ -196,6 +210,7 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                             else field.get("type", "number")
                         ),
                         "writable": field.get("writable", False),
+                        "alarm": field.get("alarm", {"enabled": False}),
                         **(
                             {"minimum": field["minimum"]}
                             if "minimum" in field
@@ -271,6 +286,9 @@ def poll_once() -> None:
             state.update_device_live(key, data=snapshot)
             runtime.report_failure(key, "No matching section in status.xml")
         else:
+            from app.services import alarms
+
+            alarms.evaluate(key, snapshot, modified_at)
             previous = state.snapshot_device_live(key)
             if previous.get("data", {}).get("values") != snapshot["values"]:
                 runtime.publish_snapshot(key, snapshot, timestamp=modified_at)

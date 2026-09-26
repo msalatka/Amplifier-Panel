@@ -1,0 +1,21 @@
+<section class="tab-panel" data-tab="warnings">
+    <div class="data-panel administration-panel">
+        <div class="service-page-header">
+            <div><h2>Warnings</h2><p>Active XML limit violations for the selected device.</p></div>
+            <button id="refresh-alarms-button" class="button-secondary" type="button">Refresh</button>
+        </div>
+        <div class="administration-list">
+            <section class="administration-section">
+                <div class="settings-header"><h2>Active alarms</h2><span id="active-alarm-count">0</span></div>
+                <div id="active-alarms-list" class="alarm-active-list"><p>No active alarms.</p></div>
+            </section>
+            <form id="alarm-settings-form" class="administration-section" data-operator-only>
+                <div class="settings-header control-save-header">
+                    <div><h2>Alarm configuration</h2><p class="settings-description">Limits are stored with each field in xml_mapping.json.</p></div>
+                    <button class="button-primary" type="submit">Save changes</button>
+                </div>
+                <div id="alarm-settings-fields" class="alarm-settings-fields"><p>Waiting for XML variables...</p></div>
+            </form>
+        </div>
+    </div>
+</section>

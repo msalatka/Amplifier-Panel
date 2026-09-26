@@ -105,6 +105,7 @@ function renderXmlStatus(result) {
 		})),
 	)
 	renderDeviceControl(snapshot, xmlFields)
+	renderAlarmSettings(snapshot, xmlFields)
 	xmlChartLayout = result.chart_layout === null ? defaultChartLayout() : result.chart_layout || {}
 	if (deviceProfile === 'amplifier') {
 		for (const readout of document.querySelectorAll('[data-readout]')) {

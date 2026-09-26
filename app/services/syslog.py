@@ -60,10 +60,13 @@ def send_warning_event(event: str, warning: dict) -> None:
     payload = {
         "event": event.upper(),
         "event_time": warning.get("event_time") or warning.get("time"),
+        "device_id": warning.get("device_id"),
+        "section": warning.get("section"),
         "field": warning.get("field"),
         "kind": warning.get("kind"),
         "label": warning.get("label") or warning.get("field"),
         "value": warning.get("value"),
+        "unit": warning.get("unit"),
         "target": warning.get("target"),
         "delta": warning.get("delta"),
         "allowed": warning.get("allowed"),

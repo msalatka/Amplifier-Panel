@@ -47,6 +47,7 @@
                     <span class="nav-group-title">Monitor</span>
                     <button type="button" class="nav-link" data-tab="overview" data-title="Overview">Overview</button>
                     <button type="button" class="nav-link" data-tab="statistics" data-title="Statistics">Statistics</button>
+                    <button type="button" class="nav-link" data-tab="warnings" data-title="Warnings">Warnings</button>
                 </div>
 
                 <div class="nav-group" data-admin-only>
@@ -84,6 +85,7 @@
                 {% include 'device-live.html' %}
                 {% include 'device-control.html' %}
                 {% include 'device-history.html' %}
+                {% include 'device-warnings.html' %}
                 <section class="tab-panel" data-tab="access-control" data-admin-only>
                     <div class="data-panel administration-panel">
                         <div class="service-page-header">
@@ -167,7 +169,7 @@
                         <form id="snmp-settings-form" class="administration-section administration-form">
                             <div class="settings-header control-save-header">
                                 <h2>Agent Settings</h2>
-                                <button type="submit" class="button-primary">Save</button>
+                                <div class="action-buttons"><button id="snmp-test-trap-button" type="button" class="button-secondary">Send test trap</button><button type="submit" class="button-primary">Save</button></div>
                             </div>
                             <div class="administration-fields">
                                 <label class="toggle-field"><input id="snmp-enabled-input" type="checkbox"> Enable SNMP agent</label>
@@ -390,6 +392,7 @@
     <script src="/static/js/dashboard-history.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard-xml.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard-control.js?v={{ static_asset_version }}"></script>
+    <script src="/static/js/dashboard-alarms.js?v={{ static_asset_version }}"></script>
     <script src="/static/js/dashboard-bootstrap.js?v={{ static_asset_version }}"></script>
 </body>
 </html>
