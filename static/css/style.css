@@ -1124,7 +1124,13 @@ button.button-secondary:disabled {
 
 .alarm-active-list,
 .alarm-settings-fields { display:grid; gap:18px; }
-.alarm-active-list > div { display:grid; grid-template-columns:minmax(160px,1fr) minmax(90px,.5fr) minmax(90px,.5fr) minmax(150px,.8fr); gap:18px; padding:10px 0; border-bottom:1px solid #20352d; }
+.alarm-active-header,
+.alarm-active-row { display:grid; grid-template-columns:minmax(180px,1.2fr) minmax(110px,.6fr) minmax(150px,.8fr) minmax(150px,.8fr); gap:18px; }
+.alarm-active-header { padding:0 0 8px; color:#8fa59b; font-size:12px; font-weight:700; border-bottom:1px solid #3d5149; }
+.alarm-active-row { align-items:center; padding:10px 0; border-bottom:1px solid #20352d; }
+.alarm-active-row > span:first-child { display:grid; gap:3px; }
+.alarm-active-row small { color:#8fa59b; }
+.alarm-active-row time { color:#b8c9c0; }
 .alarm-settings-group + .alarm-settings-group { padding-top:18px; border-top:1px solid #263a32; }
 .alarm-settings-group h3 { margin:0 0 10px; color:#dfe8e3; }
 .alarm-setting-row { display:grid; grid-template-columns:minmax(180px,1fr) 150px 150px 60px; align-items:end; gap:12px; padding:8px 0; }
@@ -1134,6 +1140,12 @@ button.button-secondary:disabled {
 @media (max-width:760px) {
     .alarm-active-list > div,
     .alarm-setting-row { grid-template-columns:1fr; }
+    .alarm-active-header { display:none; }
+    .alarm-active-row > *::before { display:block; margin-bottom:3px; color:#8fa59b; font-size:11px; font-weight:700; }
+    .alarm-active-row > :nth-child(1)::before { content:"Parameter"; }
+    .alarm-active-row > :nth-child(2)::before { content:"Current value"; }
+    .alarm-active-row > :nth-child(3)::before { content:"Exceeded limit"; }
+    .alarm-active-row > :nth-child(4)::before { content:"Opened"; }
 }
 
 .plain-table {

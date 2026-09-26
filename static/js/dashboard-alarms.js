@@ -43,7 +43,7 @@ async function loadActiveAlarms() {
 			? alarms
 					.map(
 						(alarm) =>
-							`<div><span>${escapeHtml(alarm.label)}</span><strong>${escapeHtml(`${alarm.value}${alarm.unit ? ` ${alarm.unit}` : ''}`)}</strong><span>${escapeHtml(alarm.kind === 'minimum' ? `MIN ${alarm.target}` : `MAX ${alarm.target}`)}</span><small>${escapeHtml(formatDateTime(alarm.opened_at))}</small></div>`,
+							`<div class="alarm-active-row"><span><strong>${escapeHtml(alarm.label)}</strong><small>${escapeHtml(alarm.kind === 'minimum' ? 'Value below configured minimum' : 'Value above configured maximum')}</small></span><strong>${escapeHtml(`${alarm.value}${alarm.unit ? ` ${alarm.unit}` : ''}`)}</strong><span>${escapeHtml(alarm.kind === 'minimum' ? `Minimum: ${alarm.target}` : `Maximum: ${alarm.target}`)}${escapeHtml(alarm.unit ? ` ${alarm.unit}` : '')}</span><time datetime="${escapeHtml(alarm.opened_at || '')}">${escapeHtml(formatDateTime(alarm.opened_at))}</time></div>`,
 					)
 					.join('')
 			: '<p>No active alarms.</p>'

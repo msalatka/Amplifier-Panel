@@ -192,7 +192,10 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn('data-tab="warnings"', template)
         self.assertIn('id="snmp-test-trap-button"', template)
         self.assertIn('id="alarm-settings-form"', alarm_template)
+        self.assertIn("Current value", alarm_template)
+        self.assertIn("Exceeded limit", alarm_template)
         self.assertIn("/alarms/settings", script)
+        self.assertNotIn("acknowledge", alarm_template.lower())
 
     def test_live_variables_have_a_hover_highlight(self):
         script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(
