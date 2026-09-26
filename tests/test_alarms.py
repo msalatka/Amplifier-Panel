@@ -1,3 +1,7 @@
+import copy
+import json
+import pathlib
+import tempfile
 import unittest
 from unittest import mock
 
@@ -66,6 +70,24 @@ class AlarmServiceTests(unittest.TestCase):
             alarms.evaluate("oba3", self.snapshot(40), "2026-09-26T10:00:01+00:00")
 
         self.assertEqual(alarms.active("oba3"), [])
+
+    def test_empty_disabled_alarm_is_removed_from_mapping(self):
+        mapping = alarms.xml_status.load_mapping()
+        mapping = copy.deepcopy(mapping)
+        field = mapping["oba3"]["sections"][0]["fields"][0]
+        field["alarm"] = {"enabled": True, "maximum": 40}
+        identifier = f"oba3:{field['key']}"
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "xml_mapping.json"
+            path.write_text(json.dumps(mapping), encoding="utf-8")
+            with mock.patch.object(alarms.config, "XML_MAPPING_FILE", str(path)):
+                alarms.update_config("oba3", {identifier: {"enabled": False}})
+
+            saved = json.loads(path.read_text(encoding="utf-8"))
+
+        saved_field = saved["oba3"]["sections"][0]["fields"][0]
+        self.assertNotIn("alarm", saved_field)
 
 
 if __name__ == "__main__":

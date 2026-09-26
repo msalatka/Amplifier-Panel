@@ -249,6 +249,12 @@ Znaczenie właściwości:
 - `alarm.enabled` — włącza sprawdzanie progów dla wartości odczytanej,
 - `alarm.minimum`, `alarm.maximum` — niezależne granice alarmowe.
 
+Blok `alarm` jest opcjonalny. Jego brak oznacza alarm wyłączony. Po zapisaniu
+zakładki **Warnings** aplikacja nie dopisuje pustego `{"enabled": false}`: jeśli
+alarm jest wyłączony i oba progi są puste, istniejący blok zostaje usunięty z
+mapowania. Wyłączony alarm z wpisanym minimum lub maksimum pozostaje zapisany,
+aby można go było później ponownie włączyć bez utraty progów.
+
 Panel nigdy nie pozwala zapisać pola bez `"writable": true`. Zakresy należy
 ustawić według specyfikacji urządzenia; aplikacja nie zgaduje bezpiecznych
 wartości. Automatycznie odkryte pola są domyślnie tylko do odczytu.

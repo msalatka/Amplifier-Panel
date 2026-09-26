@@ -118,7 +118,12 @@ def update_config(device_id: str, updates: dict[str, dict]) -> dict:
         if unknown:
             raise ValueError(f"Unknown alarm fields: {', '.join(unknown)}")
         for identifier, alarm in updates.items():
-            fields[identifier]["alarm"] = alarm
+            if not alarm.get("enabled") and not any(
+                boundary in alarm for boundary in ("minimum", "maximum")
+            ):
+                fields[identifier].pop("alarm", None)
+            else:
+                fields[identifier]["alarm"] = alarm
         xml_status.validate_mapping(mapping)
         path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
         content = json.dumps(mapping, ensure_ascii=False, indent=2) + "\n"
