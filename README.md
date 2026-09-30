@@ -1,12 +1,7 @@
 # Amp Panel
 
-Amp Panel is a local web application that reads device status and sends commands
-to devices through XML files. Device profiles are discovered from the
-`params_*` sections currently present in `status.xml`; there is no separate
-enabled-device list in the panel configuration.
-
-The panel reads current device data from `status.xml` and writes commands and
-settings to a separate `control.xml` file.
+Amp Panel reads device telemetry from `status.xml` and writes commands to
+`control.xml`. Each `params_*` section in `status.xml` becomes a device profile.
 
 ## Installation
 
@@ -76,12 +71,9 @@ generated automatically from `xml_mapping.json`: every field marked with
 `"writable": true` is displayed. When **Apply changes** is selected, the panel
 writes only the values changed by the user to `control.xml`.
 
-After changes are submitted, the bottom of the **Control** tab shows whether the
-device has processed them. The result is read from `status.xml` and may indicate
-that the command is waiting to be processed, has been applied, was rejected,
-failed, or was not confirmed in time. Adding another control field does not
-require a GUI change—add it to the mapping with its type, range, and `writable`
-flag.
+The request history at the bottom shows whether each command is pending,
+applied, rejected, failed, or timed out. Add control fields through the mapping;
+no GUI change is required.
 
 ### Overview and Statistics
 
@@ -181,9 +173,8 @@ AUTH_MODE=local
 SNMP_PORT=1161
 ```
 
-After a configuration change, `amp-panel configure` validates the values,
-prepares files and permissions, and restarts the services. The database, state,
-and `control.xml` files must be located inside `AMP_PANEL_DATA_DIR`.
+`amp-panel configure` validates changes, prepares files and permissions, and
+restarts the services.
 
 ## Telemetry: status.xml
 
@@ -226,12 +217,9 @@ profile. The default mapping recognizes:
 | `oba` | `params_oba` |
 | `oba3` | `params_oba3` |
 
-Profiles are added to and removed from the device selector after a complete,
-valid XML read. A missing profile is hidden without deleting its SQLite history
-or saved display settings. Unknown `params_*` sections are exposed automatically
-as read-only profiles; an Administrator can then persist their variables in
-`xml_mapping.json`. Related profiles such as `local` and `local_di` are separated
-visually in the selector while retaining independent live data and history.
+The selector follows the latest valid XML. Removing a section hides its profile
+without deleting history or display settings. New sections appear as read-only
+profiles until their fields are saved in `xml_mapping.json`.
 
 The profile ID is the part after `params_`, unless an existing mapping assigns
 that XML section a different section `key`. A section may also define optional
@@ -244,12 +232,52 @@ presentation metadata:
 - `order` — numeric position in the selector,
 - `snmp_index` — stable number used in the profile connection-state OID.
 
-For a mapping entry containing only one section, these properties may be placed
-on the entry itself. For entries containing several sections, set profile-specific
-properties on each section. When the first automatically discovered variable of
-a new profile is saved in **Administration → Edit Variables**, the panel creates
-its mapping entry and assigns the next free SNMP index. The index is then stable
-even if profiles are reordered in `status.xml`.
+Put these properties on the mapping entry when it contains one section, or on
+individual sections when it contains several. Saving the first discovered field
+of a new profile creates its mapping and assigns a stable SNMP index.
+
+### Profile layout and amplifier diagram
+
+`view_profile` selects the Live View layout:
+
+- `"station"` displays the station layout without the amplifier diagram,
+- `"amplifier"` displays the amplifier layout and diagram.
+
+New profiles use `"station"` until configured in `xml_mapping.json`.
+
+Example mapping for a new amplifier profile:
+
+```json
+{
+  "new_amplifier": {
+    "label": "New amplifier",
+    "view_profile": "amplifier",
+    "display_group": "Amplifiers",
+    "order": 70,
+    "snmp_index": 7,
+    "sections": [
+      {
+        "key": "new_amplifier",
+        "xml_section": "params_new_amplifier",
+        "label": "New amplifier",
+        "discover_unmapped": true,
+        "fields": [
+          {
+            "key": "GainSet",
+            "name": "GainSet",
+            "label": "Gain setpoint",
+            "type": "number",
+            "unit": "dB",
+            "writable": true,
+            "minimum": 0,
+            "maximum": 40
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
 The file must be valid UTF-8 XML, use `<status>` as its root, and not exceed
 1 MB. DTDs and external entities are rejected. Missing, duplicated, and invalid
@@ -293,44 +321,42 @@ Property meanings:
 - `alarm.enabled` — enables threshold monitoring for the value being read,
 - `alarm.minimum`, `alarm.maximum` — independent alarm limits.
 
-The `alarm` block is optional. If it is absent, the alarm is disabled. When the
-**Warnings** tab is saved, the application does not add an empty
-`{"enabled": false}` block. If the alarm is disabled and both thresholds are
-empty, the existing block is removed from the mapping. A disabled alarm with a
-configured minimum or maximum remains stored so that it can be enabled again
-without losing its thresholds.
+The `alarm` block is optional. Empty, disabled alarm configuration is removed;
+configured thresholds are retained when an alarm is disabled.
 
-The panel never permits writing a field unless it has `"writable": true`. Set
-the ranges according to the device specification; the application does not
-guess safe values. Automatically discovered fields are read-only by default.
+Only fields with `"writable": true` appear in **Control**. For numeric fields,
+`minimum` and `maximum` define the accepted range; either may be omitted. With
+no limits, the panel accepts any finite number and displays **No value range
+configured**.
+
+```json
+"writable": true,
+"minimum": 0,
+"maximum": 40
+```
+
+Set these values in **Administration → Edit Variables**. They limit commands
+written to `control.xml`; `alarm.minimum` and `alarm.maximum` define telemetry
+warning thresholds.
 
 The mapping can be edited in **Administration → Edit Variables**. It is loaded
 on every XML read, so a valid change does not require a restart.
 
 ## Alarms and SNMP traps
 
-The **Warnings** tab displays active limit violations and allows Operators and
-Administrators to configure alarms for all numeric fields. The configuration is
-written directly to `xml_mapping.json`; there is no second threshold file. A
-lower limit, upper limit, or both can be configured.
+The **Warnings** tab configures lower and upper telemetry limits for numeric
+fields. Alarm settings are stored in `xml_mapping.json`.
 
 An alarm opens only when a value crosses a configured boundary and clears when
 the value returns to its valid range. `OPEN` and `CLEARED` events are written to
 Syslog. On `OPEN`, the panel sends one SNMP trap to the configured destination.
 Repeated readings of the same invalid value do not generate additional traps.
 
-An alarm remains visible until an Operator or Administrator acknowledges it.
-Acknowledging an active alarm does not hide it; the entry disappears only after
-it has both been acknowledged and returned to its valid range. This ensures that
-a short alarm that clears before the page is opened still requires deliberate
-acknowledgement. Alarms cannot be ignored.
+An alarm disappears after it has been acknowledged and the value has returned
+to range. Acknowledging an active alarm does not hide it.
 
 The **Send test trap** button in **SNMP Configuration** sends a test trap without
 requiring a real alarm.
-
-Field-level `minimum` and `maximum` limits apply to values sent through
-`control.xml`. Limits inside `alarm` apply only to telemetry read from
-`status.xml`; the two mechanisms are intentionally separate.
 
 ## Control: control.xml
 
@@ -352,13 +378,11 @@ written atomically. Example:
 </control>
 ```
 
-The device process should:
+The device process must:
 
-1. Watch `control.xml`.
-2. Check `request.id`.
-3. Apply each UUID no more than once.
-4. Ignore a UUID that has already been processed.
-5. Place the result in the next `status.xml`.
+1. Read `control.xml` and validate `request.id`.
+2. Apply each UUID at most once.
+3. Publish the resulting values and acknowledgement in `status.xml`.
 
 Acknowledgement in `status.xml`:
 
@@ -398,34 +422,27 @@ Content-Type: application/json
 The response contains the `request_id`, the `pending` state, and the control file
 path. Values are identified as `section:key`.
 
-The **Control** tab shows the 15 most recent requests for the selected device,
-including requested values, acknowledgement state, message, request UUID, time,
-and user. This compact history is stored in SQLite. The current request status
-and request list are returned by:
+The **Control** tab reads the 15 latest requests from SQLite. Each entry contains
+the values, state, message, UUID, time, and user. The API endpoint is:
 
 ```http
 GET /api/devices/oba3/control/status
 ```
 
-Every requested value and every observed request-state transition is also
-recorded in the Syslog audit trail. With the default configuration, the complete
-control audit, including rotated logs, can be extracted with:
+Syslog contains every requested value and observed state transition. Read the
+complete control audit, including rotated logs, with:
 
 ```bash
 sudo zgrep -h 'action=device_control_' /var/log/amp-panel/amp-panel.log*
 ```
 
-The log location follows `SYSLOG_EXPORT_FILE` and is shown below the request
-list in the panel. The API rejects read-only fields, non-finite values, values
-outside their configured range, and excessively long text values.
+The path follows `SYSLOG_EXPORT_FILE` and is shown in **Control**. The API rejects
+read-only fields, invalid values, and values outside the configured range.
 
 ## Historical data in SQLite
 
-The panel stores measurement history in the SQLite database specified by
-`DATABASE_FILE`. Data for each device is stored separately together with its
-read time. A new entry is created only when at least one device value changes.
-Regularly refreshing an unchanged `status.xml` does not create duplicate
-entries.
+`DATABASE_FILE` stores timestamped measurements separately for each profile. A
+snapshot is added only when a value changes.
 
 Stored history is used by:
 
@@ -433,11 +450,8 @@ Stored history is used by:
 - calculations in **Statistics**,
 - CSV data exports.
 
-For longer periods, the panel uses hourly summaries so that it does not need to
-process every individual measurement each time. The maximum number of stored
-entries for each device can be configured in **Service Diagnostics**. When the
-limit is reached, the oldest entries are removed. A value of `0` means unlimited
-history.
+Hourly summaries speed up long-range queries. **Service Diagnostics** sets the
+per-profile record limit; `0` keeps unlimited history.
 
 The database file is managed automatically by the application and should not be
 edited while the service is running.
