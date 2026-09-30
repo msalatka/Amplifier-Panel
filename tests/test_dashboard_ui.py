@@ -167,6 +167,8 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn(".device-control-group + .device-control-group", stylesheet)
         self.assertIn("grid-template-columns:minmax(140px,220px)", stylesheet)
         self.assertIn("max-width:900px", stylesheet)
+        self.assertIn("No value range configured.", script)
+        self.assertNotIn("Validated according to the XML mapping.", script)
 
     def test_last_control_requests_are_responsive_and_auditable(self):
         template = (ROOT / "templates" / "device-control.html").read_text(

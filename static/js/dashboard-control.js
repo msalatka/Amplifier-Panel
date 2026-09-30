@@ -15,7 +15,7 @@ function controlRangeDescription(field) {
 	}
 	if (field.minimum !== undefined) return `Minimum: ${field.minimum}`
 	if (field.maximum !== undefined) return `Maximum: ${field.maximum}`
-	return 'Validated according to the XML mapping.'
+	return 'No value range configured.'
 }
 
 function renderDeviceControl(snapshot, fields) {
