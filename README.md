@@ -136,6 +136,32 @@ Do not edit it while the service is running. Use:
 sudo amp-panel configure
 ```
 
+### File and directory locations
+
+The Debian package uses the following locations by default:
+
+| Location | Contents |
+|---|---|
+| `/usr/lib/amp-panel/` | Installed application code, templates, static files, Python dependencies, and the packaged default XML mapping |
+| `/usr/bin/amp-panel` | Administration command available from the shell |
+| `/etc/amp-panel/amp-panel.env` | Host-specific application configuration |
+| `/var/lib/amp-panel/` | Persistent writable data: `status.xml`, `control.xml`, `xml_mapping.json`, `measurements.db`, and `persisted_state.json` |
+| `/var/log/amp-panel/` | Application logs managed by rsyslog and logrotate |
+| `/run/amp-panel/` | Temporary runtime files, including the network-agent socket |
+
+Use the following command to display the paths used by the installed system:
+
+```bash
+sudo amp-panel paths
+```
+
+`AMP_PANEL_DATA_DIR` can be moved from `/var/lib/amp-panel` to an absolute path
+under `/mnt`, `/media`, or `/srv`, for example when persistent data must be kept
+on a separate disk. The database, persisted state, and `control.xml` must remain
+inside the selected data directory. Keeping `xml_mapping.json` there allows the
+panel to update it through the GUI. `status.xml` may be located elsewhere when
+it is produced by an external device process.
+
 The main XML settings are:
 
 ```ini
