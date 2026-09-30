@@ -3,6 +3,8 @@
 import csv
 import datetime
 import io
+import json
+import tempfile
 import threading
 
 import fastapi
@@ -60,6 +62,43 @@ class AlarmAcknowledgement(pydantic.BaseModel):
     key: str = pydantic.Field(min_length=1, max_length=512)
 
 
+def _csv_value(value):
+    """Prevent spreadsheet formulas without changing ordinary exported values."""
+
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+def wide_csv_rows(points):
+    """Yield semicolon-separated snapshots with one column per observed field."""
+
+    output = io.StringIO()
+    fields: dict[str, None] = {}
+    with tempfile.SpooledTemporaryFile(
+        mode="w+", encoding="utf-8", newline="", max_size=8 * 1024 * 1024
+    ) as buffered_rows:
+        for point in points:
+            values = scalar_fields(point["snapshot"].get("values", {}))
+            fields.update(dict.fromkeys(values))
+            buffered_rows.write(json.dumps([point["time"], values], ensure_ascii=False) + "\n")
+
+        field_names = list(fields)
+        writer = csv.writer(output, delimiter=";")
+        writer.writerow(["time", *(_csv_value(name) for name in field_names)])
+        buffered_rows.seek(0)
+        for line in buffered_rows:
+            timestamp, values = json.loads(line)
+            writer.writerow(
+                [_csv_value(timestamp), *(_csv_value(values.get(name, "")) for name in field_names)]
+            )
+            if output.tell() >= 65536:
+                yield output.getvalue()
+                output.seek(0)
+                output.truncate(0)
+        yield output.getvalue()
+
+
 @router.get("/{device_id}/history/export.csv")
 def export_device_history(device_id: str, range: str = "5m", _current_user: dict = viewer):
     """Stream complete per-device history without the chart downsampling limit."""
@@ -73,20 +112,8 @@ def export_device_history(device_id: str, range: str = "5m", _current_user: dict
         raise fastapi.HTTPException(status_code=503, detail="History database is unavailable")
 
     def rows():
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=";")
         try:
-            writer.writerow(["time", "field", "value"])
-            for point in points:
-                for key, value in scalar_fields(point["snapshot"].get("values", {})).items():
-                    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
-                        value = "'" + value
-                    writer.writerow([point["time"], key, value])
-                if output.tell() >= 65536:
-                    yield output.getvalue()
-                    output.seek(0)
-                    output.truncate(0)
-            yield output.getvalue()
+            yield from wide_csv_rows(points)
         finally:
             points.close()
             CSV_EXPORT_LOCK.release()

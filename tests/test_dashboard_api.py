@@ -1,4 +1,6 @@
+import csv
 import datetime
+import io
 import json
 import pathlib
 import tempfile
@@ -10,6 +12,27 @@ from app.services import xml_status
 
 
 class DashboardApiTests(unittest.TestCase):
+    def test_csv_export_uses_one_column_per_observed_field(self):
+        points = iter(
+            [
+                {
+                    "time": "2026-09-30T15:56:01+00:00",
+                    "snapshot": {"values": {"local": {"power": 14.5, "locked": True}}},
+                },
+                {
+                    "time": "2026-09-30T15:56:03+00:00",
+                    "snapshot": {"values": {"local": {"power": 15.0, "new": 7}}},
+                },
+            ]
+        )
+
+        content = "".join(devices.wide_csv_rows(points))
+        rows = list(csv.reader(io.StringIO(content), delimiter=";"))
+
+        self.assertEqual(rows[0], ["time", "local.power", "local.locked", "local.new"])
+        self.assertEqual(rows[1], ["2026-09-30T15:56:01+00:00", "14.5", "True", ""])
+        self.assertEqual(rows[2], ["2026-09-30T15:56:03+00:00", "15.0", "", "7"])
+
     def test_administrator_can_atomically_update_xml_mapping(self):
         mapping = xml_status.load_mapping()
         mapping["oba"]["label"] = "Edited amplifier"
