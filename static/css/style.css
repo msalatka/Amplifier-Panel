@@ -148,6 +148,13 @@ select {
 .device-switcher-list a[aria-current="page"] { background: #233a2e; }
 .device-switcher-list small { color: #9db4a7; }
 
+.device-switcher-list a.device-group-separator {
+    margin-top: 5px;
+    padding-top: 12px;
+    border-top: 1px solid #30483e;
+    border-radius: 0 0 5px 5px;
+}
+
 .nav-group {
     margin-bottom: 22px;
 }

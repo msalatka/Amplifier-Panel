@@ -15,6 +15,7 @@ import starlette.requests
 
 from app.api import security as api_security
 from app.core import config, state
+from app.devices.registry import KNOWN_DEVICES
 from app.services import database as database_service
 from app.services import network as network_service
 from app.services import ntp as ntp_service
@@ -49,7 +50,7 @@ class ServiceSettingsRequest(pydantic.BaseModel):
 
     syslog_heartbeat_seconds: int
     database_max_records: int
-    device_id: str = config.ENABLED_DEVICES[0]
+    device_id: str = ""
 
 
 class SnmpSettingsUpdateRequest(pydantic.BaseModel):
@@ -156,8 +157,8 @@ def add_xml_mapping_field(
 ):
     """Persist one currently visible automatically discovered XML field."""
 
-    if payload.device_id not in config.ENABLED_DEVICES:
-        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
+    if not state.is_active_device(payload.device_id):
+        raise fastapi.HTTPException(status_code=404, detail="Device is not present in status.xml")
     live = state.snapshot_device_live(payload.device_id).get("data", {})
     live_section = next(
         (section for section in live.get("sections", []) if section.get("key") == payload.section),
@@ -179,18 +180,6 @@ def add_xml_mapping_field(
     try:
         with xml_mapping_write_lock:
             mapping = xml_status.load_mapping()
-            mapping_section = next(
-                (
-                    section
-                    for section in mapping[payload.device_id]["sections"]
-                    if section["key"] == payload.section
-                ),
-                None,
-            )
-            if mapping_section is None:
-                raise fastapi.HTTPException(status_code=404, detail="Mapping section not found")
-            if any(field["key"] == payload.key for field in mapping_section["fields"]):
-                raise fastapi.HTTPException(status_code=409, detail="Variable is already mapped")
             field = {
                 "key": payload.key,
                 "id": live_field.get("id", ""),
@@ -201,7 +190,41 @@ def add_xml_mapping_field(
                 "group": live_field.get("label", payload.key),
                 "role": "",
             }
-            mapping_section["fields"].append(field)
+            located = xml_status.find_mapping_profile(mapping, payload.device_id)
+            if located is None:
+                definition = state.device_definition(payload.device_id)
+                reserved_indexes = {
+                    item.snmp_index for item in KNOWN_DEVICES.values() if item.snmp_index is not None
+                }
+                for mapped_definition in mapping.values():
+                    for section in mapped_definition["sections"]:
+                        index = section.get("snmp_index", mapped_definition.get("snmp_index"))
+                        if isinstance(index, int) and not isinstance(index, bool):
+                            reserved_indexes.add(index)
+                snmp_index = next(
+                    index for index in range(1, 65536) if index not in reserved_indexes
+                )
+                mapping[payload.device_id] = {
+                    "label": definition["label"],
+                    "view_profile": definition["view_profile"],
+                    "display_group": definition["display_group"],
+                    "order": definition["order"],
+                    "snmp_index": snmp_index,
+                    "sections": [
+                        {
+                            "key": payload.device_id,
+                            "xml_section": f"params_{payload.device_id}",
+                            "label": definition["label"],
+                            "discover_unmapped": True,
+                            "fields": [field],
+                        }
+                    ],
+                }
+            else:
+                _owner_id, _definition, mapping_section = located
+                if any(item["key"] == payload.key for item in mapping_section["fields"]):
+                    raise fastapi.HTTPException(status_code=409, detail="Variable is already mapped")
+                mapping_section["fields"].append(field)
             path, content = _write_xml_mapping(mapping)
     except fastapi.HTTPException:
         raise
@@ -221,13 +244,15 @@ def add_xml_mapping_field(
 
 @router.get("/api/service-diagnostics")
 def service_diagnostics(
-    device: str = config.ENABLED_DEVICES[0],
+    device: str = "",
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
     """Return acquisition, storage, syslog, and service runtime diagnostics."""
 
-    if device not in config.ENABLED_DEVICES:
-        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
+    device_ids = state.active_device_ids()
+    device = device or (device_ids[0] if device_ids else "")
+    if not state.is_active_device(device):
+        raise fastapi.HTTPException(status_code=404, detail="Device is not present in status.xml")
     with state.state_lock:
         settings = state.service_settings.copy()
     storage = database_service.get_storage_status(device)
@@ -289,8 +314,9 @@ async def update_service_diagnostics_settings(
             status_code=400,
             detail="Database limit must be 0 (unlimited) or between 1 and 10000000 records",
         )
-    if request.device_id not in config.ENABLED_DEVICES:
-        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
+    device_id = request.device_id or next(iter(state.active_device_ids()), "")
+    if not state.is_active_device(device_id):
+        raise fastapi.HTTPException(status_code=404, detail="Device is not present in status.xml")
     with state.state_lock:
         before = state.service_settings.copy()
         state.service_settings.update(

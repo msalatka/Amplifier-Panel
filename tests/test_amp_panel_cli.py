@@ -271,7 +271,6 @@ class AmpPanelCliTests(unittest.TestCase):
             values.update(
                 {
                     "AMP_PANEL_PORT": "8123",
-                    "ENABLED_DEVICES": "local,remote,oba,oba3",
                     "RADIUS_SECRET": 'space and "quotes" = # safe',
                 }
             )
@@ -342,7 +341,7 @@ class AmpPanelCliTests(unittest.TestCase):
 
         self.assertEqual(values["RADIUS_SECRET"], secret)
 
-    def test_xml_installer_answers_do_not_write_serial_configuration(self):
+    def test_xml_installer_answers_do_not_write_device_inventory_configuration(self):
         values = amp_panel_cli.default_configuration()
         answers = {
             "enabled_devices_b64": base64.b64encode(b"local,remote").decode(),
@@ -354,7 +353,7 @@ class AmpPanelCliTests(unittest.TestCase):
         ):
             amp_panel_cli._apply_answers(values, answers)
 
-        self.assertEqual(values["ENABLED_DEVICES"], "local,remote")
+        self.assertNotIn("ENABLED_DEVICES", values)
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "amp-panel.env"
             amp_panel_cli.write_env_file(path, values)
@@ -362,6 +361,7 @@ class AmpPanelCliTests(unittest.TestCase):
             self.assertNotIn("SERIAL_PORT=", content)
             self.assertNotIn("SERIAL_BAUDRATE=", content)
             self.assertNotIn("GAIN_SET_MIN=", content)
+            self.assertNotIn("ENABLED_DEVICES=", content)
 
 
 if __name__ == "__main__":

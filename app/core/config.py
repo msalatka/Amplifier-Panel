@@ -5,8 +5,6 @@ import os
 import pathlib
 import re
 
-from app.devices.registry import parse_enabled_devices
-
 
 def _env_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -45,10 +43,6 @@ def _initial_admin_username(value: str | None) -> str:
     return username
 
 
-try:
-    ENABLED_DEVICES = parse_enabled_devices(os.getenv("ENABLED_DEVICES"))
-except ValueError as exc:
-    raise RuntimeError(str(exc)) from exc
 XML_STATUS_FILE = os.getenv("XML_STATUS_FILE", "data/status.xml")
 XML_CONTROL_FILE = os.getenv("XML_CONTROL_FILE", "data/control.xml")
 XML_CONTROL_ACK_TIMEOUT_SECONDS = max(

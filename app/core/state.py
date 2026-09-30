@@ -154,13 +154,14 @@ def merge_device_live_fields(
     result = copy.deepcopy(DEFAULT_DEVICE_LIVE_FIELDS)
     if not isinstance(saved_fields, dict):
         return result
-    for device_id in result:
-        fields = saved_fields.get(device_id)
+    for device_id, fields in saved_fields.items():
+        if not isinstance(device_id, str) or not device_id:
+            continue
         if isinstance(fields, list):
             result[device_id] = list(
                 dict.fromkeys(field for field in fields if isinstance(field, str) and field)
             )[:64]
-            if version != DEVICE_LIVE_FIELDS_VERSION:
+            if version != DEVICE_LIVE_FIELDS_VERSION and device_id in DEFAULT_DEVICE_LIVE_FIELDS:
                 gain = DEFAULT_DEVICE_LIVE_FIELDS[device_id][0]
                 if gain not in result[device_id]:
                     result[device_id].insert(0, gain)
@@ -198,15 +199,9 @@ def save_persisted_access_users() -> None:
 
 latest_snmp_data = {}
 active_alarms = {}
-device_live = {
-    device_id: {
-        "connected": False,
-        "error": None,
-        "last_update": None,
-        "data": {},
-    }
-    for device_id in config.ENABLED_DEVICES
-}
+device_live = {}
+active_device_order: list[str] = []
+device_definitions: dict[str, dict] = {}
 
 
 state_lock = threading.Lock()
@@ -216,6 +211,42 @@ app_started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
 auth_sessions = {}
 login_failures = {}
 _UNSET = object()
+
+
+def set_device_inventory(definitions: list[dict]) -> None:
+    """Replace the active inventory after one complete, valid XML read."""
+
+    ordered = sorted(definitions, key=lambda item: (item.get("order", 1000), item["id"]))
+    with state_lock:
+        active_device_order[:] = [item["id"] for item in ordered]
+        device_definitions.clear()
+        device_definitions.update({item["id"]: copy.deepcopy(item) for item in ordered})
+        for device_id in active_device_order:
+            device_live.setdefault(
+                device_id,
+                {"connected": False, "error": None, "last_update": None, "data": {}},
+            )
+
+
+def active_device_ids() -> tuple[str, ...]:
+    """Return the profiles present in the latest valid status.xml."""
+
+    with state_lock:
+        return tuple(active_device_order)
+
+
+def is_active_device(device_id: str) -> bool:
+    """Return whether a profile is present in the latest valid status.xml."""
+
+    with state_lock:
+        return device_id in device_definitions
+
+
+def device_definition(device_id: str) -> dict:
+    """Return detached presentation metadata for one active profile."""
+
+    with state_lock:
+        return copy.deepcopy(device_definitions[device_id])
 
 
 def update_device_live(
@@ -229,7 +260,10 @@ def update_device_live(
     """Publish one device's status without changing the other devices."""
 
     with state_lock:
-        live = device_live[device_id]
+        live = device_live.setdefault(
+            device_id,
+            {"connected": False, "error": None, "last_update": None, "data": {}},
+        )
         if connected is not None:
             live["connected"] = connected
         if error is not _UNSET:

@@ -1,43 +1,47 @@
-"""Explicit device registry; add one descriptor for each supported device type.
+"""Metadata for XML-discovered device profiles."""
 
-An adapter owns its acquisition loop. The panel owns authentication, storage,
-history, CSV and the device selector. At most one instance of each registered
-type is enabled on a host.
-"""
-
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
 class DeviceDefinition:
-    """Identify a supported view and its optional dedicated acquisition worker."""
+    """Describe one independently displayed XML profile."""
 
     id: str
     label: str
-    view_profile: str
+    view_profile: str = "station"
+    display_group: str = "Other devices"
+    order: int = 1000
+    snmp_index: int | None = None
 
 
-DEVICES = {
-    key: DeviceDefinition(key, label, family)
-    for key, label, family in (
-        ("local", "Local station / DI", "station"),
-        ("remote", "Remote station / DI", "station"),
-        ("oba", "EDFA OBA", "amplifier"),
-        ("oba3", "EDFA OBA3", "amplifier"),
+KNOWN_DEVICES = {
+    definition.id: definition
+    for definition in (
+        DeviceDefinition("local", "Local station", "station", "Local station", 10, 1),
+        DeviceDefinition("local_di", "Local DI", "station", "Local station", 20, 2),
+        DeviceDefinition("remote", "Remote station", "station", "Remote station", 30, 3),
+        DeviceDefinition("remote_di", "Remote DI", "station", "Remote station", 40, 4),
+        DeviceDefinition("oba", "EDFA OBA", "amplifier", "Amplifiers", 50, 5),
+        DeviceDefinition("oba3", "EDFA OBA3", "amplifier", "Amplifiers", 60, 6),
     )
 }
 
 
-def parse_enabled_devices(value: str | None) -> tuple[str, ...]:
-    """Read current device IDs and migrate the two retired profile names."""
-    parts = (value if value is not None else "local,remote,oba,oba3").split(",")
-    result = []
-    migration = {"amplifier": ("oba", "oba3"), "fts-ls": ("local", "remote")}
-    for part in parts:
-        key = part.strip().lower()
-        for device in migration.get(key, (key,)):
-            if device not in DEVICES:
-                raise ValueError(f"ENABLED_DEVICES must contain: {', '.join(DEVICES)}")
-            if device not in result:
-                result.append(device)
-    return tuple(result)
+def inferred_definition(device_id: str, label: str | None = None) -> DeviceDefinition:
+    """Return stable known metadata or safe defaults for a new XML profile."""
+
+    if device_id in KNOWN_DEVICES:
+        return KNOWN_DEVICES[device_id]
+    generated_label = label or device_id.replace("_", " ").strip().title() or device_id
+    return DeviceDefinition(device_id, generated_label)
+
+
+def definition_dict(device_id: str, **overrides) -> dict:
+    """Return serializable profile metadata with optional mapping overrides."""
+
+    values = asdict(inferred_definition(device_id, overrides.get("label")))
+    for key in ("label", "view_profile", "display_group", "order", "snmp_index"):
+        if overrides.get(key) is not None:
+            values[key] = overrides[key]
+    return values

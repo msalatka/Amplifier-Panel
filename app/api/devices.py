@@ -13,8 +13,7 @@ import starlette.requests
 
 from app.api import history as history_api
 from app.api import security as api_security
-from app.core import config, state
-from app.devices.registry import DEVICES
+from app.core import state
 from app.services import alarms, xml_control
 from app.services import database as database_service
 from app.services.device_statistics import scalar_fields
@@ -126,9 +125,9 @@ def export_device_history(device_id: str, range: str = "5m", _current_user: dict
 
 
 def require_enabled(device_id: str) -> None:
-    """Reject requests for a device outside the configured inventory."""
-    if device_id not in config.ENABLED_DEVICES:
-        raise fastapi.HTTPException(status_code=404, detail="Device is not enabled")
+    """Reject requests for a profile absent from the latest valid status.xml."""
+    if not state.is_active_device(device_id):
+        raise fastapi.HTTPException(status_code=404, detail="Device is not present in status.xml")
 
 
 @router.get("")
@@ -136,13 +135,15 @@ def list_devices(_current_user: dict = viewer):
     """List configured devices and their independent connection states."""
 
     devices = []
-    for device_id in config.ENABLED_DEVICES:
+    for device_id in state.active_device_ids():
         live = state.snapshot_device_live(device_id)
+        definition = state.device_definition(device_id)
         devices.append(
             {
                 "id": device_id,
-                "label": DEVICES[device_id].label,
-                "profile": DEVICES[device_id].view_profile,
+                "label": definition["label"],
+                "profile": definition["view_profile"],
+                "display_group": definition["display_group"],
                 "connected": live["connected"],
                 "error": live["error"],
                 "last_update": live["last_update"],
@@ -157,9 +158,10 @@ def latest(device_id: str, _current_user: dict = viewer):
 
     require_enabled(device_id)
     live = state.snapshot_device_live(device_id)
+    definition = state.device_definition(device_id)
     return {
         "device_id": device_id,
-        "device_profile": DEVICES[device_id].view_profile,
+        "device_profile": definition["view_profile"],
         "connected": live["connected"],
         "error": live["error"],
         "last_update": live["last_update"],
@@ -302,7 +304,7 @@ def update_live_fields(
 ):
     """Persist the shared amplifier live-view layout."""
     require_enabled(device_id)
-    if DEVICES[device_id].view_profile != "amplifier":
+    if state.device_definition(device_id)["view_profile"] != "amplifier":
         raise fastapi.HTTPException(status_code=409, detail="Only amplifier fields can be pinned")
     fields = list(dict.fromkeys(body.fields))
     available = _available_field_ids(device_id)

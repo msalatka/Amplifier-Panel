@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 
 from app.core import config, state
 from app.devices import runtime
+from app.devices.registry import definition_dict
 
 MAX_XML_BYTES = 1_000_000
 
@@ -57,11 +58,19 @@ def validate_mapping(mapping: dict) -> dict:
     """Validate and return one complete XML display mapping."""
     if not isinstance(mapping, dict):
         raise ValueError("Mapping root must be a JSON object")
-    for device in ("local", "remote", "oba", "oba3"):
-        if device not in mapping or not isinstance(mapping[device], dict):
-            raise ValueError(f"Missing device mapping: {device}")
+    seen_profile_keys = set()
+    seen_xml_sections = set()
+    seen_snmp_indexes = set()
+    for device in mapping:
+        if not isinstance(device, str) or not device or not isinstance(mapping[device], dict):
+            raise ValueError("Each mapping entry needs a non-empty device key")
         if not isinstance(mapping[device].get("label"), str):
             raise ValueError(f"Invalid device label: {device}")
+        for key in ("profile_label", "display_group"):
+            if key in mapping[device] and not isinstance(mapping[device][key], str):
+                raise ValueError(f"Invalid {key}: {device}")
+        if mapping[device].get("view_profile", "station") not in {"station", "amplifier"}:
+            raise ValueError(f"Invalid view_profile: {device}")
         sections = mapping[device].get("sections")
         if (
             not isinstance(sections, list)
@@ -70,12 +79,47 @@ def validate_mapping(mapping: dict) -> dict:
             or len({section.get("key") for section in sections}) != len(sections)
         ):
             raise ValueError(f"Invalid sections for {device}")
+        if "order" in mapping[device] and (
+            isinstance(mapping[device]["order"], bool)
+            or not isinstance(mapping[device]["order"], int)
+        ):
+            raise ValueError(f"Invalid profile order: {device}")
+        if "snmp_index" in mapping[device]:
+            index = mapping[device]["snmp_index"]
+            if isinstance(index, bool) or not isinstance(index, int) or index < 1:
+                raise ValueError(f"Invalid SNMP index: {device}")
+            if len(sections) != 1:
+                raise ValueError(f"Top-level SNMP index requires one section: {device}")
         for section in sections:
             if not all(
                 isinstance(section.get(key), str) and section[key]
                 for key in ("key", "xml_section", "label")
             ):
                 raise ValueError(f"Invalid section descriptor for {device}")
+            if section["key"] in seen_profile_keys:
+                raise ValueError(f"Duplicate profile key: {section['key']}")
+            if section["xml_section"] in seen_xml_sections:
+                raise ValueError(f"Duplicate XML section: {section['xml_section']}")
+            seen_profile_keys.add(section["key"])
+            seen_xml_sections.add(section["xml_section"])
+            for key in ("profile_label", "display_group"):
+                if key in section and not isinstance(section[key], str):
+                    raise ValueError(f"Invalid section {key}: {section['key']}")
+            if section.get("view_profile", "station") not in {"station", "amplifier"}:
+                raise ValueError(f"Invalid section view_profile: {section['key']}")
+            if "order" in section and (
+                isinstance(section["order"], bool) or not isinstance(section["order"], int)
+            ):
+                raise ValueError(f"Invalid profile order: {section['key']}")
+            index = section.get("snmp_index", mapping[device].get("snmp_index"))
+            if index is None:
+                index = definition_dict(section["key"])["snmp_index"]
+            if index is not None:
+                if isinstance(index, bool) or not isinstance(index, int) or index < 1:
+                    raise ValueError(f"Invalid SNMP index: {section['key']}")
+                if index in seen_snmp_indexes:
+                    raise ValueError(f"Duplicate SNMP index: {index}")
+                seen_snmp_indexes.add(index)
             fields = section.get("fields")
             if (
                 not isinstance(fields, list)
@@ -129,8 +173,54 @@ def load_mapping() -> dict:
     return validate_mapping(mapping)
 
 
+def find_mapping_profile(mapping: dict, profile_id: str) -> tuple[str, dict, dict] | None:
+    """Locate the owning mapping entry and section for one runtime profile."""
+
+    for owner_id, definition in mapping.items():
+        for section in definition["sections"]:
+            if section["key"] == profile_id:
+                return owner_id, definition, section
+    return None
+
+
+def _profile_definition(profile_id: str, definition: dict | None, section: dict) -> dict:
+    """Combine stable defaults with optional mapping presentation metadata."""
+
+    source = definition or {}
+    single_profile_label = source.get("label") if len(source.get("sections", [])) == 1 else None
+
+    def metadata(name: str):
+        return section[name] if name in section else source.get(name)
+
+    return definition_dict(
+        profile_id,
+        label=section.get("profile_label") or source.get("profile_label") or single_profile_label,
+        view_profile=section.get("view_profile") or source.get("view_profile"),
+        display_group=section.get("display_group") or source.get("display_group"),
+        order=metadata("order"),
+        snmp_index=metadata("snmp_index"),
+    )
+
+
+def _parse_field_value(raw: str | None, field_type: str) -> float | str | bool:
+    """Parse one mapped XML value according to its effective type."""
+
+    if raw is None or not raw.strip():
+        raise ValueError("Empty value")
+    if field_type == "text":
+        return raw
+    numeric = float(raw)
+    if not math.isfinite(numeric):
+        raise ValueError("Non-finite value")
+    if field_type == "boolean":
+        if numeric not in (0, 1):
+            raise ValueError("Boolean value must be 0 or 1")
+        return bool(numeric)
+    return numeric
+
+
 def parse_status(payload: bytes, mapping: dict) -> dict:
-    """Keep canonical keys stable when firmware labels change; reject unsafe XML."""
+    """Create one runtime profile for every ``params_*`` section in the XML."""
     if len(payload) > MAX_XML_BYTES:
         raise ValueError("XML exceeds 1 MB")
     # Only UTF-8 status documents are supported; reject DTD/entity declarations.
@@ -144,128 +234,99 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
     metadata = (
         {child.tag: child.text for child in module if len(child) == 0} if module is not None else {}
     )
+    mapped_sections = {
+        section["xml_section"]: (definition, section)
+        for definition in mapping.values()
+        for section in definition["sections"]
+    }
     results = {}
-    for device_id, definition in mapping.items():
-        values, sections, issues = {}, [], []
-        present = False
-        for section in definition["sections"]:
-            node = root.find(section["xml_section"])
-            present |= node is not None
-            section_values = {}
-            fields = []
-            for field in section["fields"]:
-                matches = (
-                    []
-                    if node is None
-                    else [
-                        p
-                        for p in node.findall("param")
-                        if (
-                            p.get("id") == field["id"]
-                            if field.get("id")
-                            else p.findtext("name") == field["name"]
-                        )
-                    ]
+    for node in root:
+        if not isinstance(node.tag, str) or not node.tag.startswith("params_"):
+            continue
+        mapped = mapped_sections.get(node.tag)
+        definition, section = mapped if mapped else (None, None)
+        profile_id = section["key"] if section else node.tag.removeprefix("params_")
+        if not profile_id or profile_id in results:
+            raise ValueError(f"Duplicate or invalid XML profile: {profile_id or node.tag}")
+        if section is None:
+            section = {
+                "key": profile_id,
+                "xml_section": node.tag,
+                "label": profile_id.replace("_", " ").title(),
+                "fields": [],
+                "discover_unmapped": True,
+            }
+        boolean_fields = set((definition or {}).get("boolean_fields", []))
+        section_values, fields, issues = {}, [], []
+        for field in section["fields"]:
+            matches = [
+                parameter
+                for parameter in node.findall("param")
+                if (
+                    parameter.get("id") == field["id"]
+                    if field.get("id")
+                    else parameter.findtext("name") == field["name"]
                 )
-                value = None
-                if len(matches) == 1:
-                    raw = matches[0].findtext("value")
-                    try:
-                        if raw is None or not raw.strip():
-                            raise ValueError("Empty value")
-                        field_type = (
-                            "boolean"
-                            if field["key"] in definition.get("boolean_fields", [])
-                            else field.get("type", "number")
-                        )
-                        if field_type == "text":
-                            value = raw
-                        elif field_type == "boolean":
-                            numeric = float(raw)
-                            if numeric not in (0, 1):
-                                raise ValueError("Boolean value must be 0 or 1")
-                            value = bool(numeric)
-                        else:
-                            value = float(raw)
-                        if isinstance(value, float) and not math.isfinite(value):
-                            raise ValueError("Non-finite value")
-                    except ValueError:
-                        value = None
-                        issues.append(f"Invalid value: {section['key']}.{field['key']}")
-                elif node is not None:
-                    issues.append(f"Missing or duplicate field: {section['key']}.{field['key']}")
-                section_values[field["key"]] = value
-                fields.append(
-                    {
-                        "key": field["key"],
-                        "id": field.get("id", ""),
-                        "name": field.get("name", ""),
-                        "label": field.get("label", field["key"]),
-                        "unit": field.get("unit", ""),
-                        "group": field.get("group", "Measurements"),
-                        "role": field.get("role", ""),
-                        "type": (
-                            "boolean"
-                            if field["key"] in definition.get("boolean_fields", [])
-                            else field.get("type", "number")
-                        ),
-                        "writable": field.get("writable", False),
-                        "alarm": field.get("alarm", {"enabled": False}),
-                        **(
-                            {"minimum": field["minimum"]}
-                            if "minimum" in field
-                            else {}
-                        ),
-                        **(
-                            {"maximum": field["maximum"]}
-                            if "maximum" in field
-                            else {}
-                        ),
-                    }
-                )
-            if node is not None and section.get("discover_unmapped", False):
-                mapped_ids = {field.get("id") for field in section["fields"] if field.get("id")}
-                mapped_names = {
-                    field.get("name") for field in section["fields"] if field.get("name")
-                }
-                used_keys = set(section_values)
-                for param in node.findall("param"):
-                    identifier = (param.get("id") or "").strip()
-                    name = (param.findtext("name") or "").strip()
-                    if identifier in mapped_ids or name in mapped_names:
-                        continue
-                    automatic = _automatic_field(param, used_keys)
-                    if automatic is None:
-                        issues.append(
-                            f"Invalid automatic field: {section['key']}.{name or identifier}"
-                        )
-                        continue
-                    descriptor, value = automatic
-                    fields.append(descriptor)
-                    section_values[descriptor["key"]] = value
-            values[section["key"]] = section_values
-            sections.append(
+            ]
+            field_type = "boolean" if field["key"] in boolean_fields else field.get("type", "number")
+            value = None
+            if len(matches) == 1:
+                try:
+                    value = _parse_field_value(matches[0].findtext("value"), field_type)
+                except ValueError:
+                    issues.append(f"Invalid value: {profile_id}.{field['key']}")
+            else:
+                issues.append(f"Missing or duplicate field: {profile_id}.{field['key']}")
+            section_values[field["key"]] = value
+            fields.append(
                 {
-                    "key": section["key"],
-                    "label": section["label"],
-                    "present": node is not None,
-                    "fields": fields,
+                    "key": field["key"],
+                    "id": field.get("id", ""),
+                    "name": field.get("name", ""),
+                    "label": field.get("label", field["key"]),
+                    "unit": field.get("unit", ""),
+                    "group": field.get("group", "Measurements"),
+                    "role": field.get("role", ""),
+                    "type": field_type,
+                    "writable": field.get("writable", False),
+                    "alarm": field.get("alarm", {"enabled": False}),
+                    **({"minimum": field["minimum"]} if "minimum" in field else {}),
+                    **({"maximum": field["maximum"]} if "maximum" in field else {}),
                 }
             )
-        results[device_id] = {
-            "values": values,
-            "sections": sections,
+        if section.get("discover_unmapped", False) or mapped is None:
+            mapped_ids = {field.get("id") for field in section["fields"] if field.get("id")}
+            mapped_names = {field.get("name") for field in section["fields"] if field.get("name")}
+            used_keys = set(section_values)
+            for parameter in node.findall("param"):
+                identifier = (parameter.get("id") or "").strip()
+                name = (parameter.findtext("name") or "").strip()
+                if identifier in mapped_ids or name in mapped_names:
+                    continue
+                automatic = _automatic_field(parameter, used_keys)
+                if automatic is None:
+                    issues.append(f"Invalid automatic field: {profile_id}.{name or identifier}")
+                    continue
+                descriptor, value = automatic
+                fields.append(descriptor)
+                section_values[descriptor["key"]] = value
+        profile = _profile_definition(profile_id, definition, section)
+        results[profile_id] = {
+            "values": {profile_id: section_values},
+            "sections": [
+                {"key": profile_id, "label": section["label"], "present": True, "fields": fields}
+            ],
             "module": metadata,
-            "label": definition["label"],
-            "present": present,
+            "label": profile["label"],
+            "present": True,
             "issues": issues,
+            "profile": profile,
         }
     return results
 
 
 def poll_once() -> None:
     """Read one bounded snapshot and isolate missing sections by device."""
-    enabled = config.ENABLED_DEVICES
     try:
         mapping = load_mapping()
         path = pathlib.Path(config.XML_STATUS_FILE)
@@ -277,33 +338,23 @@ def poll_once() -> None:
         snapshots = parse_status(payload, mapping)
         modified_at = datetime.datetime.fromtimestamp(modified, datetime.timezone.utc).isoformat()
     except (OSError, ValueError, ET.ParseError, KeyError, TypeError, AttributeError) as exc:
-        for key in enabled:
+        for key in state.active_device_ids():
             runtime.report_failure(key, f"XML: {exc}")
         return
-    for key in enabled:
-        snapshot = snapshots[key]
-        if not snapshot["present"]:
-            state.update_device_live(key, data=snapshot)
-            runtime.report_failure(key, "No matching section in status.xml")
-        else:
-            from app.services import alarms
+    state.set_device_inventory([snapshot["profile"] for snapshot in snapshots.values()])
+    for key, snapshot in snapshots.items():
+        from app.services import alarms
 
-            alarms.evaluate(key, snapshot, modified_at)
-            previous = state.snapshot_device_live(key)
-            if previous.get("data", {}).get("values") != snapshot["values"]:
-                runtime.publish_snapshot(key, snapshot, timestamp=modified_at)
-            else:
-                # A fresh, valid XML file confirms that this section is still
-                # available, but unchanged measurements are not new history.
-                state.update_device_live(
-                    key,
-                    connected=True,
-                    error=None,
-                    last_update=modified_at,
-                    data=snapshot,
-                )
-            if snapshot["issues"]:
-                state.update_device_live(key, error="; ".join(snapshot["issues"]))
+        alarms.evaluate(key, snapshot, modified_at)
+        previous = state.snapshot_device_live(key)
+        if previous.get("data", {}).get("values") != snapshot["values"]:
+            runtime.publish_snapshot(key, snapshot, timestamp=modified_at)
+        else:
+            state.update_device_live(
+                key, connected=True, error=None, last_update=modified_at, data=snapshot
+            )
+        if snapshot["issues"]:
+            state.update_device_live(key, error="; ".join(snapshot["issues"]))
 
 
 def xml_reader_loop() -> None:

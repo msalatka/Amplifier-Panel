@@ -76,28 +76,9 @@ KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._@-]{1,128}$")
 HOST_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
 MDNS_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
-KNOWN_DEVICE_IDS = ("local", "remote", "oba", "oba3")
-
-
-def _enabled_devices(value: str | None) -> tuple[str, ...]:
-    """Validate the configured device set without importing runtime dependencies."""
-
-    aliases = {"amplifier": ("oba", "oba3"), "fts-ls": ("local", "remote")}
-    ids = []
-    for part in (value or "").split(","):
-        key = part.strip().lower()
-        for item in aliases.get(key, (key,)):
-            if item not in KNOWN_DEVICE_IDS:
-                raise ConfigurationError("ENABLED_DEVICES must list: local,remote,oba,oba3.")
-            if item not in ids:
-                ids.append(item)
-    return tuple(ids)
-
-
 CONFIG_KEYS = (
     "AMP_PANEL_PORT",
     "AMP_PANEL_DATA_DIR",
-    "ENABLED_DEVICES",
     "XML_STATUS_FILE",
     "XML_CONTROL_FILE",
     "XML_CONTROL_ACK_TIMEOUT_SECONDS",
@@ -149,7 +130,6 @@ CONFIG_KEYS = (
 
 CONFIG_SECTIONS = {
     "AMP_PANEL_PORT": "Panel and web interface",
-    "ENABLED_DEVICES": "Connected devices",
     "DEVICE_NAME": "Panel identity",
     "INITIAL_ADMIN_USERNAME": "Browser authentication",
     "PERSISTED_STATE_FILE": "Stored data and browser sessions",
@@ -169,7 +149,6 @@ CONFIG_HELP = {
     "XML_STALE_SECONDS": "Mark source stale after this many seconds without a file refresh.",
     "AMP_PANEL_PORT": "Web interface TCP port: integer from 1024 to 65535, for example 8000.",
     "AMP_PANEL_DATA_DIR": "Data directory: /var/lib/amp-panel or a path below /mnt, /media or /srv.",
-    "ENABLED_DEVICES": "XML devices: local,remote,oba,oba3.",
     "DEVICE_NAME": "Device name used in logs and as the default RADIUS identifier.",
     "MDNS_HOSTNAME": "mDNS hostname without .local: lowercase letters, digits and hyphens, for example amp-panel.",
     "INITIAL_ADMIN_USERNAME": "Administrator name: letters, digits, dot, underscore, @ or hyphen.",
@@ -436,7 +415,6 @@ def default_configuration() -> dict[str, str]:
     return {
         "AMP_PANEL_PORT": "8000",
         "AMP_PANEL_DATA_DIR": str(data_dir),
-        "ENABLED_DEVICES": "local,remote,oba,oba3",
         "XML_STATUS_FILE": str(data_dir / "status.xml"),
         "XML_CONTROL_FILE": str(data_dir / "control.xml"),
         "XML_CONTROL_ACK_TIMEOUT_SECONDS": "15",
@@ -531,10 +509,6 @@ def merge_configuration(source_values: dict[str, str]) -> dict[str, str]:
     """Overlay recognized existing values onto current configuration defaults."""
 
     source_values = dict(source_values)
-    if "ENABLED_DEVICES" in source_values:
-        source_values["ENABLED_DEVICES"] = ",".join(
-            _enabled_devices(source_values["ENABLED_DEVICES"])
-        )
     translated = default_configuration()
     for key in CONFIG_KEYS:
         if key in source_values:
@@ -554,23 +528,21 @@ def validate_configuration(values: dict[str, str]) -> None:
     if not USERNAME_PATTERN.fullmatch(values.get("INITIAL_ADMIN_USERNAME", "")):
         raise ConfigurationError("The Administrator username is invalid.")
     _safe_int(values.get("AMP_PANEL_PORT"), "Web port", 1024, 65535)
-    enabled_devices = _enabled_devices(values.get("ENABLED_DEVICES"))
-    if any(key in enabled_devices for key in ("local", "remote", "oba", "oba3")):
-        for key in ("XML_STATUS_FILE", "XML_CONTROL_FILE", "XML_MAPPING_FILE"):
-            if not values.get(key, "").strip():
-                raise ConfigurationError(f"{key} must not be empty.")
-        if _safe_float(values.get("XML_POLL_SECONDS"), "XML polling interval") < 0.2:
-            raise ConfigurationError("XML polling interval must be at least 0.2 seconds.")
-        if _safe_float(values.get("XML_STALE_SECONDS"), "XML stale timeout") < 1:
-            raise ConfigurationError("XML stale timeout must be at least 1 second.")
-        if (
-            _safe_float(
-                values.get("XML_CONTROL_ACK_TIMEOUT_SECONDS"),
-                "XML control acknowledgement timeout",
-            )
-            < 1
-        ):
-            raise ConfigurationError("XML control acknowledgement timeout must be at least 1 second.")
+    for key in ("XML_STATUS_FILE", "XML_CONTROL_FILE", "XML_MAPPING_FILE"):
+        if not values.get(key, "").strip():
+            raise ConfigurationError(f"{key} must not be empty.")
+    if _safe_float(values.get("XML_POLL_SECONDS"), "XML polling interval") < 0.2:
+        raise ConfigurationError("XML polling interval must be at least 0.2 seconds.")
+    if _safe_float(values.get("XML_STALE_SECONDS"), "XML stale timeout") < 1:
+        raise ConfigurationError("XML stale timeout must be at least 1 second.")
+    if (
+        _safe_float(
+            values.get("XML_CONTROL_ACK_TIMEOUT_SECONDS"),
+            "XML control acknowledgement timeout",
+        )
+        < 1
+    ):
+        raise ConfigurationError("XML control acknowledgement timeout must be at least 1 second.")
     data_dir = _normalized_data_dir(values.get("AMP_PANEL_DATA_DIR", ""))
     database_file = pathlib.Path(values.get("DATABASE_FILE", ""))
     state_file = pathlib.Path(values.get("PERSISTED_STATE_FILE", ""))
@@ -629,7 +601,6 @@ def _set_local_admin_password(values: dict[str, str], password: str) -> None:
 
 def _apply_answers(values: dict[str, str], answers: dict[str, str]) -> None:
     mapping = {
-        "enabled_devices": "ENABLED_DEVICES",
         "xml_status_file": "XML_STATUS_FILE",
         "xml_control_file": "XML_CONTROL_FILE",
         "admin_username": "INITIAL_ADMIN_USERNAME",
@@ -980,8 +951,6 @@ def configure_command(args: argparse.Namespace) -> int:
             answers = read_env_file(pathlib.Path(args.answers_file))
             answers = {key.lower(): value for key, value in answers.items()}
         _apply_answers(values, answers)
-        if args.enabled_devices:
-            values["ENABLED_DEVICES"] = args.enabled_devices
         if args.admin_username:
             values["INITIAL_ADMIN_USERNAME"] = args.admin_username
         if args.auth_mode:
@@ -1261,7 +1230,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     configure.add_argument("--port", type=int)
     configure.add_argument("--data-dir")
-    configure.add_argument("--enabled-devices", help="comma-separated registered device IDs")
     configure.add_argument("--xml-control-file")
     configure.add_argument("--radius-server")
     configure.add_argument("--radius-port", type=int)

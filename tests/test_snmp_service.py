@@ -3,6 +3,7 @@ from unittest import mock
 
 from pysnmp.proto import rfc1902, rfc1905
 
+from app.devices.registry import definition_dict
 from app.services import snmp
 
 
@@ -43,7 +44,12 @@ class SnmpServiceTests(unittest.TestCase):
             ),
         }
         with (
-            mock.patch.object(snmp.config, "ENABLED_DEVICES", ("local", "oba3")),
+            mock.patch.object(snmp.state, "active_device_ids", return_value=("local", "oba3")),
+            mock.patch.object(
+                snmp.state,
+                "device_definition",
+                side_effect=lambda device_id: definition_dict(device_id),
+            ),
             mock.patch.object(
                 snmp.state,
                 "snapshot_device_live",
@@ -53,7 +59,7 @@ class SnmpServiceTests(unittest.TestCase):
             values = snmp._live_oid_values()
 
         self.assertEqual(values[f"{snmp.OID_BASE_STR}.1.1.0"], "CONNECTED")
-        self.assertEqual(values[f"{snmp.OID_BASE_STR}.1.2.0"], "DISCONNECTED")
+        self.assertEqual(values[f"{snmp.OID_BASE_STR}.1.6.0"], "DISCONNECTED")
         self.assertEqual(values[f"{snmp.OID_BASE_STR}.2.1.1.5.0"], "true")
         self.assertEqual(values[f"{snmp.OID_BASE_STR}.5.1.1.1.0"], "30.5")
         self.assertFalse(any("automatic" in oid for oid in values))
@@ -78,7 +84,12 @@ class SnmpServiceTests(unittest.TestCase):
             ),
         }
         with (
-            mock.patch.object(snmp.config, "ENABLED_DEVICES", ("oba", "oba3")),
+            mock.patch.object(snmp.state, "active_device_ids", return_value=("oba", "oba3")),
+            mock.patch.object(
+                snmp.state,
+                "device_definition",
+                side_effect=lambda device_id: definition_dict(device_id),
+            ),
             mock.patch.object(
                 snmp.state,
                 "snapshot_device_live",

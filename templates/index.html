@@ -27,11 +27,13 @@
         <aside class="sidebar">
             <details class="device-switcher">
                 <summary class="sidebar-logo">Amp Panel <span aria-hidden="true">▾</span></summary>
-                <div class="device-switcher-list" aria-label="Configured devices">
+                <div class="device-switcher-list" aria-label="Devices found in status.xml">
+                    {% set switcher = namespace(group=none) %}
                     {% for device in devices %}
-                    <a href="/?device={{ device.id | urlencode }}" {% if device.id == selected_device %}aria-current="page"{% endif %}>
+                    <a href="/?device={{ device.id | urlencode }}" data-device-link="{{ device.id }}" {% if switcher.group is not none and switcher.group != device.display_group %}class="device-group-separator"{% endif %} {% if device.id == selected_device %}aria-current="page"{% endif %}>
                         <span>{{ device.label }}</span><small data-device-status="{{ device.id }}">--</small>
                     </a>
+                    {% set switcher.group = device.display_group %}
                     {% endfor %}
                 </div>
             </details>

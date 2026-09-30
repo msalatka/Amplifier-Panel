@@ -8,10 +8,16 @@ import unittest
 from unittest import mock
 
 from app.api import devices, diagnostics
+from app.core import state
+from app.devices.registry import definition_dict
 from app.services import xml_status
 
 
 class DashboardApiTests(unittest.TestCase):
+    def setUp(self):
+        state.set_device_inventory(
+            [definition_dict(device_id) for device_id in ("local", "oba", "oba3")]
+        )
     def test_csv_export_uses_one_column_per_observed_field(self):
         points = iter(
             [
@@ -102,7 +108,6 @@ class DashboardApiTests(unittest.TestCase):
             path.write_text(json.dumps(mapping), encoding="utf-8")
             with (
                 mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
-                mock.patch.object(diagnostics.config, "ENABLED_DEVICES", ("oba3",)),
                 mock.patch.object(diagnostics.state, "snapshot_device_live", return_value=live),
                 mock.patch.object(diagnostics.api_security, "audit_event") as audit,
             ):
@@ -122,6 +127,60 @@ class DashboardApiTests(unittest.TestCase):
             self.assertEqual(result["field"], field)
             audit.assert_called_once()
 
+    def test_first_saved_field_creates_mapping_for_an_xml_discovered_profile(self):
+        mapping = xml_status.load_mapping()
+        live = {
+            "data": {
+                "sections": [
+                    {
+                        "key": "new_amp",
+                        "fields": [
+                            {
+                                "key": "auto:9.1.1.1",
+                                "id": "9.1.1.1",
+                                "name": "OutputPower",
+                                "label": "Output power",
+                                "type": "number",
+                                "unit": "dBm",
+                                "automatic": True,
+                            }
+                        ],
+                    }
+                ]
+            }
+        }
+        definition = definition_dict(
+            "new_amp",
+            label="New amplifier",
+            view_profile="amplifier",
+            display_group="Amplifiers",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "xml_mapping.json"
+            path.write_text(json.dumps(mapping), encoding="utf-8")
+            with (
+                mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
+                mock.patch.object(diagnostics.state, "is_active_device", return_value=True),
+                mock.patch.object(
+                    diagnostics.state, "device_definition", return_value=definition
+                ),
+                mock.patch.object(diagnostics.state, "snapshot_device_live", return_value=live),
+                mock.patch.object(diagnostics.api_security, "audit_event"),
+            ):
+                diagnostics.add_xml_mapping_field(
+                    diagnostics.XmlMappingFieldRequest(
+                        device_id="new_amp", section="new_amp", key="auto:9.1.1.1"
+                    ),
+                    mock.Mock(),
+                    {"username": "admin", "role": "Administrator"},
+                )
+
+            saved = json.loads(path.read_text(encoding="utf-8"))["new_amp"]
+            self.assertEqual(saved["view_profile"], "amplifier")
+            self.assertEqual(saved["display_group"], "Amplifiers")
+            self.assertEqual(saved["snmp_index"], 7)
+            self.assertEqual(saved["sections"][0]["xml_section"], "params_new_amp")
+
     def test_latest_includes_current_host_system_time(self):
         before = datetime.datetime.now(datetime.timezone.utc)
         with mock.patch.object(
@@ -129,7 +188,7 @@ class DashboardApiTests(unittest.TestCase):
             "get_runtime_status",
             return_value={"state": "ready"},
         ):
-            result = devices.latest(devices.config.ENABLED_DEVICES[0], {})
+            result = devices.latest("local", {})
         after = datetime.datetime.now(datetime.timezone.utc)
 
         system_time = datetime.datetime.fromisoformat(result["system_time"])
@@ -140,7 +199,6 @@ class DashboardApiTests(unittest.TestCase):
     def test_operator_can_write_device_control_without_changing_gui_state(self):
         request = mock.Mock()
         with (
-            mock.patch.object(devices.config, "ENABLED_DEVICES", ("oba3",)),
             mock.patch.object(
                 devices.xml_control,
                 "write_control",
@@ -165,7 +223,6 @@ class DashboardApiTests(unittest.TestCase):
 
     def test_operator_can_persist_xml_alarm_settings(self):
         with (
-            mock.patch.object(devices.config, "ENABLED_DEVICES", ("oba3",)),
             mock.patch.object(devices.alarms, "update_config") as update,
             mock.patch.object(devices.api_security, "audit_event") as audit,
         ):
@@ -209,7 +266,6 @@ class DashboardApiTests(unittest.TestCase):
         }
         try:
             with (
-                mock.patch.object(devices.config, "ENABLED_DEVICES", (device_id,)),
                 mock.patch.object(devices.state, "snapshot_device_live", return_value=live),
                 mock.patch.object(devices.state, "save_persisted_state") as save,
                 mock.patch.object(devices.api_security, "audit_event") as audit,
@@ -228,7 +284,6 @@ class DashboardApiTests(unittest.TestCase):
 
     def test_unknown_live_field_is_rejected(self):
         with (
-            mock.patch.object(devices.config, "ENABLED_DEVICES", ("oba3",)),
             mock.patch.object(
                 devices.state,
                 "snapshot_device_live",
@@ -262,7 +317,6 @@ class DashboardApiTests(unittest.TestCase):
         }
         try:
             with (
-                mock.patch.object(devices.config, "ENABLED_DEVICES", (device_id,)),
                 mock.patch.object(devices.state, "snapshot_device_live", return_value=live),
                 mock.patch.object(devices.state, "save_persisted_state") as save,
                 mock.patch.object(devices.api_security, "audit_event"),

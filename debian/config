@@ -18,11 +18,6 @@ if [ -z "${RET}" ]; then
     db_set amp-panel/mdns-hostname "${mdns_hostname:-amp-panel}"
 fi
 
-db_input high amp-panel/enabled-devices || true
-db_go
-db_get amp-panel/enabled-devices || RET="local, remote, oba, oba3"
-enabled_devices="${RET}"
-
 db_input high amp-panel/admin-username || true
 db_input high amp-panel/auth-mode || true
 db_input high amp-panel/port || true

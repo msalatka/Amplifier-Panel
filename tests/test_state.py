@@ -41,6 +41,14 @@ class StateSecurityTests(unittest.TestCase):
 
         self.assertEqual(fields["oba3"], ["oba3:Gain", "oba3:Temp"])
 
+    def test_custom_profile_live_fields_survive_restart(self):
+        fields = state.merge_device_live_fields(
+            {"custom_amp": ["custom_amp:power", "custom_amp:power", ""]},
+            state.DEVICE_LIVE_FIELDS_VERSION,
+        )
+
+        self.assertEqual(fields["custom_amp"], ["custom_amp:power"])
+
     def test_fresh_install_uses_configured_admin_without_password(self):
         with mock.patch.object(
             config,

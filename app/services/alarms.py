@@ -109,10 +109,13 @@ def update_config(device_id: str, updates: dict[str, dict]) -> dict:
     """Atomically update alarm blocks in the XML mapping."""
     with mapping_write_lock:
         mapping = xml_status.load_mapping()
+        located = xml_status.find_mapping_profile(mapping, device_id)
+        if located is None:
+            raise ValueError(f"Device is not mapped: {device_id}")
+        owner_id, _definition, mapped_section = located
         fields = {
-            f"{section['key']}:{field['key']}": field
-            for section in mapping[device_id]["sections"]
-            for field in section["fields"]
+            f"{mapped_section['key']}:{field['key']}": field
+            for field in mapped_section["fields"]
         }
         unknown = sorted(set(updates) - set(fields))
         if unknown:
@@ -138,4 +141,4 @@ def update_config(device_id: str, updates: dict[str, dict]) -> dict:
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
-        return mapping[device_id]
+        return mapping[owner_id]

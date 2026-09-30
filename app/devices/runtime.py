@@ -9,8 +9,7 @@ import copy
 import datetime
 import json
 
-from app.core import config, state
-from app.devices.registry import DEVICES
+from app.core import state
 from app.services import database as database_service
 
 
@@ -21,8 +20,8 @@ def publish_snapshot(
 ) -> bool:
     """Publish a validated device observation to live state and SQLite."""
 
-    if device_id not in config.ENABLED_DEVICES or device_id not in DEVICES:
-        raise ValueError(f"Device is not enabled: {device_id}")
+    if not state.is_active_device(device_id):
+        raise ValueError(f"Device is not present in status.xml: {device_id}")
     if not isinstance(snapshot, dict):
         raise ValueError("Device snapshot must be a mapping")
     try:
@@ -61,6 +60,6 @@ def publish_snapshot(
 def report_failure(device_id: str, error: str) -> None:
     """Mark one acquisition source disconnected without touching other devices."""
 
-    if device_id not in config.ENABLED_DEVICES:
-        raise ValueError(f"Device is not enabled: {device_id}")
+    if not state.is_active_device(device_id):
+        raise ValueError(f"Device is not present in status.xml: {device_id}")
     state.update_device_live(device_id, connected=False, error=error)

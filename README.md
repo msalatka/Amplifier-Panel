@@ -1,12 +1,9 @@
 # Amp Panel
 
 Amp Panel is a local web application that reads device status and sends commands
-to devices through XML files. It supports four profiles:
-
-- `local` — local station / DI,
-- `remote` — remote station / DI,
-- `oba` — EDFA OBA amplifier,
-- `oba3` — EDFA OBA3 amplifier.
+to devices through XML files. Device profiles are discovered from the
+`params_*` sections currently present in `status.xml`; there is no separate
+enabled-device list in the panel configuration.
 
 The panel reads current device data from `status.xml` and writes commands and
 settings to a separate `control.xml` file.
@@ -165,7 +162,6 @@ it is produced by an external device process.
 The main XML settings are:
 
 ```ini
-ENABLED_DEVICES=local,remote,oba,oba3
 XML_STATUS_FILE=/var/lib/amp-panel/status.xml
 XML_CONTROL_FILE=/var/lib/amp-panel/control.xml
 XML_CONTROL_ACK_TIMEOUT_SECONDS=15
@@ -218,14 +214,42 @@ Minimal structure:
 </status>
 ```
 
-Sections used by the default profiles:
+Each top-level `params_*` section is displayed and stored as an independent
+profile. The default mapping recognizes:
 
 | Profile | XML sections |
 |---|---|
-| `local` | `params_local`, `params_localdi` |
-| `remote` | `params_remote`, `params_remotedi` |
+| `local` | `params_local` |
+| `local_di` | `params_local_di` |
+| `remote` | `params_remote` |
+| `remote_di` | `params_remote_di` |
 | `oba` | `params_oba` |
 | `oba3` | `params_oba3` |
+
+Profiles are added to and removed from the device selector after a complete,
+valid XML read. A missing profile is hidden without deleting its SQLite history
+or saved display settings. Unknown `params_*` sections are exposed automatically
+as read-only profiles; an Administrator can then persist their variables in
+`xml_mapping.json`. Related profiles such as `local` and `local_di` are separated
+visually in the selector while retaining independent live data and history.
+
+The profile ID is the part after `params_`, unless an existing mapping assigns
+that XML section a different section `key`. A section may also define optional
+presentation metadata:
+
+- `profile_label` — name shown in the device selector,
+- `display_group` — profiles with the same value stay together; a line separates
+  them from the next group,
+- `view_profile` — `station` or `amplifier`, which selects the page layout,
+- `order` — numeric position in the selector,
+- `snmp_index` — stable number used in the profile connection-state OID.
+
+For a mapping entry containing only one section, these properties may be placed
+on the entry itself. For entries containing several sections, set profile-specific
+properties on each section. When the first automatically discovered variable of
+a new profile is saved in **Administration → Edit Variables**, the panel creates
+its mapping entry and assigns the next free SNMP index. The index is then stable
+even if profiles are reordered in `status.xml`.
 
 The file must be valid UTF-8 XML, use `<status>` as its root, and not exceed
 1 MB. DTDs and external entities are rejected. Missing, duplicated, and invalid

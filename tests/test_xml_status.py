@@ -31,10 +31,11 @@ class XmlStatusTests(unittest.TestCase):
 
         self.assertNotIn("locked", roles)
 
-    def test_all_six_sections_in_four_views(self):
+    def test_all_six_xml_sections_become_independent_profiles(self):
         data = xml_status.parse_status(self.payload, self.mapping)
-        self.assertEqual(set(data), {"local", "remote", "oba", "oba3"})
-        self.assertEqual(len(data["local"]["sections"]), 2)
+        self.assertEqual(set(data), {"local", "local_di", "remote", "remote_di", "oba", "oba3"})
+        self.assertEqual(len(data["local"]["sections"]), 1)
+        self.assertEqual(len(data["local_di"]["sections"]), 1)
         self.assertEqual(data["oba3"]["values"]["oba3"]["Gain"], 30)
         self.assertEqual(data["oba"]["values"]["oba"]["mode"], "gain")
         self.assertTrue(all(d["present"] and not d["issues"] for d in data.values()))
@@ -142,9 +143,96 @@ class XmlStatusTests(unittest.TestCase):
         self.assertEqual(automatic["type"], "number")
         self.assertEqual(result["values"]["oba3"]["auto:5.1.1.99"], 42.5)
 
+    def test_unknown_xml_section_becomes_a_read_only_profile(self):
+        payload = (
+            b"<status><params_new_device>"
+            b'<param id="9.1.1.1"><name>Temperature</name><value>24.5</value></param>'
+            b"</params_new_device></status>"
+        )
+
+        result = xml_status.parse_status(payload, self.mapping)["new_device"]
+        field = result["sections"][0]["fields"][0]
+
+        self.assertEqual(result["label"], "New Device")
+        self.assertEqual(result["profile"]["view_profile"], "station")
+        self.assertEqual(result["values"]["new_device"]["auto:9.1.1.1"], 24.5)
+        self.assertTrue(field["automatic"])
+        self.assertNotIn("writable", field)
+
+    def test_profile_metadata_controls_group_order_layout_and_snmp_index(self):
+        mapping = copy.deepcopy(self.mapping)
+        mapping["custom"] = {
+            "label": "Custom amplifier",
+            "view_profile": "amplifier",
+            "display_group": "Rack B",
+            "order": 15,
+            "snmp_index": 7,
+            "sections": [
+                {
+                    "key": "custom",
+                    "xml_section": "params_custom",
+                    "label": "Custom amplifier",
+                    "fields": [{"key": "power", "name": "Power", "type": "number"}],
+                }
+            ],
+        }
+        payload = (
+            b"<status><params_custom><param><name>Power</name><value>10</value></param>"
+            b"</params_custom></status>"
+        )
+
+        result = xml_status.parse_status(payload, xml_status.validate_mapping(mapping))["custom"]
+
+        self.assertEqual(result["profile"]["label"], "Custom amplifier")
+        self.assertEqual(result["profile"]["view_profile"], "amplifier")
+        self.assertEqual(result["profile"]["display_group"], "Rack B")
+        self.assertEqual(result["profile"]["order"], 15)
+        self.assertEqual(result["profile"]["snmp_index"], 7)
+
+    def test_mapping_rejects_duplicate_effective_snmp_index(self):
+        mapping = copy.deepcopy(self.mapping)
+        mapping["oba3"]["sections"][0]["snmp_index"] = 1
+
+        with self.assertRaisesRegex(ValueError, "Duplicate SNMP index"):
+            xml_status.validate_mapping(mapping)
+
+    def test_valid_poll_replaces_inventory_with_current_xml_sections(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "status.xml"
+            path.write_bytes(
+                b'<status><params_new_device><param id="9.1.1.1">'
+                b"<name>Value</name><value>1</value></param></params_new_device></status>"
+            )
+            inventories = []
+            with (
+                mock.patch.object(config, "XML_STATUS_FILE", str(path)),
+                mock.patch.object(
+                    xml_status.state,
+                    "set_device_inventory",
+                    side_effect=lambda definitions: inventories.append(
+                        tuple(item["id"] for item in definitions)
+                    ),
+                ),
+                mock.patch.object(
+                    xml_status.state,
+                    "snapshot_device_live",
+                    return_value={"data": {}, "last_update": None},
+                ),
+                mock.patch.object(xml_status.runtime, "publish_snapshot"),
+            ):
+                xml_status.poll_once()
+                path.write_bytes(self.payload)
+                xml_status.poll_once()
+
+        self.assertEqual(inventories[0], ("new_device",))
+        self.assertEqual(
+            inventories[1],
+            ("local", "local_di", "remote", "remote_di", "oba", "oba3"),
+        )
+
     def test_missing_sections_do_not_invent_zero_values(self):
         result = xml_status.parse_status(b"<status><params_oba3/></status>", self.mapping)
-        self.assertFalse(result["local"]["present"])
+        self.assertNotIn("local", result)
         self.assertIsNone(result["oba3"]["values"]["oba3"]["Gain"])
         self.assertTrue(result["oba3"]["issues"])
 
@@ -168,7 +256,7 @@ class XmlStatusTests(unittest.TestCase):
             path = pathlib.Path(directory) / "status.xml"
             with (
                 mock.patch.object(config, "XML_STATUS_FILE", str(path)),
-                mock.patch.object(config, "ENABLED_DEVICES", ("oba3",)),
+                mock.patch.object(xml_status.state, "active_device_ids", return_value=("oba3",)),
                 mock.patch.object(xml_status.runtime, "publish_snapshot") as publish,
                 mock.patch.object(xml_status.runtime, "report_failure") as failure,
             ):
@@ -176,7 +264,7 @@ class XmlStatusTests(unittest.TestCase):
                 failure.assert_called_once()
                 path.write_bytes(self.payload)
                 xml_status.poll_once()
-                publish.assert_called_once()
+                self.assertEqual(publish.call_count, 6)
                 expected_mtime = pathlib.Path(path).stat().st_mtime
                 published_timestamp = publish.call_args.kwargs["timestamp"]
                 self.assertAlmostEqual(
@@ -189,7 +277,7 @@ class XmlStatusTests(unittest.TestCase):
                 self.assertIn("stale", failure.call_args.args[1])
                 path.write_bytes(b"<status>")
                 xml_status.poll_once()
-                self.assertEqual(publish.call_count, 1)
+                self.assertEqual(publish.call_count, 6)
 
     def test_poll_stores_history_only_for_devices_whose_values_changed(self):
         snapshots = xml_status.parse_status(self.payload, self.mapping)
@@ -208,7 +296,7 @@ class XmlStatusTests(unittest.TestCase):
             path.write_bytes(changed_payload)
             with (
                 mock.patch.object(config, "XML_STATUS_FILE", str(path)),
-                mock.patch.object(config, "ENABLED_DEVICES", tuple(snapshots)),
+                mock.patch.object(xml_status.state, "set_device_inventory"),
                 mock.patch.object(
                     xml_status.state,
                     "snapshot_device_live",
@@ -221,10 +309,10 @@ class XmlStatusTests(unittest.TestCase):
 
         publish.assert_called_once()
         self.assertEqual(publish.call_args.args[0], "oba3")
-        self.assertEqual(update.call_count, 3)
+        self.assertEqual(update.call_count, 5)
 
-    def test_history_rejects_disabled_device(self):
-        with mock.patch.object(config, "ENABLED_DEVICES", ("oba3",)):
+    def test_history_rejects_profile_absent_from_xml(self):
+        with mock.patch.object(devices.state, "is_active_device", return_value=False):
             with self.assertRaises(Exception) as caught:
                 devices.device_history("local", _current_user={})
             self.assertEqual(caught.exception.status_code, 404)

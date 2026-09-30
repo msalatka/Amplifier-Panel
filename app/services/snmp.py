@@ -12,7 +12,7 @@ from pysnmp.entity.rfc3413 import cmdrsp, context
 from pysnmp.hlapi.asyncio import *
 from pysnmp.proto import rfc1902, rfc1905
 
-from app.core import config, state
+from app.core import state
 
 OID_BASE_STR = "1.3.6.1.4.1.99999"
 TRAP_OID = f"{OID_BASE_STR}.4.1"
@@ -69,11 +69,13 @@ def _live_oid_values() -> dict[str, str]:
     """Build the current OID tree from enabled XML-device snapshots."""
 
     result = {}
-    for index, device_id in enumerate(config.ENABLED_DEVICES, start=1):
+    for device_id in state.active_device_ids():
         live = state.snapshot_device_live(device_id)
-        result[f"{OID_BASE_STR}.1.{index}.0"] = (
-            "CONNECTED" if live.get("connected") else "DISCONNECTED"
-        )
+        index = state.device_definition(device_id).get("snmp_index")
+        if index is not None:
+            result[f"{OID_BASE_STR}.1.{index}.0"] = (
+                "CONNECTED" if live.get("connected") else "DISCONNECTED"
+            )
         snapshot = live.get("data") or {}
         for section in snapshot.get("sections", []):
             if not isinstance(section, dict):
@@ -111,10 +113,10 @@ def _refresh_live_snapshot():
     """
     snapshot = {}
     amplifier_snapshots = {}
-    for device_id in config.ENABLED_DEVICES:
+    for device_id in state.active_device_ids():
         live = state.snapshot_device_live(device_id)
         snapshot[f"{device_id}_status"] = "CONNECTED" if live.get("connected") else "DISCONNECTED"
-        if device_id in {"oba3", "oba"}:
+        if state.device_definition(device_id)["view_profile"] == "amplifier":
             amplifier_snapshots[device_id] = live.get("data") or {}
     snapshot["status"] = (
         "CONNECTED"

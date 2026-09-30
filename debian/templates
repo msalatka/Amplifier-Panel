@@ -1,12 +1,3 @@
-Template: amp-panel/enabled-devices
-Type: multiselect
-Choices: local, remote, oba, oba3
-Choices-C: local, remote, oba, oba3
-Default: local, remote, oba, oba3
-Description: Devices available in Amp Panel:
- XML views cover local/DI and remote/DI stations and EDFA OBA/OBA3.
- The external daemon must refresh status.xml.
-
 Template: amp-panel/admin-username
 Type: string
 Default: admin

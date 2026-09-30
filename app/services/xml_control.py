@@ -20,13 +20,14 @@ def _writable_fields(device_id: str) -> dict[str, tuple[dict, dict]]:
     """Return writable fields indexed by stable ``section:key`` identifiers."""
 
     mapping = xml_status.load_mapping()
-    if device_id not in mapping:
+    located = xml_status.find_mapping_profile(mapping, device_id)
+    if located is None:
         raise ValueError(f"Unknown device: {device_id}")
     result = {}
-    for section in mapping[device_id]["sections"]:
-        for field in section["fields"]:
-            if field.get("writable", False):
-                result[f"{section['key']}:{field['key']}"] = (section, field)
+    _owner_id, _definition, section = located
+    for field in section["fields"]:
+        if field.get("writable", False):
+            result[f"{section['key']}:{field['key']}"] = (section, field)
     return result
 
 

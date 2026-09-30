@@ -218,7 +218,7 @@ def apply_record_limit() -> int:
             return 0
 
 
-def get_storage_status(device_id: str = config.ENABLED_DEVICES[0]) -> dict:
+def get_storage_status(device_id: str = "") -> dict:
     """Return database capacity and selected-device retention estimates."""
 
     database_path = pathlib.Path(config.DATABASE_FILE)
@@ -293,7 +293,7 @@ def get_storage_status(device_id: str = config.ENABLED_DEVICES[0]) -> dict:
     }
 
 
-def get_runtime_status(device_id: str = config.ENABLED_DEVICES[0]) -> dict:
+def get_runtime_status(device_id: str = "") -> dict:
     """Return readiness, record counts, retention estimate and the last SQL error."""
     init_database()
     records = get_device_snapshot_count(device_id)

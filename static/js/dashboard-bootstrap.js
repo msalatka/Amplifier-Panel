@@ -21,12 +21,33 @@ async function refreshDeviceList() {
 		handleAuthResponse(response)
 		if (!response.ok) return
 		const result = await response.json()
-		for (const device of result.devices || []) {
-			const status = [...document.querySelectorAll('[data-device-status]')].find(
-				(element) => element.dataset.deviceStatus === device.id,
-			)
-			if (status) status.textContent = device.connected ? 'Data current' : 'No current data'
+		const devices = result.devices || []
+		if (!devices.some((device) => device.id === selectedDeviceId)) {
+			if (devices.length)
+				window.location.assign(`/?device=${encodeURIComponent(devices[0].id)}`)
+			return
 		}
+		const list = document.querySelector('.device-switcher-list')
+		if (!list) return
+		const previousGroup = { value: null }
+		const links = devices.map((device) => {
+			const link = document.createElement('a')
+			link.href = `/?device=${encodeURIComponent(device.id)}`
+			link.dataset.deviceLink = device.id
+			if (device.id === selectedDeviceId) link.setAttribute('aria-current', 'page')
+			if (previousGroup.value !== null && previousGroup.value !== device.display_group) {
+				link.classList.add('device-group-separator')
+			}
+			previousGroup.value = device.display_group
+			const label = document.createElement('span')
+			label.textContent = device.label
+			const status = document.createElement('small')
+			status.dataset.deviceStatus = device.id
+			status.textContent = device.connected ? 'Data current' : 'No current data'
+			link.append(label, status)
+			return link
+		})
+		list.replaceChildren(...links)
 	} catch (error) {
 		console.error('Could not refresh device list:', error)
 	}
