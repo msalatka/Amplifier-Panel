@@ -172,8 +172,10 @@ def get_control_status() -> dict:
     if request is None:
         return {"request_id": None, "state": "idle", "message": "no control request"}
     request_id = request.get("id")
+    device = request.find("device")
+    request_device_id = (device.get("id") or "").strip() if device is not None else None
     if request_id and acknowledgement.get("request_id") == request_id:
-        return acknowledgement
+        return {**acknowledgement, "request_device_id": request_device_id}
     try:
         created = datetime.datetime.fromisoformat(
             (request.get("created_at") or "").replace("Z", "+00:00")
@@ -186,6 +188,7 @@ def get_control_status() -> dict:
     timed_out = age > config.XML_CONTROL_ACK_TIMEOUT_SECONDS
     return {
         "request_id": request_id,
+        "request_device_id": request_device_id,
         "state": "timeout" if timed_out else "pending",
         "message": "device acknowledgement timed out" if timed_out else "awaiting acknowledgement",
     }

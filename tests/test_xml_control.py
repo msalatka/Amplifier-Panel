@@ -121,6 +121,7 @@ class XmlControlTests(unittest.TestCase):
                 result = xml_control.get_control_status()
         self.assertEqual(result["state"], "timeout")
         self.assertEqual(result["request_id"], request_id)
+        self.assertIsNone(result["request_device_id"])
 
 
 if __name__ == "__main__":

@@ -67,7 +67,7 @@ def init_database() -> None:
             opened_connection.execute("PRAGMA synchronous=NORMAL")
             with opened_connection:
                 _create_schema(opened_connection)
-                opened_connection.execute("PRAGMA user_version=6")
+                opened_connection.execute("PRAGMA user_version=7")
             connection = opened_connection
             last_error = None
         except (OSError, sqlite3.Error) as error:
@@ -303,6 +303,105 @@ def get_runtime_status(device_id: str = "") -> dict:
         "records": records if connection is not None else 0,
         "error": last_error,
     }
+
+
+def record_control_request(
+    request_id: str,
+    device_id: str,
+    username: str,
+    values: dict,
+) -> bool:
+    """Persist a validated device-control request for the compact UI history."""
+
+    global last_error
+    try:
+        payload = json.dumps(values, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError) as error:
+        _set_error("control request serialization", error)
+        return False
+    init_database()
+    if connection is None:
+        return False
+    timestamp_ms = _timestamp_ms(None)
+    with database_lock:
+        try:
+            connection.execute(
+                "INSERT OR REPLACE INTO control_requests "
+                "(request_id, created_ms, updated_ms, device_id, username, values_json, state, message) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'pending', 'awaiting acknowledgement')",
+                (request_id, timestamp_ms, timestamp_ms, device_id, username, payload),
+            )
+            connection.commit()
+            last_error = None
+            return True
+        except sqlite3.Error as error:
+            connection.rollback()
+            _set_error("control request write", error)
+            return False
+
+
+def update_control_request_status(request_id: str, status: str, message: str) -> bool:
+    """Update a request and report whether its visible result changed."""
+
+    global last_error
+    init_database()
+    if connection is None or not request_id:
+        return False
+    with database_lock:
+        try:
+            row = connection.execute(
+                "SELECT state, message FROM control_requests WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            if row is None or (row["state"] == status and row["message"] == message):
+                return False
+            connection.execute(
+                "UPDATE control_requests SET state = ?, message = ?, updated_ms = ? "
+                "WHERE request_id = ?",
+                (status, message, _timestamp_ms(None), request_id),
+            )
+            connection.commit()
+            last_error = None
+            return True
+        except sqlite3.Error as error:
+            connection.rollback()
+            _set_error("control request status update", error)
+            return False
+
+
+def get_control_requests(device_id: str, limit: int = 15) -> list[dict]:
+    """Return the newest control requests for one XML profile."""
+
+    init_database()
+    if connection is None:
+        return []
+    try:
+        with database_lock:
+            rows = connection.execute(
+                "SELECT request_id, created_ms, updated_ms, username, values_json, state, message "
+                "FROM control_requests WHERE device_id = ? "
+                "ORDER BY created_ms DESC LIMIT ?",
+                (device_id, max(1, min(int(limit), 100))),
+            ).fetchall()
+        return [
+            {
+                "request_id": row["request_id"],
+                "created_at": datetime.datetime.fromtimestamp(
+                    row["created_ms"] / 1000, datetime.timezone.utc
+                ).isoformat(),
+                "updated_at": datetime.datetime.fromtimestamp(
+                    row["updated_ms"] / 1000, datetime.timezone.utc
+                ).isoformat(),
+                "username": row["username"],
+                "values": json.loads(row["values_json"]),
+                "state": row["state"],
+                "message": row["message"],
+            }
+            for row in rows
+        ]
+    except (TypeError, ValueError, json.JSONDecodeError, sqlite3.Error) as error:
+        _set_error("control request query", error)
+        return []
 
 
 def query_device_snapshots(

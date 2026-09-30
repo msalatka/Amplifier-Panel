@@ -139,6 +139,34 @@ class DatabaseServiceTests(unittest.TestCase):
         self.assertTrue(status["ready"])
         self.assertEqual(status["records"], 1)
 
+    def test_control_request_history_keeps_values_and_latest_state(self):
+        self.assertTrue(
+            database_service.record_control_request(
+                "11111111-1111-4111-8111-111111111111",
+                "oba3",
+                "operator",
+                {"oba3:GainSet": 28.5},
+            )
+        )
+        self.assertTrue(
+            database_service.update_control_request_status(
+                "11111111-1111-4111-8111-111111111111", "applied", "OK"
+            )
+        )
+        self.assertFalse(
+            database_service.update_control_request_status(
+                "11111111-1111-4111-8111-111111111111", "applied", "OK"
+            )
+        )
+
+        requests = database_service.get_control_requests("oba3", 15)
+
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(requests[0]["values"], {"oba3:GainSet": 28.5})
+        self.assertEqual(requests[0]["state"], "applied")
+        self.assertEqual(requests[0]["message"], "OK")
+        self.assertEqual(requests[0]["username"], "operator")
+
 
 if __name__ == "__main__":
     unittest.main()

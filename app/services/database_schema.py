@@ -27,6 +27,22 @@ def create_schema(connection: sqlite3.Connection) -> None:
         "ON device_snapshots (profile, timestamp_ms, id)"
     )
     connection.execute(
+        """CREATE TABLE IF NOT EXISTS control_requests (
+            request_id TEXT PRIMARY KEY,
+            created_ms INTEGER NOT NULL,
+            updated_ms INTEGER NOT NULL,
+            device_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            values_json TEXT NOT NULL,
+            state TEXT NOT NULL,
+            message TEXT NOT NULL
+        ) WITHOUT ROWID"""
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_control_requests_device_time "
+        "ON control_requests (device_id, created_ms DESC)"
+    )
+    connection.execute(
         """CREATE TABLE IF NOT EXISTS device_hourly_statistics (
             device_id TEXT NOT NULL,
             bucket_ms INTEGER NOT NULL,

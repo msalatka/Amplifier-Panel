@@ -92,14 +92,36 @@ function updateDeviceControlSubmitState() {
 		submit.disabled = !canOperate() || !deviceControlDirty.size || deviceControlRequestBusy
 }
 
+function controlChangeSummary(request) {
+	return Object.entries(request.values || {})
+		.map(([identifier, value]) => {
+			const field = deviceControlFields.find(
+				(candidate) => fieldIdentifier(candidate) === identifier,
+			)
+			return `${field?.label || identifier}: ${value}`
+		})
+		.join(', ')
+}
+
 function renderDeviceControlStatus(result) {
-	setTextIfExists('device-control-request-id', result.request_id || '--')
-	const state = document.getElementById('device-control-state')
-	if (state) {
-		state.textContent = result.state || 'unknown'
-		state.className = `control-state control-state-${result.state || 'unknown'}`
+	const container = document.getElementById('device-control-history')
+	if (container) {
+		const requests = result.requests || []
+		container.innerHTML = requests.length
+			? requests
+					.map(
+						(request) => `<article class="device-control-history-row">
+			<div class="device-control-change" data-label="Changes"><strong>${escapeHtml(controlChangeSummary(request) || '--')}</strong><small>${escapeHtml(formatTime(request.created_at))} · ${escapeHtml(request.username)}</small></div>
+			<div data-label="State"><span class="control-state control-state-${escapeHtml(request.state || 'unknown')}">${escapeHtml(request.state || 'unknown')}</span></div>
+			<div data-label="Message"><span>${escapeHtml(request.message || '--')}</span></div>
+			<div class="device-control-request-id" data-label="Request ID"><code>${escapeHtml(request.request_id || '--')}</code></div>
+		</article>`,
+					)
+					.join('')
+			: '<p class="device-control-history-empty">No requests sent.</p>'
 	}
-	setTextIfExists('device-control-message', result.message || '--')
+	setTextIfExists('device-control-audit-path', result.audit_log || '--')
+	setTextIfExists('device-control-audit-command', result.audit_command || '--')
 }
 
 async function loadDeviceControlStatus() {
@@ -154,12 +176,8 @@ async function submitDeviceControl(event) {
 		if (!response.ok)
 			throw new Error(apiErrorMessage(result.detail, 'Could not write device control'))
 		deviceControlDirty.clear()
-		renderDeviceControlStatus({
-			request_id: result.request_id,
-			state: result.state,
-			message: 'Awaiting acknowledgement from status.xml.',
-		})
 		showNotification('Control request written. Waiting for device acknowledgement.')
+		await loadDeviceControlStatus()
 	} catch (error) {
 		showNotification(error.message || 'Could not write device control.', 'error')
 	} finally {

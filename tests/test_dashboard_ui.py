@@ -168,7 +168,7 @@ class DashboardUiTests(unittest.TestCase):
         self.assertIn("grid-template-columns:minmax(140px,220px)", stylesheet)
         self.assertIn("max-width:900px", stylesheet)
 
-    def test_last_control_request_uses_one_diagnostics_row(self):
+    def test_last_control_requests_are_responsive_and_auditable(self):
         template = (ROOT / "templates" / "device-control.html").read_text(
             encoding="utf-8"
         )
@@ -176,9 +176,13 @@ class DashboardUiTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn('class="device-control-status-row"', template)
+        self.assertIn('id="device-control-history"', template)
+        self.assertIn("Last requests", template)
+        self.assertIn("Changes</span><span>State</span><span>Message</span><span>Request ID", template)
+        self.assertIn("action=device_control_", template)
         self.assertNotIn('class="network-status-grid"', template)
-        self.assertIn(".device-control-status-row > div", stylesheet)
+        self.assertIn(".device-control-history-row", stylesheet)
+        self.assertIn("grid-template-columns:minmax(240px,2fr)", stylesheet)
 
     def test_warning_tab_configures_xml_alarms_and_snmp_test_traps(self):
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")

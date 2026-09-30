@@ -4,6 +4,7 @@ import csv
 import datetime
 import io
 import json
+import shlex
 import tempfile
 import threading
 
@@ -13,9 +14,10 @@ import starlette.requests
 
 from app.api import history as history_api
 from app.api import security as api_security
-from app.core import state
+from app.core import config, state
 from app.services import alarms, xml_control
 from app.services import database as database_service
+from app.services import syslog as syslog_service
 from app.services.device_statistics import scalar_fields
 
 router = fastapi.APIRouter(prefix="/api/devices")
@@ -261,17 +263,47 @@ def update_device_control(
         request,
         "device_control_requested",
         current_user["username"],
-        f"device={device_id}; request_id={result['request_id']}; fields={','.join(body.values)}",
+        f"device={device_id}; request_id={result['request_id']}; "
+        f"values={json.dumps(body.values, separators=(',', ':'), ensure_ascii=False)}",
+    )
+    database_service.record_control_request(
+        result["request_id"], device_id, current_user["username"], body.values
     )
     return {"device_id": device_id, **result}
 
 
 @router.get("/{device_id}/control/status")
 def device_control_status(device_id: str, _current_user: dict = viewer):
-    """Return the most recent device acknowledgement from status.xml."""
+    """Return current acknowledgement and the latest local request history."""
 
     require_enabled(device_id)
-    return {"device_id": device_id, **xml_control.get_control_status()}
+    status = xml_control.get_control_status()
+    request_id = status.get("request_id")
+    if (
+        request_id
+        and status.get("request_device_id") == device_id
+        and database_service.update_control_request_status(
+            request_id, status["state"], status["message"]
+        )
+    ):
+        syslog_service.send_audit(
+            "device_control_status_changed",
+            "system",
+            "local",
+            f"device={device_id}; request_id={request_id}; "
+            f"state={status['state']}; "
+            f"message={json.dumps(status['message'], ensure_ascii=False)}",
+        )
+    audit_path = config.SYSLOG_EXPORT_FILE
+    return {
+        "device_id": device_id,
+        **status,
+        "requests": database_service.get_control_requests(device_id, 15),
+        "audit_log": audit_path,
+        "audit_command": (
+            "sudo zgrep -h 'action=device_control_' " f"{shlex.quote(audit_path)}*"
+        ),
+    }
 
 
 def _available_field_ids(device_id: str) -> set[str]:

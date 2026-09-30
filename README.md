@@ -398,15 +398,26 @@ Content-Type: application/json
 The response contains the `request_id`, the `pending` state, and the control file
 path. Values are identified as `section:key`.
 
-Latest request status:
+The **Control** tab shows the 15 most recent requests for the selected device,
+including requested values, acknowledgement state, message, request UUID, time,
+and user. This compact history is stored in SQLite. The current request status
+and request list are returned by:
 
 ```http
 GET /api/devices/oba3/control/status
 ```
 
-Every write is recorded in the audit log. The API rejects read-only fields,
-non-finite values, values outside their configured range, and excessively long
-text values.
+Every requested value and every observed request-state transition is also
+recorded in the Syslog audit trail. With the default configuration, the complete
+control audit, including rotated logs, can be extracted with:
+
+```bash
+sudo zgrep -h 'action=device_control_' /var/log/amp-panel/amp-panel.log*
+```
+
+The log location follows `SYSLOG_EXPORT_FILE` and is shown below the request
+list in the panel. The API rejects read-only fields, non-finite values, values
+outside their configured range, and excessively long text values.
 
 ## Historical data in SQLite
 

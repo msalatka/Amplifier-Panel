@@ -209,6 +209,7 @@ class DashboardApiTests(unittest.TestCase):
                 },
             ) as write,
             mock.patch.object(devices.api_security, "audit_event") as audit,
+            mock.patch.object(devices.database_service, "record_control_request") as record,
         ):
             result = devices.update_device_control(
                 "oba3",
@@ -220,6 +221,38 @@ class DashboardApiTests(unittest.TestCase):
         write.assert_called_once_with("oba3", {"oba3:GainSet": 28.5})
         self.assertEqual(result["state"], "pending")
         audit.assert_called_once()
+        record.assert_called_once_with(
+            "11111111-1111-4111-8111-111111111111",
+            "oba3",
+            "operator",
+            {"oba3:GainSet": 28.5},
+        )
+        self.assertIn("values={\"oba3:GainSet\":28.5}", audit.call_args.args[3])
+
+    def test_control_status_returns_recent_requests_and_audits_state_transition(self):
+        status = {
+            "request_id": "11111111-1111-4111-8111-111111111111",
+            "request_device_id": "oba3",
+            "state": "applied",
+            "message": "OK",
+        }
+        history = [{**status, "values": {"oba3:GainSet": 28.5}}]
+        with (
+            mock.patch.object(devices.xml_control, "get_control_status", return_value=status),
+            mock.patch.object(
+                devices.database_service, "update_control_request_status", return_value=True
+            ) as update,
+            mock.patch.object(
+                devices.database_service, "get_control_requests", return_value=history
+            ),
+            mock.patch.object(devices.syslog_service, "send_audit") as audit,
+        ):
+            result = devices.device_control_status("oba3", {})
+
+        update.assert_called_once_with(status["request_id"], "applied", "OK")
+        audit.assert_called_once()
+        self.assertEqual(result["requests"], history)
+        self.assertIn("action=device_control_", result["audit_command"])
 
     def test_operator_can_persist_xml_alarm_settings(self):
         with (

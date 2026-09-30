@@ -23,16 +23,22 @@
         <section class="administration-section device-control-status" aria-labelledby="device-control-status-title">
             <div class="settings-header">
                 <div>
-                    <h2 id="device-control-status-title">Last request</h2>
-                    <p class="settings-description">The device confirms the request through status.xml.</p>
+                    <h2 id="device-control-status-title">Last requests</h2>
+                    <p class="settings-description">The 15 most recent changes for this device. States are confirmed through status.xml.</p>
                 </div>
                 <button id="device-control-refresh" class="button-secondary" type="button">Refresh</button>
             </div>
-            <div class="device-control-status-row">
-                <div><span>Request ID</span><strong id="device-control-request-id">--</strong></div>
-                <div><span>State</span><strong id="device-control-state">idle</strong></div>
-                <div class="device-control-message"><span>Message</span><strong id="device-control-message">No request sent.</strong></div>
+            <div class="device-control-history-header" aria-hidden="true">
+                <span>Changes</span><span>State</span><span>Message</span><span>Request ID</span>
             </div>
+            <div id="device-control-history" class="device-control-history" aria-live="polite">
+                <p class="device-control-history-empty">No requests sent.</p>
+            </div>
+            <p class="device-control-audit-help">
+                The complete control audit is stored in <code id="device-control-audit-path">/var/log/amp-panel/amp-panel.log</code>.
+                Include current and rotated logs with:
+                <code id="device-control-audit-command">sudo zgrep -h 'action=device_control_' /var/log/amp-panel/amp-panel.log*</code>
+            </p>
         </section>
     </div>
 </section>
