@@ -177,7 +177,10 @@ class SnmpServiceTests(unittest.TestCase):
             sent = snmp.send_trap({"field": "test", "value": "TEST", "target": "receiver"})
 
         self.assertTrue(sent)
-        time_ticks.assert_called_once_with(1234)
+        time_ticks.assert_called_once()
+        # Binary floating-point subtraction may place 12.34 s one hundredth
+        # below its decimal representation before the production code floors it.
+        self.assertAlmostEqual(time_ticks.call_args.args[0], 1234, delta=1)
 
 
 if __name__ == "__main__":
