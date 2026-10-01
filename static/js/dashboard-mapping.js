@@ -1,5 +1,6 @@
 // Administrator editor for the complete XML-to-dashboard mapping.
 let xmlMappingSavedContent = null
+let xmlMappingRevision = null
 let pendingXmlVariable = null
 
 function locateXmlVariable(variable) {
@@ -114,6 +115,7 @@ async function loadXmlMapping() {
 		setTextIfExists('xml-mapping-path', result.path)
 		content.value = result.content
 		xmlMappingSavedContent = result.content
+		xmlMappingRevision = result.revision
 		message.textContent = ''
 		if (pendingXmlVariable) {
 			const variable = pendingXmlVariable
@@ -139,7 +141,7 @@ document.getElementById('xml-mapping-form')?.addEventListener('submit', async (e
 		const response = await fetch('/api/xml-mapping', {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ content: content.value }),
+			body: JSON.stringify({ content: content.value, revision: xmlMappingRevision }),
 		})
 		handleAuthResponse(response)
 		if (!response.ok) throw await responseError(response, 'Could not save XML mapping')
@@ -147,6 +149,7 @@ document.getElementById('xml-mapping-form')?.addEventListener('submit', async (e
 		setTextIfExists('xml-mapping-path', result.path)
 		content.value = result.content
 		xmlMappingSavedContent = result.content
+		xmlMappingRevision = result.revision
 		message.textContent = 'Mapping saved. Device views will use it on the next XML poll.'
 		showNotification('Variables saved.')
 	} catch (error) {

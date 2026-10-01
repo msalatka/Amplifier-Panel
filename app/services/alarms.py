@@ -1,14 +1,7 @@
 """Evaluate XML-mapped limits and publish alarm state changes."""
 
-import json
-import pathlib
-import tempfile
-import threading
-
-from app.core import config, state
-from app.services import snmp, syslog, xml_status
-
-mapping_write_lock = threading.Lock()
+from app.core import state
+from app.services import snmp, syslog, xml_mapping_store, xml_status
 
 
 def _key(device_id: str, section: str, field: str, kind: str) -> str:
@@ -27,8 +20,13 @@ def evaluate(device_id: str, snapshot: dict, observed_at: str) -> None:
             observed[(section["key"], field["key"])] = value
             if not alarm.get("enabled") or not isinstance(value, (int, float)):
                 continue
-            for kind, boundary in (("minimum", alarm.get("minimum")), ("maximum", alarm.get("maximum"))):
-                violated = boundary is not None and (value < boundary if kind == "minimum" else value > boundary)
+            for kind, boundary in (
+                ("minimum", alarm.get("minimum")),
+                ("maximum", alarm.get("maximum")),
+            ):
+                violated = boundary is not None and (
+                    value < boundary if kind == "minimum" else value > boundary
+                )
                 if violated:
                     key = _key(device_id, section["key"], field["key"], kind)
                     current[key] = {
@@ -46,7 +44,9 @@ def evaluate(device_id: str, snapshot: dict, observed_at: str) -> None:
 
     opened, cleared = [], []
     with state.state_lock:
-        previous_keys = {key for key, alarm in state.active_alarms.items() if alarm["device_id"] == device_id}
+        previous_keys = {
+            key for key, alarm in state.active_alarms.items() if alarm["device_id"] == device_id
+        }
         for key in previous_keys - set(current):
             alarm = state.active_alarms[key]
             if not alarm["condition_active"]:
@@ -61,10 +61,14 @@ def evaluate(device_id: str, snapshot: dict, observed_at: str) -> None:
             if key in state.active_alarms:
                 previous = state.active_alarms[key]
                 reopened = not previous["condition_active"]
-                previous.update(value=alarm["value"], message=alarm["message"], condition_active=True)
+                previous.update(
+                    value=alarm["value"], message=alarm["message"], condition_active=True
+                )
                 previous.pop("returned_to_normal_at", None)
                 if reopened:
-                    previous.update(acknowledged=False, opened_at=observed_at, event_time=observed_at)
+                    previous.update(
+                        acknowledged=False, opened_at=observed_at, event_time=observed_at
+                    )
                     opened.append(dict(previous))
             else:
                 active = {
@@ -88,7 +92,9 @@ def active(device_id: str) -> list[dict]:
     """Return detached active alarms for one device."""
 
     with state.state_lock:
-        return [dict(alarm) for alarm in state.active_alarms.values() if alarm["device_id"] == device_id]
+        return [
+            dict(alarm) for alarm in state.active_alarms.values() if alarm["device_id"] == device_id
+        ]
 
 
 def acknowledge(device_id: str, alarm_key: str) -> dict:
@@ -107,15 +113,14 @@ def acknowledge(device_id: str, alarm_key: str) -> dict:
 
 def update_config(device_id: str, updates: dict[str, dict]) -> dict:
     """Atomically update alarm blocks in the XML mapping."""
-    with mapping_write_lock:
-        mapping = xml_status.load_mapping()
+
+    def mutate(mapping: dict) -> dict:
         located = xml_status.find_mapping_profile(mapping, device_id)
         if located is None:
             raise ValueError(f"Device is not mapped: {device_id}")
         owner_id, _definition, mapped_section = located
         fields = {
-            f"{mapped_section['key']}:{field['key']}": field
-            for field in mapped_section["fields"]
+            f"{mapped_section['key']}:{field['key']}": field for field in mapped_section["fields"]
         }
         unknown = sorted(set(updates) - set(fields))
         if unknown:
@@ -127,18 +132,7 @@ def update_config(device_id: str, updates: dict[str, dict]) -> dict:
                 fields[identifier].pop("alarm", None)
             else:
                 fields[identifier]["alarm"] = alarm
-        xml_status.validate_mapping(mapping)
-        path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
-        content = json.dumps(mapping, ensure_ascii=False, indent=2) + "\n"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = None
-        try:
-            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as output:
-                output.write(content)
-                temporary = pathlib.Path(output.name)
-            temporary.chmod(0o640)
-            temporary.replace(path)
-        finally:
-            if temporary is not None:
-                temporary.unlink(missing_ok=True)
         return mapping[owner_id]
+
+    _path, _content, definition = xml_mapping_store.update(mutate)
+    return definition

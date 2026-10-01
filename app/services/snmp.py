@@ -21,8 +21,6 @@ TRAP_OID = f"{OID_BASE_STR}.4.1"
 # XML fields use their stable mapping ID below the enterprise root, followed by
 # the scalar instance suffix .0. For example field 5.1.1.2 becomes
 # 1.3.6.1.4.1.99999.5.1.1.2.0.
-STATUS_OID = f"{OID_BASE_STR}.1.1.0"
-
 LEGACY_LIVE_ROLES = {
     "input_a": "PiA",
     "output_a": "PoA",

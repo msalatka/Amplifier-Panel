@@ -3,10 +3,6 @@
 import asyncio
 import datetime
 import json
-import os
-import pathlib
-import tempfile
-import threading
 
 import fastapi
 import fastapi.responses
@@ -15,17 +11,15 @@ import starlette.requests
 
 from app.api import security as api_security
 from app.core import config, state
-from app.devices.registry import KNOWN_DEVICES
 from app.services import database as database_service
 from app.services import network as network_service
 from app.services import ntp as ntp_service
 from app.services import snmp as snmp_service
 from app.services import syslog as syslog_service
-from app.services import xml_control, xml_status
+from app.services import xml_control, xml_mapping_store, xml_status
 
 router = fastapi.APIRouter()
 heartbeat_settings_changed = asyncio.Event()
-xml_mapping_write_lock = threading.Lock()
 
 
 class NetworkSettingsRequest(pydantic.BaseModel):
@@ -67,6 +61,7 @@ class XmlMappingUpdateRequest(pydantic.BaseModel):
     """Complete JSON mapping submitted by an administrator."""
 
     content: str
+    revision: str = pydantic.Field(min_length=64, max_length=64)
 
 
 class XmlMappingFieldRequest(pydantic.BaseModel):
@@ -77,45 +72,24 @@ class XmlMappingFieldRequest(pydantic.BaseModel):
     key: str
 
 
-def _write_xml_mapping(mapping: dict) -> tuple[pathlib.Path, str]:
-    """Validate and atomically write a complete mapping document."""
-
-    xml_status.validate_mapping(mapping)
-    path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
-    content = json.dumps(mapping, ensure_ascii=False, indent=2) + "\n"
-    temporary_path: pathlib.Path | None = None
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=path.parent, delete=False, newline="\n"
-        ) as temporary:
-            temporary.write(content)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_path = pathlib.Path(temporary.name)
-        os.replace(temporary_path, path)
-    except OSError:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-        raise
-    return path, content
-
-
 @router.get("/api/xml-mapping")
 def get_xml_mapping(
     _current_user: dict = fastapi.Depends(api_security.require_roles("Administrator")),
 ):
     """Return the editable XML mapping and its configured disk location."""
 
-    path = pathlib.Path(config.XML_MAPPING_FILE).resolve()
+    path = xml_mapping_store.path()
     try:
-        content = path.read_text(encoding="utf-8")
-        xml_status.validate_mapping(json.loads(content))
+        _mapping, content = xml_mapping_store.read()
     except (OSError, ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise fastapi.HTTPException(
             status_code=500, detail=f"Could not read mapping: {exc}"
         ) from exc
-    return {"path": str(path), "content": content}
+    return {
+        "path": str(path),
+        "content": content,
+        "revision": xml_mapping_store.revision(content),
+    }
 
 
 @router.put("/api/xml-mapping")
@@ -133,8 +107,9 @@ def update_xml_mapping(
         raise fastapi.HTTPException(status_code=400, detail=f"Invalid mapping: {exc}") from exc
 
     try:
-        with xml_mapping_write_lock:
-            path, content = _write_xml_mapping(mapping)
+        path, content = xml_mapping_store.replace_if_revision(mapping, payload.revision)
+    except xml_mapping_store.MappingConflictError as exc:
+        raise fastapi.HTTPException(status_code=409, detail=str(exc)) from exc
     except OSError as exc:
         raise fastapi.HTTPException(
             status_code=500, detail=f"Could not save mapping: {exc}"
@@ -146,7 +121,12 @@ def update_xml_mapping(
         current_user["username"],
         f"path={path}",
     )
-    return {"status": "ok", "path": str(path), "content": content}
+    return {
+        "status": "ok",
+        "path": str(path),
+        "content": content,
+        "revision": xml_mapping_store.revision(content),
+    }
 
 
 @router.post("/api/xml-mapping/fields")
@@ -178,8 +158,8 @@ def add_xml_mapping_field(
         )
 
     try:
-        with xml_mapping_write_lock:
-            mapping = xml_status.load_mapping()
+
+        def mutate(mapping: dict) -> dict:
             field = {
                 "key": payload.key,
                 "id": live_field.get("id", ""),
@@ -193,9 +173,7 @@ def add_xml_mapping_field(
             located = xml_status.find_mapping_profile(mapping, payload.device_id)
             if located is None:
                 definition = state.device_definition(payload.device_id)
-                reserved_indexes = {
-                    item.snmp_index for item in KNOWN_DEVICES.values() if item.snmp_index is not None
-                }
+                reserved_indexes = set()
                 for mapped_definition in mapping.values():
                     for section in mapped_definition["sections"]:
                         index = section.get("snmp_index", mapped_definition.get("snmp_index"))
@@ -223,9 +201,13 @@ def add_xml_mapping_field(
             else:
                 _owner_id, _definition, mapping_section = located
                 if any(item["key"] == payload.key for item in mapping_section["fields"]):
-                    raise fastapi.HTTPException(status_code=409, detail="Variable is already mapped")
+                    raise fastapi.HTTPException(
+                        status_code=409, detail="Variable is already mapped"
+                    )
                 mapping_section["fields"].append(field)
-            path, content = _write_xml_mapping(mapping)
+            return field
+
+        path, content, field = xml_mapping_store.update(mutate)
     except fastapi.HTTPException:
         raise
     except (OSError, ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
@@ -251,12 +233,19 @@ def service_diagnostics(
 
     device_ids = state.active_device_ids()
     device = device or (device_ids[0] if device_ids else "")
-    if not state.is_active_device(device):
+    if device and not state.is_active_device(device):
         raise fastapi.HTTPException(status_code=404, detail="Device is not present in status.xml")
     with state.state_lock:
         settings = state.service_settings.copy()
     storage = database_service.get_storage_status(device)
-    live = state.snapshot_device_live(device)
+    live = (
+        state.snapshot_device_live(device)
+        if device
+        else {
+            "connected": False,
+            "error": "No device profiles found in status.xml",
+        }
+    )
     return {
         "acquisition": {
             "source": "status.xml",
@@ -314,8 +303,8 @@ async def update_service_diagnostics_settings(
             status_code=400,
             detail="Database limit must be 0 (unlimited) or between 1 and 10000000 records",
         )
-    device_id = request.device_id or next(iter(state.active_device_ids()), "")
-    if not state.is_active_device(device_id):
+    device_id = request.device_id
+    if device_id and not state.is_active_device(device_id):
         raise fastapi.HTTPException(status_code=404, detail="Device is not present in status.xml")
     with state.state_lock:
         before = state.service_settings.copy()
@@ -497,7 +486,12 @@ def send_test_snmp_trap(
     """Send an explicit test notification to the configured trap receiver."""
 
     if not snmp_service.send_trap(
-        {"field": "test", "label": "Amp Panel test", "value": "TEST", "target": "configured receiver"}
+        {
+            "field": "test",
+            "label": "Amp Panel test",
+            "value": "TEST",
+            "target": "configured receiver",
+        }
     ):
         detail = snmp_service.last_trap_error or "SNMP trap could not be sent"
         raise fastapi.HTTPException(status_code=503, detail=detail)

@@ -16,8 +16,25 @@ from app.services import xml_status
 class DashboardApiTests(unittest.TestCase):
     def setUp(self):
         state.set_device_inventory(
-            [definition_dict(device_id) for device_id in ("local", "oba", "oba3")]
+            [
+                definition_dict("local", label="Local station", snmp_index=1),
+                definition_dict(
+                    "oba",
+                    label="EDFA OBA",
+                    view_profile="amplifier",
+                    display_group="Amplifiers",
+                    snmp_index=5,
+                ),
+                definition_dict(
+                    "oba3",
+                    label="EDFA OBA3",
+                    view_profile="amplifier",
+                    display_group="Amplifiers",
+                    snmp_index=6,
+                ),
+            ]
         )
+
     def test_csv_export_uses_one_column_per_observed_field(self):
         points = iter(
             [
@@ -44,14 +61,16 @@ class DashboardApiTests(unittest.TestCase):
         mapping["oba"]["label"] = "Edited amplifier"
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "xml_mapping.json"
-            path.write_text("{}", encoding="utf-8")
+            original = json.dumps(xml_status.load_mapping())
+            path.write_text(original, encoding="utf-8")
             with (
                 mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
                 mock.patch.object(diagnostics.api_security, "audit_event") as audit,
             ):
                 result = diagnostics.update_xml_mapping(
                     diagnostics.XmlMappingUpdateRequest(
-                        content=json.dumps(mapping, ensure_ascii=False)
+                        content=json.dumps(mapping, ensure_ascii=False),
+                        revision=diagnostics.xml_mapping_store.revision(original),
                     ),
                     mock.Mock(),
                     {"username": "admin", "role": "Administrator"},
@@ -73,13 +92,40 @@ class DashboardApiTests(unittest.TestCase):
                 self.assertRaises(Exception) as caught,
             ):
                 diagnostics.update_xml_mapping(
-                    diagnostics.XmlMappingUpdateRequest(content='{"local": {}}'),
+                    diagnostics.XmlMappingUpdateRequest(
+                        content='{"local": {}}',
+                        revision=diagnostics.xml_mapping_store.revision(original),
+                    ),
                     mock.Mock(),
                     {"username": "admin", "role": "Administrator"},
                 )
 
             self.assertEqual(caught.exception.status_code, 400)
             self.assertEqual(path.read_text(encoding="utf-8"), original)
+
+    def test_stale_xml_mapping_editor_cannot_overwrite_a_newer_change(self):
+        mapping = xml_status.load_mapping()
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "xml_mapping.json"
+            loaded = json.dumps(mapping)
+            path.write_text(loaded, encoding="utf-8")
+            mapping["oba"]["label"] = "Changed elsewhere"
+            path.write_text(json.dumps(mapping), encoding="utf-8")
+
+            with (
+                mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
+                self.assertRaises(Exception) as caught,
+            ):
+                diagnostics.update_xml_mapping(
+                    diagnostics.XmlMappingUpdateRequest(
+                        content=loaded,
+                        revision=diagnostics.xml_mapping_store.revision(loaded),
+                    ),
+                    mock.Mock(),
+                    {"username": "admin", "role": "Administrator"},
+                )
+
+        self.assertEqual(caught.exception.status_code, 409)
 
     def test_administrator_can_persist_an_automatically_discovered_field(self):
         mapping = xml_status.load_mapping()
@@ -161,9 +207,7 @@ class DashboardApiTests(unittest.TestCase):
             with (
                 mock.patch.object(diagnostics.config, "XML_MAPPING_FILE", str(path)),
                 mock.patch.object(diagnostics.state, "is_active_device", return_value=True),
-                mock.patch.object(
-                    diagnostics.state, "device_definition", return_value=definition
-                ),
+                mock.patch.object(diagnostics.state, "device_definition", return_value=definition),
                 mock.patch.object(diagnostics.state, "snapshot_device_live", return_value=live),
                 mock.patch.object(diagnostics.api_security, "audit_event"),
             ):
@@ -227,9 +271,9 @@ class DashboardApiTests(unittest.TestCase):
             "operator",
             {"oba3:GainSet": 28.5},
         )
-        self.assertIn("values={\"oba3:GainSet\":28.5}", audit.call_args.args[3])
+        self.assertIn('values={"oba3:GainSet":28.5}', audit.call_args.args[3])
 
-    def test_control_status_returns_recent_requests_and_audits_state_transition(self):
+    def test_control_status_returns_recent_requests_without_reconciling_in_http_request(self):
         status = {
             "request_id": "11111111-1111-4111-8111-111111111111",
             "request_device_id": "oba3",
@@ -240,17 +284,11 @@ class DashboardApiTests(unittest.TestCase):
         with (
             mock.patch.object(devices.xml_control, "get_control_status", return_value=status),
             mock.patch.object(
-                devices.database_service, "update_control_request_status", return_value=True
-            ) as update,
-            mock.patch.object(
                 devices.database_service, "get_control_requests", return_value=history
             ),
-            mock.patch.object(devices.syslog_service, "send_audit") as audit,
         ):
             result = devices.device_control_status("oba3", {})
 
-        update.assert_called_once_with(status["request_id"], "applied", "OK")
-        audit.assert_called_once()
         self.assertEqual(result["requests"], history)
         self.assertIn("action=device_control_", result["audit_command"])
 
@@ -262,11 +300,7 @@ class DashboardApiTests(unittest.TestCase):
             result = devices.update_alarm_settings(
                 "oba3",
                 devices.AlarmSettingsUpdate(
-                    alarms={
-                        "oba3:Temp": devices.AlarmLimits(
-                            enabled=True, minimum=5, maximum=50
-                        )
-                    }
+                    alarms={"oba3:Temp": devices.AlarmLimits(enabled=True, minimum=5, maximum=50)}
                 ),
                 mock.Mock(),
                 {"username": "operator", "role": "Operator"},

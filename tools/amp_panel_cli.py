@@ -661,8 +661,8 @@ def _chown(path: pathlib.Path, uid: int | None, gid: int | None) -> None:
         os.chown(path, uid, gid)
 
 
-def _merge_control_mapping_metadata(mapping_file: pathlib.Path) -> None:
-    """Add packaged write-safety metadata without replacing operator customizations."""
+def _merge_packaged_mapping_metadata(mapping_file: pathlib.Path) -> None:
+    """Add packaged profile and write metadata without replacing customizations."""
 
     try:
         current = json.loads(mapping_file.read_text(encoding="utf-8"))
@@ -676,6 +676,15 @@ def _merge_control_mapping_metadata(mapping_file: pathlib.Path) -> None:
         current_device = current.get(device_id)
         if not isinstance(current_device, dict) or not isinstance(packaged_device, dict):
             continue
+        for key in ("view_profile", "display_group", "order", "snmp_index"):
+            if key in packaged_device and key not in current_device:
+                current_device[key] = packaged_device[key]
+                changed = True
+        packaged_sections = {
+            section.get("key"): section
+            for section in packaged_device.get("sections", [])
+            if isinstance(section, dict)
+        }
         packaged_fields = {
             (section.get("key"), field.get("key")): field
             for section in packaged_device.get("sections", [])
@@ -686,6 +695,11 @@ def _merge_control_mapping_metadata(mapping_file: pathlib.Path) -> None:
         for section in current_device.get("sections", []):
             if not isinstance(section, dict):
                 continue
+            packaged_section = packaged_sections.get(section.get("key"), {})
+            for key in ("profile_label", "view_profile", "display_group", "order", "snmp_index"):
+                if key in packaged_section and key not in section:
+                    section[key] = packaged_section[key]
+                    changed = True
             for field in section.get("fields", []):
                 if not isinstance(field, dict):
                     continue
@@ -719,7 +733,7 @@ def prepare_data_directory(values: dict[str, str]) -> None:
                     f"Packaged XML mapping is missing: {PACKAGED_XML_MAPPING_FILE}"
                 )
             shutil.copyfile(PACKAGED_XML_MAPPING_FILE, mapping_file)
-        _merge_control_mapping_metadata(mapping_file)
+        _merge_packaged_mapping_metadata(mapping_file)
         _chown(mapping_file, uid, gid)
         os.chmod(mapping_file, 0o640)
     if not control_file.exists():

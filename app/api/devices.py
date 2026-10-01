@@ -17,7 +17,6 @@ from app.api import security as api_security
 from app.core import config, state
 from app.services import alarms, xml_control
 from app.services import database as database_service
-from app.services import syslog as syslog_service
 from app.services.device_statistics import scalar_fields
 
 router = fastapi.APIRouter(prefix="/api/devices")
@@ -188,9 +187,7 @@ def acknowledge_device_alarm(
     device_id: str,
     body: AlarmAcknowledgement,
     request: starlette.requests.Request,
-    current_user: dict = fastapi.Depends(
-        api_security.require_roles("Administrator", "Operator")
-    ),
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
     """Acknowledge one alarm while retaining any active condition."""
 
@@ -213,9 +210,7 @@ def update_alarm_settings(
     device_id: str,
     body: AlarmSettingsUpdate,
     request: starlette.requests.Request,
-    current_user: dict = fastapi.Depends(
-        api_security.require_roles("Administrator", "Operator")
-    ),
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
     """Persist per-field XML alarm limits in the mapping file."""
 
@@ -246,9 +241,7 @@ def update_device_control(
     device_id: str,
     body: DeviceControlUpdate,
     request: starlette.requests.Request,
-    current_user: dict = fastapi.Depends(
-        api_security.require_roles("Administrator", "Operator")
-    ),
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
     """Atomically publish validated desired values to the device-facing XML."""
 
@@ -274,35 +267,17 @@ def update_device_control(
 
 @router.get("/{device_id}/control/status")
 def device_control_status(device_id: str, _current_user: dict = viewer):
-    """Return current acknowledgement and the latest local request history."""
+    """Return the current XML state and the latest locally reconciled history."""
 
     require_enabled(device_id)
     status = xml_control.get_control_status()
-    request_id = status.get("request_id")
-    if (
-        request_id
-        and status.get("request_device_id") == device_id
-        and database_service.update_control_request_status(
-            request_id, status["state"], status["message"]
-        )
-    ):
-        syslog_service.send_audit(
-            "device_control_status_changed",
-            "system",
-            "local",
-            f"device={device_id}; request_id={request_id}; "
-            f"state={status['state']}; "
-            f"message={json.dumps(status['message'], ensure_ascii=False)}",
-        )
     audit_path = config.SYSLOG_EXPORT_FILE
     return {
         "device_id": device_id,
         **status,
         "requests": database_service.get_control_requests(device_id, 15),
         "audit_log": audit_path,
-        "audit_command": (
-            "sudo zgrep -h 'action=device_control_' " f"{shlex.quote(audit_path)}*"
-        ),
+        "audit_command": (f"sudo zgrep -h 'action=device_control_' {shlex.quote(audit_path)}*"),
     }
 
 
@@ -330,9 +305,7 @@ def update_live_fields(
     device_id: str,
     body: LiveFieldsUpdate,
     request: starlette.requests.Request,
-    current_user: dict = fastapi.Depends(
-        api_security.require_roles("Administrator", "Operator")
-    ),
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
     """Persist the shared amplifier live-view layout."""
     require_enabled(device_id)
@@ -368,9 +341,7 @@ def update_chart_layout(
     device_id: str,
     body: ChartLayoutUpdate,
     request: starlette.requests.Request,
-    current_user: dict = fastapi.Depends(
-        api_security.require_roles("Administrator", "Operator")
-    ),
+    current_user: dict = fastapi.Depends(api_security.require_roles("Administrator", "Operator")),
 ):
     """Persist selected numeric series and their chart assignments."""
     require_enabled(device_id)
@@ -379,7 +350,9 @@ def update_chart_layout(
         raise fastapi.HTTPException(status_code=422, detail="Chart number must be from 1 to 8")
     unknown = sorted(set(charts) - _numeric_field_ids(device_id))
     if unknown:
-        raise fastapi.HTTPException(status_code=422, detail=f"Unknown numeric fields: {', '.join(unknown)}")
+        raise fastapi.HTTPException(
+            status_code=422, detail=f"Unknown numeric fields: {', '.join(unknown)}"
+        )
 
     with state.state_lock:
         before = state.device_chart_layouts.get(device_id)

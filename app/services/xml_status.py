@@ -149,7 +149,11 @@ def validate_mapping(mapping: dict) -> dict:
                         raise ValueError(f"Alarm {boundary} must be finite and numeric")
                 if alarm.get("enabled") and not any(key in alarm for key in ("minimum", "maximum")):
                     raise ValueError("Enabled alarm needs a minimum or maximum")
-                if "minimum" in alarm and "maximum" in alarm and alarm["minimum"] >= alarm["maximum"]:
+                if (
+                    "minimum" in alarm
+                    and "maximum" in alarm
+                    and alarm["minimum"] >= alarm["maximum"]
+                ):
                     raise ValueError("Alarm minimum must be lower than maximum")
                 for boundary in ("minimum", "maximum"):
                     if boundary in field and (
@@ -268,7 +272,9 @@ def parse_status(payload: bytes, mapping: dict) -> dict:
                     else parameter.findtext("name") == field["name"]
                 )
             ]
-            field_type = "boolean" if field["key"] in boolean_fields else field.get("type", "number")
+            field_type = (
+                "boolean" if field["key"] in boolean_fields else field.get("type", "number")
+            )
             value = None
             if len(matches) == 1:
                 try:
@@ -342,6 +348,9 @@ def poll_once() -> None:
             runtime.report_failure(key, f"XML: {exc}")
         return
     state.set_device_inventory([snapshot["profile"] for snapshot in snapshots.values()])
+    from app.services import control_requests
+
+    control_requests.reconcile()
     for key, snapshot in snapshots.items():
         from app.services import alarms
 

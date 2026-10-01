@@ -1,4 +1,4 @@
-"""Metadata for XML-discovered device profiles."""
+"""Safe presentation defaults for profiles absent from the XML mapping."""
 
 from dataclasses import asdict, dataclass
 
@@ -15,24 +15,9 @@ class DeviceDefinition:
     snmp_index: int | None = None
 
 
-KNOWN_DEVICES = {
-    definition.id: definition
-    for definition in (
-        DeviceDefinition("local", "Local station", "station", "Local station", 10, 1),
-        DeviceDefinition("local_di", "Local DI", "station", "Local station", 20, 2),
-        DeviceDefinition("remote", "Remote station", "station", "Remote station", 30, 3),
-        DeviceDefinition("remote_di", "Remote DI", "station", "Remote station", 40, 4),
-        DeviceDefinition("oba", "EDFA OBA", "amplifier", "Amplifiers", 50, 5),
-        DeviceDefinition("oba3", "EDFA OBA3", "amplifier", "Amplifiers", 60, 6),
-    )
-}
-
-
 def inferred_definition(device_id: str, label: str | None = None) -> DeviceDefinition:
-    """Return stable known metadata or safe defaults for a new XML profile."""
+    """Return safe defaults for a newly discovered XML profile."""
 
-    if device_id in KNOWN_DEVICES:
-        return KNOWN_DEVICES[device_id]
     generated_label = label or device_id.replace("_", " ").strip().title() or device_id
     return DeviceDefinition(device_id, generated_label)
 

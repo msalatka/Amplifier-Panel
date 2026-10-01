@@ -6,6 +6,12 @@ from pysnmp.proto import rfc1902, rfc1905
 from app.devices.registry import definition_dict
 from app.services import snmp
 
+DEFINITIONS = {
+    "local": definition_dict("local", label="Local station", snmp_index=1),
+    "oba": definition_dict("oba", label="EDFA OBA", view_profile="amplifier", snmp_index=5),
+    "oba3": definition_dict("oba3", label="EDFA OBA3", view_profile="amplifier", snmp_index=6),
+}
+
 
 def device_snapshot(
     section: str,
@@ -48,7 +54,7 @@ class SnmpServiceTests(unittest.TestCase):
             mock.patch.object(
                 snmp.state,
                 "device_definition",
-                side_effect=lambda device_id: definition_dict(device_id),
+                side_effect=lambda device_id: DEFINITIONS[device_id],
             ),
             mock.patch.object(
                 snmp.state,
@@ -88,7 +94,7 @@ class SnmpServiceTests(unittest.TestCase):
             mock.patch.object(
                 snmp.state,
                 "device_definition",
-                side_effect=lambda device_id: definition_dict(device_id),
+                side_effect=lambda device_id: DEFINITIONS[device_id],
             ),
             mock.patch.object(
                 snmp.state,

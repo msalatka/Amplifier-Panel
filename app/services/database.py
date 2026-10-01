@@ -325,11 +325,23 @@ def record_control_request(
     timestamp_ms = _timestamp_ms(None)
     with database_lock:
         try:
+            latest = connection.execute(
+                "SELECT MAX(created_ms) FROM control_requests WHERE device_id = ?",
+                (device_id,),
+            ).fetchone()[0]
+            if latest is not None:
+                timestamp_ms = max(timestamp_ms, int(latest) + 1)
             connection.execute(
                 "INSERT OR REPLACE INTO control_requests "
                 "(request_id, created_ms, updated_ms, device_id, username, values_json, state, message) "
                 "VALUES (?, ?, ?, ?, ?, ?, 'pending', 'awaiting acknowledgement')",
                 (request_id, timestamp_ms, timestamp_ms, device_id, username, payload),
+            )
+            connection.execute(
+                "DELETE FROM control_requests WHERE device_id = ? AND request_id NOT IN "
+                "(SELECT request_id FROM control_requests WHERE device_id = ? "
+                "ORDER BY created_ms DESC LIMIT 100)",
+                (device_id, device_id),
             )
             connection.commit()
             last_error = None

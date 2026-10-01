@@ -38,7 +38,6 @@ line-ending = "lf"
 python_version = "3.11"
 files = [
     "app/core/config.py",
-    "app/core/device_schema.py",
     "app/services/database_schema.py",
 ]
 check_untyped_defs = true

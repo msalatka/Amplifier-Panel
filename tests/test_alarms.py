@@ -81,7 +81,7 @@ class AlarmServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "xml_mapping.json"
             path.write_text(json.dumps(mapping), encoding="utf-8")
-            with mock.patch.object(alarms.config, "XML_MAPPING_FILE", str(path)):
+            with mock.patch.object(alarms.xml_mapping_store.config, "XML_MAPPING_FILE", str(path)):
                 alarms.update_config("oba3", {identifier: {"enabled": False}})
 
             saved = json.loads(path.read_text(encoding="utf-8"))

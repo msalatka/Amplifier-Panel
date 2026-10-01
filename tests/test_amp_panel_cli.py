@@ -90,6 +90,7 @@ class AmpPanelCliTests(unittest.TestCase):
     def test_existing_mapping_receives_new_write_metadata_without_overwriting_it(self):
         current = {
             "oba3": {
+                "display_group": "Operator group",
                 "sections": [
                     {"key": "oba3", "fields": [{"key": "GainSet", "writable": False}]}
                 ]
@@ -97,9 +98,14 @@ class AmpPanelCliTests(unittest.TestCase):
         }
         packaged = {
             "oba3": {
+                "view_profile": "amplifier",
+                "display_group": "Amplifiers",
+                "order": 60,
+                "snmp_index": 6,
                 "sections": [
                     {
                         "key": "oba3",
+                        "profile_label": "EDFA OBA3",
                         "fields": [
                             {
                                 "key": "GainSet",
@@ -121,11 +127,15 @@ class AmpPanelCliTests(unittest.TestCase):
             with mock.patch.object(
                 amp_panel_cli, "PACKAGED_XML_MAPPING_FILE", packaged_path
             ):
-                amp_panel_cli._merge_control_mapping_metadata(current_path)
-            field = json.loads(current_path.read_text(encoding="utf-8"))["oba3"][
-                "sections"
-            ][0]["fields"][0]
+                amp_panel_cli._merge_packaged_mapping_metadata(current_path)
+            saved = json.loads(current_path.read_text(encoding="utf-8"))["oba3"]
+            field = saved["sections"][0]["fields"][0]
 
+        self.assertEqual(saved["view_profile"], "amplifier")
+        self.assertEqual(saved["display_group"], "Operator group")
+        self.assertEqual(saved["order"], 60)
+        self.assertEqual(saved["snmp_index"], 6)
+        self.assertEqual(saved["sections"][0]["profile_label"], "EDFA OBA3")
         self.assertIs(field["writable"], False)
         self.assertEqual(field["minimum"], 0)
         self.assertEqual(field["maximum"], 40)

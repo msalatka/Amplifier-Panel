@@ -28,6 +28,9 @@
             <details class="device-switcher">
                 <summary class="sidebar-logo">Amp Panel <span aria-hidden="true">▾</span></summary>
                 <div class="device-switcher-list" aria-label="Devices found in status.xml">
+                    {% if not has_devices %}
+                    <span class="device-switcher-empty">No profiles found in status.xml</span>
+                    {% endif %}
                     {% set switcher = namespace(group=none) %}
                     {% for device in devices %}
                     <a href="/?device={{ device.id | urlencode }}" data-device-link="{{ device.id }}" {% if switcher.group is not none and switcher.group != device.display_group %}class="device-group-separator"{% endif %} {% if device.id == selected_device %}aria-current="page"{% endif %}>
@@ -41,15 +44,15 @@
             <nav class="sidebar-nav">
                 <div class="nav-group">
                     <span class="nav-group-title">Device</span>
-                    <button type="button" class="nav-link active" data-tab="standard-view" data-title="Live View">Live View</button>
-                    <button type="button" class="nav-link" data-tab="device-control" data-title="Device Control" data-operator-only>Control</button>
+                    <button type="button" class="nav-link{% if has_devices %} active{% endif %}" data-tab="standard-view" data-title="Live View" {% if not has_devices %}disabled{% endif %}>Live View</button>
+                    <button type="button" class="nav-link" data-tab="device-control" data-title="Device Control" data-operator-only {% if not has_devices %}disabled{% endif %}>Control</button>
                 </div>
 
                 <div class="nav-group">
                     <span class="nav-group-title">Monitor</span>
-                    <button type="button" class="nav-link" data-tab="overview" data-title="Overview">Overview</button>
-                    <button type="button" class="nav-link" data-tab="statistics" data-title="Statistics">Statistics</button>
-                    <button type="button" class="nav-link" data-tab="warnings" data-title="Warnings">Warnings</button>
+                    <button type="button" class="nav-link" data-tab="overview" data-title="Overview" {% if not has_devices %}disabled{% endif %}>Overview</button>
+                    <button type="button" class="nav-link" data-tab="statistics" data-title="Statistics" {% if not has_devices %}disabled{% endif %}>Statistics</button>
+                    <button type="button" class="nav-link" data-tab="warnings" data-title="Warnings" {% if not has_devices %}disabled{% endif %}>Warnings</button>
                 </div>
 
                 <div class="nav-group" data-admin-only>

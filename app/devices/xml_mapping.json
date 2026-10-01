@@ -18,6 +18,11 @@
         "key": "local",
         "xml_section": "params_local",
         "label": "LOCAL",
+        "profile_label": "Local station",
+        "view_profile": "station",
+        "display_group": "Local station",
+        "order": 10,
+        "snmp_index": 1,
         "discover_unmapped": true,
         "fields": [
           {
@@ -146,6 +151,11 @@
         "key": "local_di",
         "xml_section": "params_local_di",
         "label": "LOCAL DI",
+        "profile_label": "Local DI",
+        "view_profile": "station",
+        "display_group": "Local station",
+        "order": 20,
+        "snmp_index": 2,
         "discover_unmapped": true,
         "fields": [
           {
@@ -320,6 +330,11 @@
         "key": "remote",
         "xml_section": "params_remote",
         "label": "REMOTE",
+        "profile_label": "Remote station",
+        "view_profile": "station",
+        "display_group": "Remote station",
+        "order": 30,
+        "snmp_index": 3,
         "fields": [
           {
             "key": "RemSync",
@@ -427,6 +442,11 @@
         "key": "remote_di",
         "xml_section": "params_remote_di",
         "label": "REMOTE DI",
+        "profile_label": "Remote DI",
+        "view_profile": "station",
+        "display_group": "Remote station",
+        "order": 40,
+        "snmp_index": 4,
         "fields": [
           {
             "key": "RemSync",
@@ -544,6 +564,10 @@
   },
   "oba": {
     "label": "EDFA OBA",
+    "view_profile": "amplifier",
+    "display_group": "Amplifiers",
+    "order": 50,
+    "snmp_index": 5,
     "sections": [
       {
         "key": "oba",
@@ -647,6 +671,10 @@
   },
   "oba3": {
     "label": "EDFA OBA3",
+    "view_profile": "amplifier",
+    "display_group": "Amplifiers",
+    "order": 60,
+    "snmp_index": 6,
     "sections": [
       {
         "key": "oba3",

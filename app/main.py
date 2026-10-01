@@ -42,8 +42,7 @@ async def syslog_heartbeat_loop() -> None:
         device_ids = state.active_device_ids()
         database_status = database_service.get_runtime_status(device_ids[0] if device_ids else "")
         stored_records = sum(
-            database_service.get_runtime_status(device_id)["records"]
-            for device_id in device_ids
+            database_service.get_runtime_status(device_id)["records"] for device_id in device_ids
         )
         syslog_service.send_lifecycle(
             "heartbeat",
@@ -109,12 +108,14 @@ def home(request: starlette.requests.Request, device: str | None = None):
     """Render one browser-selected device without switching the running workers."""
 
     device_ids = state.active_device_ids()
-    if not device_ids:
-        raise fastapi.HTTPException(status_code=503, detail="No device profiles found in status.xml")
-    selected = device or device_ids[0]
-    if selected not in device_ids:
+    selected = device or (device_ids[0] if device_ids else "")
+    if selected and selected not in device_ids:
         raise fastapi.HTTPException(status_code=404, detail="Device is not present in status.xml")
-    selected_definition = state.device_definition(selected)
+    selected_definition = (
+        state.device_definition(selected)
+        if selected
+        else {"view_profile": "station", "label": "No device profiles found"}
+    )
 
     return templates.TemplateResponse(
         request=request,
@@ -125,5 +126,6 @@ def home(request: starlette.requests.Request, device: str | None = None):
             "selected_device": selected,
             "device_label": selected_definition["label"],
             "devices": [state.device_definition(device_id) for device_id in device_ids],
+            "has_devices": bool(device_ids),
         },
     )

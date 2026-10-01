@@ -167,6 +167,22 @@ class DatabaseServiceTests(unittest.TestCase):
         self.assertEqual(requests[0]["message"], "OK")
         self.assertEqual(requests[0]["username"], "operator")
 
+    def test_control_request_history_is_bounded_per_device(self):
+        for index in range(105):
+            self.assertTrue(
+                database_service.record_control_request(
+                    f"00000000-0000-4000-8000-{index:012d}",
+                    "oba3",
+                    "operator",
+                    {"oba3:GainSet": index},
+                )
+            )
+
+        count = database_service.connection.execute(
+            "SELECT COUNT(*) FROM control_requests WHERE device_id = 'oba3'"
+        ).fetchone()[0]
+        self.assertEqual(count, 100)
+
 
 if __name__ == "__main__":
     unittest.main()

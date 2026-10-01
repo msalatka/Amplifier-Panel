@@ -218,9 +218,15 @@ def set_device_inventory(definitions: list[dict]) -> None:
 
     ordered = sorted(definitions, key=lambda item: (item.get("order", 1000), item["id"]))
     with state_lock:
+        active_ids = {item["id"] for item in ordered}
         active_device_order[:] = [item["id"] for item in ordered]
         device_definitions.clear()
         device_definitions.update({item["id"]: copy.deepcopy(item) for item in ordered})
+        for device_id in set(device_live) - active_ids:
+            device_live.pop(device_id, None)
+        for alarm_key, alarm in list(active_alarms.items()):
+            if alarm.get("device_id") not in active_ids:
+                active_alarms.pop(alarm_key, None)
         for device_id in active_device_order:
             device_live.setdefault(
                 device_id,

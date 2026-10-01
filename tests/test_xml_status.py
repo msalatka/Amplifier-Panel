@@ -9,7 +9,7 @@ from unittest import mock
 
 from app.api import devices
 from app.core import config
-from app.services import xml_status
+from app.services import control_requests, xml_status
 
 
 class XmlStatusTests(unittest.TestCase):
@@ -83,9 +83,7 @@ class XmlStatusTests(unittest.TestCase):
         result = xml_status.parse_status(self.payload, mapping)["oba3"]
         descriptor = result["sections"][0]["fields"][0]
 
-        self.assertEqual(
-            descriptor["alarm"], {"enabled": True, "minimum": 10, "maximum": 40}
-        )
+        self.assertEqual(descriptor["alarm"], {"enabled": True, "minimum": 10, "maximum": 40})
 
     def test_boolean_fields_reject_values_other_than_zero_or_one(self):
         payload = self.payload.replace(
@@ -100,7 +98,7 @@ class XmlStatusTests(unittest.TestCase):
     def test_new_local_fields_are_discovered_without_mapping_changes(self):
         payload = self.payload.replace(
             b"</params_local>",
-            b"<param id=\"2.1.1.99\"><name>NewDiagnostic</name>"
+            b'<param id="2.1.1.99"><name>NewDiagnostic</name>'
             b"<value>12.5</value></param></params_local>",
             1,
         )
@@ -115,7 +113,7 @@ class XmlStatusTests(unittest.TestCase):
     def test_unmapped_remote_fields_still_require_explicit_configuration(self):
         payload = self.payload.replace(
             b"</params_remote>",
-            b"<param id=\"3.1.1.99\"><name>NewRemoteField</name>"
+            b'<param id="3.1.1.99"><name>NewRemoteField</name>'
             b"<value>1</value></param></params_remote>",
             1,
         )
@@ -126,15 +124,13 @@ class XmlStatusTests(unittest.TestCase):
     def test_new_amplifier_fields_are_ready_for_live_view_and_history(self):
         payload = self.payload.replace(
             b"</params_oba3>",
-            b"<param id=\"5.1.1.99\"><name>NewAmplifierValue</name>"
+            b'<param id="5.1.1.99"><name>NewAmplifierValue</name>'
             b"<value>42.5</value></param></params_oba3>",
             1,
         )
         result = xml_status.parse_status(payload, self.mapping)["oba3"]
         automatic = next(
-            field
-            for field in result["sections"][0]["fields"]
-            if field["key"] == "auto:5.1.1.99"
+            field for field in result["sections"][0]["fields"] if field["key"] == "auto:5.1.1.99"
         )
 
         self.assertEqual(automatic["label"], "NewAmplifierValue")
@@ -219,6 +215,7 @@ class XmlStatusTests(unittest.TestCase):
                     return_value={"data": {}, "last_update": None},
                 ),
                 mock.patch.object(xml_status.runtime, "publish_snapshot"),
+                mock.patch.object(control_requests, "reconcile") as reconcile,
             ):
                 xml_status.poll_once()
                 path.write_bytes(self.payload)
@@ -229,6 +226,7 @@ class XmlStatusTests(unittest.TestCase):
             inventories[1],
             ("local", "local_di", "remote", "remote_di", "oba", "oba3"),
         )
+        self.assertEqual(reconcile.call_count, 2)
 
     def test_missing_sections_do_not_invent_zero_values(self):
         result = xml_status.parse_status(b"<status><params_oba3/></status>", self.mapping)
@@ -282,8 +280,7 @@ class XmlStatusTests(unittest.TestCase):
     def test_poll_stores_history_only_for_devices_whose_values_changed(self):
         snapshots = xml_status.parse_status(self.payload, self.mapping)
         previous = {
-            key: {"last_update": "earlier", "data": snapshot}
-            for key, snapshot in snapshots.items()
+            key: {"last_update": "earlier", "data": snapshot} for key, snapshot in snapshots.items()
         }
         changed_payload = self.payload.replace(
             b"<name>Gain</name>\n      <value>30</value>",

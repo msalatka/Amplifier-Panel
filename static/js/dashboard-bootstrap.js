@@ -4,10 +4,24 @@ function updateOverviewCharts() {
 function updateStatisticsTable() {
 	return loadXmlStatistics()
 }
+const runningRefreshJobs = new Set()
+async function runRefreshJob(name, callback) {
+	if (runningRefreshJobs.has(name)) return
+	runningRefreshJobs.add(name)
+	try {
+		await callback()
+	} catch (error) {
+		console.error(`Refresh job ${name} failed:`, error)
+	} finally {
+		runningRefreshJobs.delete(name)
+	}
+}
 async function startDataRefresh() {
 	await refreshDeviceList()
-	await updateDashboard()
-	await updateStatisticsTable()
+	if (selectedDeviceId) {
+		await updateDashboard()
+		await updateStatisticsTable()
+	}
 
 	if (isAdministrator()) {
 		await loadAccessUsers()
@@ -29,6 +43,17 @@ async function refreshDeviceList() {
 		}
 		const list = document.querySelector('.device-switcher-list')
 		if (!list) return
+		const signature = JSON.stringify(
+			devices.map(({ id, label, display_group }) => [id, label, display_group]),
+		)
+		if (list.dataset.inventorySignature === signature) {
+			devices.forEach((device) => {
+				const status = list.querySelector(`[data-device-status="${CSS.escape(device.id)}"]`)
+				if (status)
+					status.textContent = device.connected ? 'Data current' : 'No current data'
+			})
+			return
+		}
 		const previousGroup = { value: null }
 		const links = devices.map((device) => {
 			const link = document.createElement('a')
@@ -48,6 +73,7 @@ async function refreshDeviceList() {
 			return link
 		})
 		list.replaceChildren(...links)
+		list.dataset.inventorySignature = signature
 	} catch (error) {
 		console.error('Could not refresh device list:', error)
 	}
@@ -62,41 +88,48 @@ checkAuth().then((isAuthenticated) => {
 	}
 })
 
-setInterval(updateDashboard, 1000)
-setInterval(refreshDeviceList, 3000)
+setInterval(() => {
+	if (selectedDeviceId) runRefreshJob('dashboard', updateDashboard)
+}, 1000)
+setInterval(() => runRefreshJob('devices', refreshDeviceList), 3000)
 setInterval(() => {
 	if (!currentUser) return
 
 	const overviewTab = document.querySelector('.tab-panel[data-tab="overview"]')
 	if (
+		selectedDeviceId &&
 		overviewTab &&
 		overviewTab.classList.contains('active') &&
 		!xmlHistoryBusy &&
 		Date.now() - lastOverviewChartRefresh >=
 			historyRefreshInterval(document.getElementById('xml-history-range').value)
 	) {
-		updateOverviewCharts()
+		runRefreshJob('overview', updateOverviewCharts)
 	}
 	const snmpTab = document.querySelector('.tab-panel[data-tab="snmp-settings"]')
-	if (snmpTab && snmpTab.classList.contains('active')) updateSnmpLiveValues()
+	if (snmpTab && snmpTab.classList.contains('active')) runRefreshJob('snmp', updateSnmpLiveValues)
 	const controlTab = document.querySelector('.tab-panel[data-tab="device-control"]')
-	if (controlTab && controlTab.classList.contains('active')) loadDeviceControlStatus()
+	if (selectedDeviceId && controlTab && controlTab.classList.contains('active'))
+		runRefreshJob('control', loadDeviceControlStatus)
 	const warningsTab = document.querySelector('.tab-panel[data-tab="warnings"]')
-	if (warningsTab && warningsTab.classList.contains('active')) loadActiveAlarms()
+	if (selectedDeviceId && warningsTab && warningsTab.classList.contains('active'))
+		runRefreshJob('warnings', loadActiveAlarms)
 
 	const ntpTab = document.querySelector('.tab-panel[data-tab="ntp-settings"]')
-	if (ntpTab && ntpTab.classList.contains('active')) loadNtpStatus()
+	if (ntpTab && ntpTab.classList.contains('active')) runRefreshJob('ntp', loadNtpStatus)
 	const servicesTab = document.querySelector('.tab-panel[data-tab="service-diagnostics"]')
-	if (servicesTab && servicesTab.classList.contains('active')) loadServiceDiagnostics()
+	if (servicesTab && servicesTab.classList.contains('active'))
+		runRefreshJob('services', loadServiceDiagnostics)
 
 	const statisticsTab = document.querySelector('.tab-panel[data-tab="statistics"]')
 	if (
+		selectedDeviceId &&
 		statisticsTab &&
 		statisticsTab.classList.contains('active') &&
 		!xmlStatisticsBusy &&
 		Date.now() - lastStatisticsRefresh >=
 			historyRefreshInterval(document.getElementById('xml-statistics-range').value)
 	) {
-		updateStatisticsTable()
+		runRefreshJob('statistics', updateStatisticsTable)
 	}
 }, 3000)

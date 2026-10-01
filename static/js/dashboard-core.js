@@ -1,4 +1,4 @@
-// Shared state and helpers for the four XML devices.
+// Shared state and helpers for profiles discovered in status.xml.
 const navLinks = document.querySelectorAll('.nav-link')
 const tabPanels = document.querySelectorAll('.tab-panel')
 const currentTitle = document.getElementById('current-tab-title')

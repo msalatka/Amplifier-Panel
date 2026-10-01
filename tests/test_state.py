@@ -125,5 +125,42 @@ class StateSecurityTests(unittest.TestCase):
         )
 
 
+class RuntimeInventoryTests(unittest.TestCase):
+    def test_removed_profiles_release_live_and_alarm_state(self):
+        original_live = state.device_live
+        original_alarms = state.active_alarms
+        original_order = state.active_device_order
+        original_definitions = state.device_definitions
+        try:
+            state.device_live = {
+                "old": {"connected": True, "error": None, "last_update": None, "data": {}}
+            }
+            state.active_alarms = {"old:value:maximum": {"device_id": "old"}}
+            state.active_device_order = ["old"]
+            state.device_definitions = {"old": {"id": "old"}}
+
+            state.set_device_inventory(
+                [
+                    {
+                        "id": "new",
+                        "label": "New",
+                        "view_profile": "station",
+                        "display_group": "Other devices",
+                        "order": 1000,
+                        "snmp_index": None,
+                    }
+                ]
+            )
+
+            self.assertNotIn("old", state.device_live)
+            self.assertNotIn("old:value:maximum", state.active_alarms)
+            self.assertIn("new", state.device_live)
+        finally:
+            state.device_live = original_live
+            state.active_alarms = original_alarms
+            state.active_device_order = original_order
+            state.device_definitions = original_definitions
+
+
 if __name__ == "__main__":
     unittest.main()
