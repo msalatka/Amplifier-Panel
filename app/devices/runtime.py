@@ -42,8 +42,13 @@ def publish_snapshot(
         observed_at = observed_at.replace(tzinfo=datetime.timezone.utc)
     now = observed_at.astimezone(datetime.timezone.utc).isoformat()
     previous = state.snapshot_device_live(device_id)
+    history_snapshot = (
+        {"values": copy.deepcopy(snapshot["values"])}
+        if isinstance(snapshot.get("values"), dict)
+        else snapshot
+    )
     stored = (
-        database_service.write_device_snapshot(device_id, snapshot, now)
+        database_service.write_device_snapshot(device_id, history_snapshot, now)
         if previous["last_update"] != now
         else False
     )

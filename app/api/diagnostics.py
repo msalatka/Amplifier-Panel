@@ -261,6 +261,7 @@ def service_diagnostics(
         },
         "database": {
             **database_service.get_runtime_status(device),
+            "total_records": database_service.get_device_snapshot_count(),
             "file": config.DATABASE_FILE,
             "record_limit": settings["database_max_records"],
             "size_bytes": storage["size_bytes"],
@@ -268,8 +269,6 @@ def service_diagnostics(
             "discarded_records_since_start": storage["discarded_records_since_start"],
             "sample_rate_per_second": storage["sample_rate_per_second"],
             "estimated_retention_seconds": storage["estimated_retention_seconds"],
-            "estimated_seconds_to_limit": storage["estimated_seconds_to_limit"],
-            "estimated_seconds_until_disk_full": storage["estimated_seconds_until_disk_full"],
         },
         "syslog": {
             "local_enabled": config.SYSLOG_ENABLED,

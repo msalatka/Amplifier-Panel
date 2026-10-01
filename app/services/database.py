@@ -263,24 +263,15 @@ def get_storage_status(device_id: str = "") -> dict:
                         if recent["sample_count"] >= 2
                         else 0
                     )
-                    if span_seconds > 0:
+                    if recent["sample_count"] >= 10 and span_seconds >= 60:
                         sample_rate_per_second = (int(recent["sample_count"]) - 1) / span_seconds
             except sqlite3.Error as error:
                 _set_error("storage estimate", error)
 
     record_limit = max(0, int(state.service_settings["database_max_records"]))
-    records = get_device_snapshot_count(device_id)
     estimated_retention_seconds = None
-    estimated_seconds_to_limit = None
-    estimated_seconds_until_disk_full = None
     if record_limit and sample_rate_per_second:
         estimated_retention_seconds = record_limit / sample_rate_per_second
-        estimated_seconds_to_limit = max(0, record_limit - records) / sample_rate_per_second
-    if records > 0 and size_bytes > 0 and sample_rate_per_second:
-        estimated_bytes_per_record = size_bytes / records
-        estimated_seconds_until_disk_full = (
-            free_bytes / estimated_bytes_per_record / sample_rate_per_second
-        )
 
     return {
         "size_bytes": size_bytes,
@@ -288,8 +279,6 @@ def get_storage_status(device_id: str = "") -> dict:
         "discarded_records_since_start": discarded_records,
         "sample_rate_per_second": sample_rate_per_second,
         "estimated_retention_seconds": estimated_retention_seconds,
-        "estimated_seconds_to_limit": estimated_seconds_to_limit,
-        "estimated_seconds_until_disk_full": estimated_seconds_until_disk_full,
     }
 
 

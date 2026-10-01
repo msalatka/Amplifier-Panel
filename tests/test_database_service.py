@@ -139,6 +139,21 @@ class DatabaseServiceTests(unittest.TestCase):
         self.assertTrue(status["ready"])
         self.assertEqual(status["records"], 1)
 
+    def test_retention_estimate_waits_for_a_stable_sampling_window(self):
+        state.service_settings["database_max_records"] = 100
+        for second in range(10):
+            database_service.write_device_snapshot(
+                "local", {"sequence": second}, f"2026-07-17T10:00:{second:02d}+00:00"
+            )
+        self.assertIsNone(database_service.get_storage_status("local")["sample_rate_per_second"])
+
+        database_service.write_device_snapshot(
+            "local", {"sequence": 10}, "2026-07-17T10:01:00+00:00"
+        )
+        storage = database_service.get_storage_status("local")
+        self.assertAlmostEqual(storage["sample_rate_per_second"], 10 / 60)
+        self.assertAlmostEqual(storage["estimated_retention_seconds"], 600)
+
     def test_control_request_history_keeps_values_and_latest_state(self):
         self.assertTrue(
             database_service.record_control_request(

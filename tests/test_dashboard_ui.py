@@ -88,6 +88,25 @@ class DashboardUiTests(unittest.TestCase):
         self.assertNotIn("showModal()", script)
         self.assertIn("addEventListener('toggle'", script)
 
+    def test_history_does_not_show_technical_sampling_message(self):
+        script = (ROOT / "static" / "js" / "dashboard-xml.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertNotIn("displayed observations", script)
+        self.assertNotIn("CSV includes full history", script)
+        self.assertIn("No data in the selected range", script)
+
+    def test_storage_diagnostics_use_stable_non_countdown_labels(self):
+        template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn("Selected profile records", template)
+        self.assertIn("Total database records", template)
+        self.assertIn("Approximate retained time span", template)
+        self.assertIn("Record limit usage", template)
+        self.assertNotIn("Time until oldest data is removed", template)
+        self.assertNotIn("Estimated time until disk is full", template)
+
     def test_administration_has_complete_xml_mapping_editor(self):
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "static" / "js" / "dashboard-mapping.js").read_text(encoding="utf-8")

@@ -361,12 +361,7 @@ async function loadXmlHistory() {
 				),
 			)
 		})
-		setTextIfExists(
-			'xml-history-message',
-			points.length
-				? `${points.length} displayed observations; CSV includes full history`
-				: 'No observations in this range',
-		)
+		setTextIfExists('xml-history-message', points.length ? '' : 'No data in the selected range')
 		lastOverviewChartRefresh = Date.now()
 	} catch (error) {
 		setTextIfExists('xml-history-message', error.message)
