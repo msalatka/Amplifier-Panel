@@ -220,7 +220,15 @@ class CustomInstrum:
 def send_trap(error: dict) -> bool:
     """Send one warning as an SNMP trap when trap delivery is enabled."""
 
-    return asyncio.run(_async_send_trap(error))
+    global last_trap_error
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_async_send_trap(error))
+    last_trap_error = "SNMP trap dispatch requires a worker thread"
+    print(f"[SNMP TRAP ERROR]: {last_trap_error}")
+    return False
 
 
 async def _async_send_trap(error: dict):

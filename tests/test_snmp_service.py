@@ -189,5 +189,15 @@ class SnmpServiceTests(unittest.TestCase):
         self.assertAlmostEqual(time_ticks.call_args.args[0], 1234, delta=1)
 
 
+class AsyncSnmpServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_sync_trap_dispatch_does_not_nest_an_event_loop(self):
+        with mock.patch.object(snmp, "_async_send_trap", new=mock.AsyncMock()) as send:
+            sent = snmp.send_trap({"field": "test"})
+
+        self.assertFalse(sent)
+        self.assertEqual(snmp.last_trap_error, "SNMP trap dispatch requires a worker thread")
+        send.assert_not_awaited()
+
+
 if __name__ == "__main__":
     unittest.main()

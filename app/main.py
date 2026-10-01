@@ -51,6 +51,12 @@ async def syslog_heartbeat_loop() -> None:
         )
 
 
+async def initial_xml_poll() -> None:
+    """Run the blocking first XML poll outside Uvicorn's event loop."""
+
+    await asyncio.to_thread(poll_once)
+
+
 @contextlib.asynccontextmanager
 async def lifespan(_app: fastapi.FastAPI):
     """Start independent profile acquisition, SNMP, and heartbeat resources."""
@@ -59,7 +65,7 @@ async def lifespan(_app: fastapi.FastAPI):
     state.save_persisted_state()
     snmp_service.init_snmp()
     state.stop_event.clear()
-    poll_once()
+    await initial_xml_poll()
     worker = threading.Thread(target=xml_reader_loop, name="xml-reader", daemon=True)
     worker.start()
     syslog_service.send_lifecycle("started")

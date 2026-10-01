@@ -1,3 +1,10 @@
+amp-panel (0.2.1) unstable; urgency=medium
+
+  * Prevent an active startup alarm from nesting an asyncio event loop while
+    sending an SNMP trap.
+
+ -- Michał Surówka <msurowka@student.agh.edu.pl>  Thu, 01 Oct 2026 12:30:00 +0200
+
 amp-panel (0.2.0) unstable; urgency=medium
 
   * Initial pre-release of the optical equipment control panel.
